@@ -1,0 +1,134 @@
+description = 'SDL3 provider preparation for libJGLIOS.'
+
+import java.security.MessageDigest
+
+ext {
+    sdl3Version = rootProject.findProperty('sdl3Version') ?: '3.4.0'
+    sdl3Url = rootProject.findProperty('sdl3Url') ?: "https://github.com/libsdl-org/SDL/releases/download/release-${sdl3Version}/SDL3-${sdl3Version}.dmg"
+    sdl3Sha256 = rootProject.findProperty('sdl3Sha256') ?: ''
+    sdl3Dmg = layout.buildDirectory.file("downloads/SDL3-${sdl3Version}.dmg")
+    sdl3VendorDir = rootProject.layout.buildDirectory.dir('libjglios/third_party/sdl3').get()
+}
+
+tasks.register('downloadSDL3') {
+    group = 'libJGLIOS setup'
+    description = 'Downloads SDL3 DMG from the configured URL.'
+    outputs.file(sdl3Dmg)
+    doLast {
+        def out = sdl3Dmg.get().asFile
+        out.parentFile.mkdirs()
+        if (out.exists()) {
+            println "Already downloaded: ${out}"
+            return
+        }
+        println "Downloading ${sdl3Url}"
+        new URL(sdl3Url).withInputStream { input ->
+            out.withOutputStream { output -> output << input }
+        }
+        println "Downloaded: ${out}"
+    }
+}
+
+tasks.register('verifySDL3') {
+    group = 'libJGLIOS setup'
+    description = 'Verifies SDL3 DMG SHA-256 if configured.'
+    dependsOn 'downloadSDL3'
+    inputs.file(sdl3Dmg)
+    doLast {
+        if (!sdl3Sha256) {
+            println 'No sdl3Sha256 configured; skipping verification.'
+            return
+        }
+        def file = sdl3Dmg.get().asFile
+        def digest = MessageDigest.getInstance('SHA-256')
+        file.withInputStream { is ->
+            byte[] buffer = new byte[8192]
+            int n
+            while ((n = is.read(buffer)) > 0) {
+                digest.update(buffer, 0, n)
+            }
+        }
+        def actual = digest.digest().collect { String.format('%02x', it) }.join()
+        if (!actual.equalsIgnoreCase(sdl3Sha256)) {
+            throw new GradleException("SDL3 checksum mismatch. Expected ${sdl3Sha256}, got ${actual}")
+        }
+        println "Verified SDL3 SHA-256: ${actual}"
+    }
+}
+
+tasks.register('prepareSDL3') {
+    group = 'libJGLIOS setup'
+    description = 'Downloads, verifies, mounts, and normalizes SDL3 for libJGLIOS.'
+    dependsOn 'verifySDL3'
+    outputs.dir(sdl3VendorDir)
+    doLast {
+        def vendor = sdl3VendorDir.asFile
+        def existingSimulator = new File(vendor, 'SDL3.xcframework/ios-arm64_x86_64-simulator/SDL3.framework')
+        def existingDevice = new File(vendor, 'SDL3.xcframework/ios-arm64/SDL3.framework')
+        def existingHeader = new File(vendor, 'include/SDL3/SDL.h')
+        if (existingSimulator.exists() && existingDevice.exists() && existingHeader.exists()) {
+            println "SDL3 already prepared in ${vendor}"
+            return
+        }
+
+        if (!System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('mac')) {
+            throw new GradleException('Preparing SDL3 from the official DMG requires macOS hdiutil.')
+        }
+
+        def attachOutput = providers.exec {
+            commandLine 'hdiutil', 'attach', sdl3Dmg.get().asFile.absolutePath, '-nobrowse', '-readonly'
+        }
+        attachOutput.result.get()
+        def output = attachOutput.standardOutput.asText.get()
+
+        def mount = null
+        try {
+            output.eachLine { line ->
+                def tab = line.lastIndexOf('\t')
+                if (tab >= 0) {
+                    def candidate = line.substring(tab + 1).trim()
+                    if (candidate.startsWith('/Volumes/')) {
+                        mount = candidate
+                    }
+                }
+            }
+            if (mount == null) {
+                throw new GradleException("Could not determine SDL3 DMG mount point from hdiutil output:\n${output}")
+            }
+
+            def mountedRoot = new File(mount)
+            def xcframework = new File(mountedRoot, 'SDL3.xcframework')
+            def headers = new File(xcframework, 'ios-arm64_x86_64-simulator/SDL3.framework/Headers')
+            if (!xcframework.exists() || !headers.exists()) {
+                throw new GradleException("SDL3 DMG did not contain expected xcframework/header layout under ${mountedRoot}")
+            }
+
+            delete vendor
+            copy {
+                from xcframework
+                into new File(vendor, 'SDL3.xcframework')
+            }
+            copy {
+                from headers
+                into new File(vendor, 'include/SDL3')
+            }
+            ['README.md', 'INSTALL.md', 'LICENSE.txt'].each { name ->
+                def source = new File(mountedRoot, name)
+                if (source.exists()) {
+                    copy {
+                        from source
+                        into vendor
+                    }
+                }
+            }
+
+            println "Prepared SDL3 in ${vendor}"
+        } finally {
+            if (mount != null) {
+                providers.exec {
+                    commandLine 'hdiutil', 'detach', mount
+                }.result.get()
+            }
+        }
+    }
+}

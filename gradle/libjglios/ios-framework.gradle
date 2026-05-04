@@ -1,0 +1,219 @@
+import groovy.json.JsonOutput
+
+import java.util.Locale
+
+ext.libJGLIOSIosMinVersion = {
+    (rootProject.findProperty('libJGLIOSMinIosVersion') ?: rootProject.findProperty('libjglios.minIosVersion') ?: '15.0').toString()
+}
+
+ext.libJGLIOSXcrun = { List<String> argsList ->
+    def command = ['xcrun'] + argsList
+    def stdout = new ByteArrayOutputStream()
+    def stderr = new ByteArrayOutputStream()
+    def process = new ProcessBuilder(command)
+        .directory(project.projectDir)
+        .redirectErrorStream(false)
+        .start()
+    process.inputStream.transferTo(stdout)
+    process.errorStream.transferTo(stderr)
+    def exitValue = process.waitFor()
+    if (exitValue != 0) {
+        throw new GradleException("Command failed (${exitValue}): ${command.join(' ')}\n${stderr.toString('UTF-8')}")
+    }
+    stdout.toString('UTF-8').trim()
+}
+
+ext.libJGLIOSRunCommand = { List<String> argsList, File workingDir = project.projectDir ->
+    println argsList.join(' ')
+    def process = new ProcessBuilder(argsList)
+        .directory(workingDir)
+        .redirectErrorStream(false)
+        .start()
+    process.inputStream.transferTo(System.out)
+    process.errorStream.transferTo(System.err)
+    def exitValue = process.waitFor()
+    if (exitValue != 0) {
+        throw new GradleException("Command failed (${exitValue}): ${argsList.join(' ')}")
+    }
+}
+
+ext.libJGLIOSWriteFrameworkInfoPlist = { File plistFile, String frameworkName, String bundleId, String minIosVersion ->
+    plistFile.parentFile.mkdirs()
+    plistFile.text = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>${frameworkName}</string>
+    <key>CFBundleIdentifier</key>
+    <string>${bundleId}</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>${frameworkName}</string>
+    <key>CFBundlePackageType</key>
+    <string>FMWK</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${project.version}</string>
+    <key>CFBundleVersion</key>
+    <string>${project.version}</string>
+    <key>MinimumOSVersion</key>
+    <string>${minIosVersion}</string>
+</dict>
+</plist>
+"""
+}
+
+ext.libJGLIOSEvaluateFiles = { Object values ->
+    if (values == null) {
+        return []
+    }
+    def list = values instanceof Iterable ? values : [values]
+    list.collect { value ->
+        def resolved = value
+        if (resolved instanceof Closure) {
+            resolved = resolved.call()
+        }
+        if (resolved != null && resolved.respondsTo('get')) {
+            resolved = resolved.get()
+        }
+        if (resolved != null && resolved.hasProperty('asFile')) {
+            resolved = resolved.asFile
+        }
+        resolved instanceof File ? resolved : file(resolved)
+    }
+}
+
+ext.libJGLIOSRegisterFrameworkResources = { TaskProvider frameworkTask, Provider frameworkDir, Provider metadataFile ->
+    tasks.named('processResources') {
+        dependsOn frameworkTask
+        from(frameworkDir) {
+            into "lib/ios/${frameworkDir.get().asFile.name}"
+        }
+        from(metadataFile) {
+            into 'lib/ios'
+        }
+    }
+}
+
+ext.libJGLIOSStaticIosFramework = { Map config ->
+    def frameworkName = config.frameworkName.toString()
+    def taskName = (config.taskName ?: "build${frameworkName}Xcframework").toString()
+    def buildRoot = layout.buildDirectory.dir("native/ios-frameworks/${frameworkName}")
+    def xcframeworkDir = buildRoot.map { it.dir("${frameworkName}.xcframework") }
+    def metadataFile = buildRoot.map { it.file("${frameworkName}.xcframework.json") }
+    def metadata = [
+        name: frameworkName,
+        embed: false,
+        forceLoad: true
+    ] + (config.metadata ?: [:])
+
+    def frameworkTask = tasks.register(taskName) {
+        group = 'build'
+        description = "Builds the ${frameworkName} static iOS xcframework."
+        dependsOn(config.dependsOn ?: [])
+        inputs.files(config.sources ?: [])
+        inputs.files(config.headers ?: [])
+        outputs.dir(xcframeworkDir)
+        outputs.file(metadataFile)
+
+        doLast {
+            def minIosVersion = project.ext.libJGLIOSIosMinVersion()
+            def javaHome = (System.getenv('JAVA_HOME') ?: System.getProperty('java.home'))
+            def commonIncludes = [
+                new File(javaHome, 'include'),
+                new File(javaHome, 'include/darwin')
+            ]
+            commonIncludes.addAll(project.ext.libJGLIOSEvaluateFiles(config.includes ?: []))
+            def sources = project.ext.libJGLIOSEvaluateFiles(config.sources ?: [])
+            if (sources.isEmpty()) {
+                throw new GradleException("${frameworkName} has no native sources configured")
+            }
+            sources.each { source ->
+                if (!source.isFile()) {
+                    throw new GradleException("Missing native source for ${frameworkName}: ${source}")
+                }
+            }
+            commonIncludes.each { includeDir ->
+                if (!includeDir.isDirectory()) {
+                    throw new GradleException("Missing include directory for ${frameworkName}: ${includeDir}")
+                }
+            }
+
+            def root = buildRoot.get().asFile
+            delete root
+            root.mkdirs()
+
+            def buildSlice = { String sdk, String target, String sliceName ->
+                def sdkPath = project.ext.libJGLIOSXcrun(['--sdk', sdk, '--show-sdk-path'])
+                def clangPath = project.ext.libJGLIOSXcrun(['--sdk', sdk, '--find', 'clang++'])
+                def sliceDir = new File(root, sliceName)
+                def objectDir = new File(sliceDir, 'objects')
+                def frameworkDir = new File(sliceDir, "${frameworkName}.framework")
+                def headersDir = new File(frameworkDir, 'Headers')
+                objectDir.mkdirs()
+                headersDir.mkdirs()
+                copy {
+                    from(config.publicHeaders ?: [])
+                    into headersDir
+                }
+
+                def objects = []
+                sources.eachWithIndex { source, index ->
+                    def objectFile = new File(objectDir, "${index}-${source.name}.o")
+                    def args = [
+                        clangPath,
+                        '-target', target,
+                        '-isysroot', sdkPath,
+                        '-std=c++17',
+                        '-ObjC++',
+                        '-fobjc-arc',
+                        '-fvisibility=hidden',
+                        '-DGL_GLEXT_PROTOTYPES=1',
+                        '-DEGL_EGLEXT_PROTOTYPES=1'
+                    ]
+                    commonIncludes.each { includeDir ->
+                        args.addAll(['-I', includeDir.absolutePath])
+                    }
+                    project.ext.libJGLIOSEvaluateFiles(config.frameworkSearchPaths ?: []).each { frameworkPath ->
+                        args.addAll(['-F', frameworkPath.absolutePath])
+                    }
+                    args.addAll(['-c', source.absolutePath, '-o', objectFile.absolutePath])
+                    project.ext.libJGLIOSRunCommand(args)
+                    objects << objectFile
+                }
+
+                def binaryFile = new File(frameworkDir, frameworkName)
+                def libtoolPath = project.ext.libJGLIOSXcrun(['--sdk', sdk, '--find', 'libtool'])
+                project.ext.libJGLIOSRunCommand([libtoolPath, '-static', '-o', binaryFile.absolutePath] + objects.collect { it.absolutePath })
+                project.ext.libJGLIOSWriteFrameworkInfoPlist(
+                    new File(frameworkDir, 'Info.plist'),
+                    frameworkName,
+                    "org.ngengine.libjglios.${frameworkName.toLowerCase(Locale.ROOT)}",
+                    minIosVersion
+                )
+                frameworkDir
+            }
+
+            def deviceFramework = buildSlice('iphoneos', "arm64-apple-ios${minIosVersion}", 'ios-arm64')
+            def simulatorFramework = buildSlice('iphonesimulator', "arm64-apple-ios${minIosVersion}-simulator", 'ios-arm64-simulator')
+            delete xcframeworkDir.get().asFile
+            project.ext.libJGLIOSRunCommand([
+                'xcodebuild',
+                '-create-xcframework',
+                '-framework', deviceFramework.absolutePath,
+                '-framework', simulatorFramework.absolutePath,
+                '-output', xcframeworkDir.get().asFile.absolutePath
+            ])
+
+            def metadataOut = metadataFile.get().asFile
+            metadataOut.parentFile.mkdirs()
+            metadataOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(metadata)) + System.lineSeparator()
+        }
+    }
+
+    project.ext.libJGLIOSRegisterFrameworkResources(frameworkTask, xcframeworkDir, metadataFile)
+    [task: frameworkTask, xcframeworkDir: xcframeworkDir, metadataFile: metadataFile]
+}

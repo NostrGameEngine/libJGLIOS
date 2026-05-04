@@ -1,0 +1,54 @@
+plugins {
+    id 'groovy'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+description = 'Gradle plugin that prepares libJGLIOS artifacts and builds iOS apps.'
+
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+    testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.ext.junitVersion}"
+}
+
+tasks.named('processResources') {
+    into('org/ngengine/libjglios/gradle/native') {
+        from(rootProject.file('core-ios/src/main/native')) {
+            include 'libjglios_ios_app.mm'
+            include 'libjglios_ios_launcher.mm'
+            include 'libjglios_ios_launcher_jni.mm'
+            include 'libjglios_ios_launcher.h'
+        }
+        from(rootProject.file('gles-ios/src/main/native')) {
+            include 'jni_gles.mm'
+            include 'jni_gles_compat.mm'
+        }
+        from(rootProject.file('sdl3-ios/src/main/native')) {
+            include 'jni_sdl3.mm'
+        }
+        from(rootProject.file('openal-ios/src/main/native')) {
+            include 'jni_openal_ios.mm'
+        }
+    }
+}
+
+gradlePlugin {
+    plugins {
+        libJGLIOS {
+            id = 'org.ngengine.libjglios'
+            implementationClass = 'org.ngengine.libjglios.gradle.LibJGLIOSGradlePlugin'
+            displayName = 'libJGLIOS Gradle Plugin'
+            description = 'Builds Graal Native Image usercode and iOS simulator/device apps for libJGLIOS.'
+        }
+    }
+}
+
+publishing {
+    publications.withType(MavenPublication).configureEach {
+        groupId = 'org.ngengine'
+    }
+}
+
+apply from: file('src/main/resources/org/ngengine/libjglios/gradle/graal-host-provider.gradle')
+apply from: file('src/main/resources/org/ngengine/libjglios/gradle/graal-ios-provider.gradle')

@@ -1,0 +1,41 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'iOS-only binding for SDL3 used by libJGLIOS.'
+
+apply from: file('sdl-provider.gradle')
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+
+tasks.register('prepareSDL3IosFrameworks') {
+    group = 'build'
+    description = 'Prepares SDL3 xcframeworks for publication in the sdl3-ios jar.'
+    dependsOn 'prepareSDL3'
+    inputs.dir { sdl3VendorDir.asFile }
+    outputs.dir { sdl3VendorDir.asFile }
+    doLast {
+        def dynamicFramework = new File(sdl3VendorDir.asFile, 'SDL3.xcframework')
+        def headers = new File(sdl3VendorDir.asFile, 'include/SDL3/SDL.h')
+        if (!dynamicFramework.isDirectory()) {
+            throw new GradleException("Missing SDL3 framework: ${dynamicFramework}")
+        }
+        if (!headers.isFile()) {
+            throw new GradleException("Missing SDL3 headers: ${headers}")
+        }
+    }
+}
+
+tasks.named('processResources') {
+    dependsOn 'prepareSDL3IosFrameworks'
+    from({ new File(sdl3VendorDir.asFile, 'SDL3.xcframework') }) {
+        into 'lib/ios/SDL3.xcframework'
+    }
+}
+
+libJGLIOSStaticIosFramework(
+    frameworkName: 'libJGLIOSSdl3',
+    taskName: 'buildLibJGLIOSSdl3Xcframework',
+    dependsOn: ['prepareSDL3'],
+    sources: [file('src/main/native/jni_sdl3.mm')],
+    includes: [{ new File(sdl3VendorDir.asFile, 'include') }]
+)

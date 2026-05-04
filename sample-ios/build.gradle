@@ -1,0 +1,15 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'iOS-only Graal sample for libJGLIOS. The simulator app is built through the libJGLIOS plugin task script.'
+
+dependencies {
+    implementation project(':core-ios')
+    implementation project(':sdl3-ios')
+    implementation project(':angle-ios')
+    implementation project(':gles-ios')
+    implementation project(':openal-ios')
+}
+
+apply from: rootProject.file('libjglios-gradle-plugin/src/main/resources/org/ngengine/libjglios/gradle/ios-tasks.gradle')

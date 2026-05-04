@@ -1,0 +1,37 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'ObjC++ iOS launcher connecting SDL3 Metal layer to ANGLE/EGL.'
+
+dependencies {
+    api project(':gles-ios')
+}
+
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+
+def angleProject = project(':angle-ios')
+def thirdPartyDir = rootProject.layout.buildDirectory.dir('libjglios/third_party')
+def angleDir = angleProject.layout.buildDirectory.dir('libjglios/angle-ios')
+def sdl3Dir = thirdPartyDir.map { it.dir('sdl3') }
+
+libJGLIOSStaticIosFramework(
+    frameworkName: 'libJGLIOSCore',
+    taskName: 'buildLibJGLIOSCoreXcframework',
+    dependsOn: [
+        ':angle-ios:prepareANGLEIosFrameworks',
+        ':sdl3-ios:prepareSDL3IosFrameworks'
+    ],
+    sources: [
+        file('src/main/native/libjglios_ios_app.mm'),
+        file('src/main/native/libjglios_ios_launcher.mm'),
+        file('src/main/native/libjglios_ios_launcher_jni.mm')
+    ],
+    headers: [file('src/main/native/libjglios_ios_launcher.h')],
+    publicHeaders: [file('src/main/native/libjglios_ios_launcher.h')],
+    includes: [
+        file('src/main/native'),
+        { sdl3Dir.get().dir('include').asFile },
+        { angleDir.get().dir('include').asFile }
+    ]
+)

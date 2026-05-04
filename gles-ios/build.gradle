@@ -1,0 +1,20 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'iOS-only bindings for EGL and OpenGL ES used by libJGLIOS.'
+
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+
+def angleVendorDir = project(':angle-ios').layout.buildDirectory.dir('libjglios/angle-ios')
+
+libJGLIOSStaticIosFramework(
+    frameworkName: 'libJGLIOSGLES',
+    taskName: 'buildLibJGLIOSGLESXcframework',
+    dependsOn: [':angle-ios:prepareANGLEIosFrameworks'],
+    sources: [
+        file('src/main/native/jni_gles.mm'),
+        file('src/main/native/jni_gles_compat.mm')
+    ],
+    includes: [{ angleVendorDir.get().dir('include').asFile }]
+)

@@ -1,0 +1,201 @@
+
+description = 'Downloads and normalizes the host Liberica Native Image Kit used for Graal iOS builds.'
+
+import java.security.MessageDigest
+
+ext {
+    libericaNikVersion = rootProject.findProperty('libericaNikVersion') ?: '23.1.3'
+    libericaNikJavaVersion = rootProject.findProperty('libericaNikJavaVersion') ?: '21.0.3+10'
+    libericaNikUrl = rootProject.findProperty('libericaNikUrl') ?: "https://download.bell-sw.com/vm/${libericaNikVersion}/bellsoft-liberica-vm-openjdk${libericaNikJavaVersion}-${libericaNikVersion}+1-macos-aarch64.zip"
+    libericaNikSha256 = rootProject.findProperty('libericaNikSha256') ?: ''
+    iosGraalHostHome = rootProject.findProperty('iosGraalHostHome') ?: ''
+    hostRoot = rootProject.layout.buildDirectory.dir('libjglios/third_party/graalvm-host/liberica-nik-23.1.3-macos-aarch64').get()
+    graalHomeMarker = hostRoot.file('GRAAL_HOME.txt')
+    zipProvider = layout.buildDirectory.file('downloads/liberica-nik-23.1.3-macos-aarch64.zip')
+    extractDir = layout.buildDirectory.dir('extracted/liberica-nik-23.1.3-macos-aarch64')
+}
+
+static String sha256Of(File file) {
+    def digest = MessageDigest.getInstance('SHA-256')
+    file.withInputStream { is ->
+        byte[] buffer = new byte[1024 * 1024]
+        int n
+        while ((n = is.read(buffer)) > 0) {
+            digest.update(buffer, 0, n)
+        }
+    }
+    return digest.digest().collect { String.format('%02x', it) }.join()
+}
+
+static File findCanonicalGraalHome(File searchRoot) {
+    File nativeImage = null
+    searchRoot.eachFileRecurse { file ->
+        if (nativeImage == null && file.isFile() && file.name == 'native-image' && file.parentFile?.name == 'bin') {
+            nativeImage = file
+        }
+    }
+    if (nativeImage == null) {
+        return null
+    }
+    def home = nativeImage.parentFile.parentFile
+    if (home.name == 'Home' && home.parentFile?.name == 'Contents') {
+        return home
+    }
+    return home
+}
+
+static String captureCommand(List<String> command) {
+    def process = new ProcessBuilder(command)
+        .redirectErrorStream(true)
+        .start()
+    def output = process.inputStream.getText('UTF-8')
+    int exitCode = process.waitFor()
+    if (exitCode != 0) {
+        throw new GradleException("Command failed (${command.join(' ')}):\n${output}")
+    }
+    return output.trim()
+}
+
+static File resolveNativeImageBinary(File graalHome) {
+    def binLauncher = new File(graalHome, 'bin/native-image')
+    def svmBinary = new File(graalHome, 'lib/svm/bin/native-image')
+    if (binLauncher.exists()) {
+        def launcherText = binLauncher.isFile() ? binLauncher.text : ''
+        if (launcherText.startsWith('#!') || !svmBinary.exists()) {
+            return binLauncher
+        }
+    }
+    return svmBinary.exists() ? svmBinary : binLauncher
+}
+
+tasks.register('downloadGraalHostNik') {
+    group = 'libJGLIOS setup'
+    description = 'Downloads the BellSoft Liberica Native Image Kit host archive.'
+    outputs.file(zipProvider)
+    onlyIf { !iosGraalHostHome }
+    doLast {
+        def out = zipProvider.get().asFile
+        out.parentFile.mkdirs()
+        if (out.exists()) {
+            println "Already downloaded: ${out}"
+            return
+        }
+        try {
+            println "Downloading ${libericaNikUrl}"
+            def process = new ProcessBuilder('curl', '-fL', '-o', out.absolutePath, libericaNikUrl as String)
+                .redirectErrorStream(true)
+                .start()
+            def output = process.inputStream.getText('UTF-8')
+            int exitCode = process.waitFor()
+            if (exitCode != 0) {
+                throw new GradleException("curl failed with exit code ${exitCode}:\n${output}")
+            }
+            println "Downloaded: ${out} (${out.length()} bytes)"
+        } catch (Exception ex) {
+            throw new GradleException('Could not download Liberica NIK 23.1.3. Set -PlibericaNikUrl=... or -PiosGraalVmHome=...', ex)
+        }
+    }
+}
+
+tasks.register('verifyGraalHostNik') {
+    group = 'verification'
+    description = 'Verifies the BellSoft Liberica NIK checksum if configured.'
+    dependsOn 'downloadGraalHostNik'
+    onlyIf { !iosGraalHostHome }
+    inputs.file(zipProvider)
+    doLast {
+        if (!libericaNikSha256) {
+            logger.warn('No SHA-256 configured for Liberica NIK; continuing without checksum verification.')
+            return
+        }
+        def actual = sha256Of(zipProvider.get().asFile)
+        if (!actual.equalsIgnoreCase(libericaNikSha256 as String)) {
+            throw new GradleException("Checksum mismatch for Liberica NIK. Expected ${libericaNikSha256}, got ${actual}")
+        }
+        println "Verified Liberica NIK SHA-256: ${actual}"
+    }
+}
+
+tasks.register('extractGraalHostNik', Copy) {
+    group = 'libJGLIOS setup'
+    description = 'Extracts the BellSoft Liberica NIK archive.'
+    dependsOn 'verifyGraalHostNik'
+    onlyIf { !iosGraalHostHome }
+    doFirst {
+        delete extractDir.get().asFile
+    }
+    from { zipTree(zipProvider.get().asFile) }
+    into extractDir
+}
+
+tasks.register('prepareGraalHostNik') {
+    group = 'libJGLIOS setup'
+    description = 'Normalizes the host Liberica NIK layout under build/libjglios/third_party/graalvm-host.'
+    dependsOn 'extractGraalHostNik'
+    outputs.dir(hostRoot)
+    doLast {
+        def normalized = hostRoot.asFile
+        delete normalized
+        normalized.mkdirs()
+
+        File canonicalHome
+        if (iosGraalHostHome) {
+            def overrideHome = new File(iosGraalHostHome as String)
+            canonicalHome = findCanonicalGraalHome(overrideHome) ?: overrideHome
+        } else {
+            canonicalHome = findCanonicalGraalHome(extractDir.get().asFile)
+        }
+
+        if (canonicalHome == null) {
+            throw new GradleException('Could not locate bin/native-image in the Liberica NIK distribution or iosGraalHostHome override.')
+        }
+        if (!new File(canonicalHome, 'bin/native-image').exists()) {
+            throw new GradleException("Resolved Graal home does not contain bin/native-image: ${canonicalHome}")
+        }
+
+        copy {
+            from canonicalHome
+            into normalized
+        }
+
+        new File(normalized, 'GRAAL_HOME.txt').text = normalized.absolutePath + System.lineSeparator()
+        println "Prepared Liberica NIK host home: ${normalized}"
+    }
+}
+
+tasks.register('verifyPreparedGraalHostNik') {
+    group = 'verification'
+    description = 'Verifies the prepared Liberica NIK host installation.'
+    dependsOn 'prepareGraalHostNik'
+    doLast {
+        def graalHome = hostRoot.asFile
+        def nativeImage = resolveNativeImageBinary(graalHome)
+        def javaBinary = new File(graalHome, 'bin/java')
+        if (!nativeImage.exists()) {
+            throw new GradleException("Missing native-image in prepared host Graal home: ${nativeImage}")
+        }
+        if (!javaBinary.exists()) {
+            throw new GradleException("Missing java in prepared host Graal home: ${javaBinary}")
+        }
+
+        def nativeImageVersion = captureCommand([nativeImage.absolutePath, '--version'])
+        def javaVersion = captureCommand([javaBinary.absolutePath, '--version'])
+
+        def versionText = nativeImageVersion + '\n' + javaVersion
+        if (!versionText.contains('23.1.3') && !versionText.contains('Native Image Kit 23.1.3')) {
+            throw new GradleException("Prepared Liberica NIK does not look like 23.1.3. Output was:\n${versionText}")
+        }
+
+        println "native-image --version:\n${nativeImageVersion}"
+        println "java --version:\n${javaVersion}"
+
+        def clibrariesDir = [
+            new File(graalHome, 'lib/svm/clibraries'),
+            new File(graalHome, 'clibraries')
+        ].find { it.exists() }
+        def clibraries = clibrariesDir ? ((clibrariesDir.list() ?: []) as List).sort() : []
+        println "clibraries directory: ${clibrariesDir ?: '(not present)'}"
+        println "clibraries contents: ${clibraries}"
+        println "Verified prepared Liberica NIK host home: ${graalHome}"
+    }
+}

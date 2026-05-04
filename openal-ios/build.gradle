@@ -1,0 +1,16 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'iOS-only OpenAL bindings used by libJGLIOS.'
+
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+
+libJGLIOSStaticIosFramework(
+    frameworkName: 'libJGLIOSOpenAL',
+    taskName: 'buildLibJGLIOSOpenALXcframework',
+    sources: [file('src/main/native/jni_openal_ios.mm')],
+    metadata: [
+        systemFrameworks: ['OpenAL']
+    ]
+)

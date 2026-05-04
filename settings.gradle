@@ -1,0 +1,26 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'libjglios'
+
+include ':sdl3-ios'
+include ':gles-ios'
+include ':openal-ios'
+include ':angle-ios'
+include ':core-ios'
+include ':libjglios-gradle-plugin'
+include ':sample-ios'

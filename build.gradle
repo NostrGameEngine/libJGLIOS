@@ -1,0 +1,153 @@
+plugins {
+    id 'base'
+    id 'maven-publish'
+    id 'signing'
+}
+
+ext {
+    junitVersion = findProperty('junitVersion') ?: '5.11.4'
+    libJGLIOSVersion = findProperty('libJGLIOSVersion') ?: '0.1.0-SNAPSHOT'
+    publishingUsername = findProperty('mavenCentralUsername') ?: System.getenv('MAVEN_CENTRAL_USERNAME')
+    publishingPassword = findProperty('mavenCentralPassword') ?: System.getenv('MAVEN_CENTRAL_PASSWORD')
+    signingKey = findProperty('signingKey') ?: System.getenv('SIGNING_KEY')
+    signingPassword = findProperty('signingPassword') ?: System.getenv('SIGNING_PASSWORD')
+}
+
+allprojects {
+    group = 'org.ngengine.libjglios'
+    version = rootProject.ext.libJGLIOSVersion
+}
+
+subprojects { sub ->
+    def sampleProject = sub.path == ':sample-ios'
+    def pluginProject = sub.path == ':libjglios-gradle-plugin'
+    def publishableProject = !sampleProject
+    def javaComponentPublicationProject = publishableProject && !pluginProject
+
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+
+    java {
+        withSourcesJar()
+        if (publishableProject) {
+            withJavadocJar()
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-Xlint:unchecked', '-Xlint:deprecation', '-Xlint:-options']
+        if (!pluginProject && !sampleProject) {
+            options.release = 8
+        }
+    }
+
+    tasks.withType(Javadoc).configureEach {
+        options.addBooleanOption('Xdoclint:none', true)
+        options.addBooleanOption('quiet', true)
+    }
+
+    dependencies {
+        testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.ext.junitVersion}"
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+
+    if (publishableProject) {
+        publishing {
+            if (javaComponentPublicationProject) {
+                publications {
+                    mavenJava(MavenPublication) {
+                        from components.java
+                        groupId = 'org.ngengine'
+                        artifactId = "libjglios-${sub.name.replace(':', '-')}"
+                    }
+                }
+            }
+
+            publications.withType(MavenPublication).configureEach {
+                pom {
+                    name = "${findProperty('libJGLIOSPomName') ?: 'libJGLIOS'} ${sub.name}"
+                    description = findProperty('libJGLIOSPomDescription') ?: 'iOS SDL3, OpenAL, EGL/GLES, ANGLE/Metal, and Graal Native Image launcher bindings.'
+                    url = findProperty('libJGLIOSPomUrl') ?: 'https://git.rblb.it/rblb/libGLIOS'
+                    licenses {
+                        license {
+                            name = findProperty('libJGLIOSLicenseName') ?: 'The Apache License, Version 2.0'
+                            url = findProperty('libJGLIOSLicenseUrl') ?: 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = findProperty('libJGLIOSDeveloperId') ?: 'rblb'
+                            name = findProperty('libJGLIOSDeveloperName') ?: 'rblb'
+                        }
+                    }
+                    scm {
+                        connection = findProperty('libJGLIOSScmConnection') ?: 'scm:git:ssh://git@git.rblb.it:222/rblb/libGLIOS.git'
+                        developerConnection = findProperty('libJGLIOSScmConnection') ?: 'scm:git:ssh://git@git.rblb.it:222/rblb/libGLIOS.git'
+                        url = findProperty('libJGLIOSPomUrl') ?: 'https://git.rblb.it/rblb/libGLIOS'
+                    }
+                }
+            }
+
+            repositories {
+                maven {
+                    name = 'SonatypeSnapshots'
+                    url = uri(findProperty('mavenCentralSnapshotsUrl') ?: 'https://central.sonatype.com/repository/maven-snapshots/')
+                    credentials {
+                        username = rootProject.ext.publishingUsername
+                        password = rootProject.ext.publishingPassword
+                    }
+                    mavenContent {
+                        snapshotsOnly()
+                    }
+                }
+                maven {
+                    name = 'MavenCentral'
+                    url = uri(findProperty('mavenCentralReleaseUrl') ?: 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
+                    credentials {
+                        username = rootProject.ext.publishingUsername
+                        password = rootProject.ext.publishingPassword
+                    }
+                    mavenContent {
+                        releasesOnly()
+                    }
+                }
+            }
+        }
+
+        signing {
+            required = {
+                gradle.taskGraph.allTasks.any { task ->
+                    task.name.toLowerCase().contains('mavencentral')
+                }
+            }
+            if (rootProject.ext.signingKey) {
+                useInMemoryPgpKeys(rootProject.ext.signingKey, rootProject.ext.signingPassword)
+            }
+            sign publishing.publications
+        }
+    }
+}
+
+tasks.register('publishAllPublicationsToSonatypeSnapshotsRepository') {
+    group = 'publishing'
+    description = 'Publishes all publishable artifacts to the Central Portal snapshots repository.'
+    dependsOn(provider {
+        subprojects.findAll { it.path != ':sample-ios' }
+            .collect { it.tasks.named('publishAllPublicationsToSonatypeSnapshotsRepository') }
+    })
+}
+
+tasks.register('publishAllPublicationsToMavenCentralRepository') {
+    group = 'publishing'
+    description = 'Publishes all publishable artifacts to Maven Central through the Central Portal OSSRH staging API.'
+    dependsOn(provider {
+        subprojects.findAll { it.path != ':sample-ios' }
+            .collect { it.tasks.named('publishAllPublicationsToMavenCentralRepository') }
+    })
+}

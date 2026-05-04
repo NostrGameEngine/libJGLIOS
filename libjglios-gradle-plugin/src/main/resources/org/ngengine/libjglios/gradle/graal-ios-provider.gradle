@@ -1,0 +1,176 @@
+
+description = 'Downloads and normalizes ios-graal-jdk-21 runtime artifacts for libJGLIOS.'
+
+import java.security.MessageDigest
+
+ext {
+    iosGraalJdkVersion = rootProject.findProperty('iosGraalJdkVersion') ?: '0.1'
+
+    graalTargets = [
+        [
+            name: 'iphoneos-arm64',
+            url: rootProject.findProperty('iosGraalJdkIphoneOsArm64Url') ?: "https://github.com/NostrGameEngine/ios-graal-jdk-21/releases/download/${iosGraalJdkVersion}/ios-graal-jdk-21-iphoneos-arm64.zip",
+            sha256: rootProject.findProperty('iosGraalJdkIphoneOsArm64Sha256') ?: '',
+            sdk: 'iphoneos'
+        ],
+        [
+            name: 'iphonesimulator-arm64',
+            url: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Url') ?: "https://github.com/NostrGameEngine/ios-graal-jdk-21/releases/download/${iosGraalJdkVersion}/ios-graal-jdk-21-iphonesimulator-arm64.zip",
+            sha256: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Sha256') ?: '',
+            sdk: 'iphonesimulator'
+        ]
+    ]
+
+    vendorRoot = rootProject.layout.buildDirectory.dir('libjglios/third_party/graalvm').get()
+}
+
+static String sha256Of(File file) {
+    def digest = MessageDigest.getInstance('SHA-256')
+    file.withInputStream { is ->
+        byte[] buffer = new byte[1024 * 1024]
+        int n
+        while ((n = is.read(buffer)) > 0) {
+            digest.update(buffer, 0, n)
+        }
+    }
+    return digest.digest().collect { String.format('%02x', it) }.join()
+}
+
+static String rel(File base, File file) {
+    return base.toPath().relativize(file.toPath()).toString()
+}
+
+graalTargets.each { target ->
+    def capitalized = target.name.split('-').collect { it.capitalize() }.join('')
+    def zipProvider = layout.buildDirectory.file("downloads/ios-graal-jdk-21-${target.name}.zip")
+    def extractDirProvider = layout.buildDirectory.dir("extracted/${target.name}")
+    def normalizedDirProvider = vendorRoot.dir(target.name)
+
+    tasks.register("downloadGraalJdk${capitalized}") {
+        group = 'libJGLIOS setup'
+        description = "Downloads ios-graal-jdk-21 ${target.name} zip."
+        outputs.file(zipProvider)
+        doLast {
+            def out = zipProvider.get().asFile
+            out.parentFile.mkdirs()
+            if (out.exists()) {
+                println "Already downloaded: ${out}"
+                return
+            }
+            println "Downloading ${target.url}"
+            new URL(target.url).withInputStream { input ->
+                out.withOutputStream { output -> output << input }
+            }
+            println "Downloaded: ${out} (${out.length()} bytes)"
+        }
+    }
+
+    tasks.register("verifyGraalJdk${capitalized}") {
+        group = 'libJGLIOS setup'
+        description = "Verifies ios-graal-jdk-21 ${target.name} zip checksum if configured."
+        dependsOn "downloadGraalJdk${capitalized}"
+        inputs.file(zipProvider)
+        doLast {
+            if (!target.sha256) {
+                println "No SHA-256 configured for ${target.name}; skipping checksum verification."
+                return
+            }
+            def actual = sha256Of(zipProvider.get().asFile)
+            if (!actual.equalsIgnoreCase(target.sha256 as String)) {
+                throw new GradleException("Checksum mismatch for ${target.name}. Expected ${target.sha256}, got ${actual}")
+            }
+            println "Verified ${target.name} SHA-256: ${actual}"
+        }
+    }
+
+    tasks.register("extractGraalJdk${capitalized}", Copy) {
+        group = 'libJGLIOS setup'
+        description = "Extracts ios-graal-jdk-21 ${target.name} zip."
+        dependsOn "verifyGraalJdk${capitalized}"
+        doFirst {
+            delete extractDirProvider.get().asFile
+        }
+        from { zipTree(zipProvider.get().asFile) }
+        into extractDirProvider
+    }
+
+    tasks.register("prepareGraalJdk${capitalized}") {
+        group = 'libJGLIOS setup'
+        description = "Normalizes ios-graal-jdk-21 ${target.name} runtime under build/libjglios/third_party/graalvm/${target.name}."
+        dependsOn "extractGraalJdk${capitalized}"
+        outputs.dir(normalizedDirProvider)
+        doLast {
+            def extracted = extractDirProvider.get().asFile
+            def normalized = normalizedDirProvider.asFile
+            def capDir = new File(normalized, 'cap')
+
+            delete normalized
+            normalized.mkdirs()
+            capDir.mkdirs()
+
+            def allFiles = fileTree(extracted).files
+
+            def libjavaRelease = allFiles.find { it.name == 'libjava-release.a' } ?: allFiles.find { it.name == 'libjava.a' }
+            def libjvmRelease = allFiles.find { it.name == 'libjvm-release.a' } ?: allFiles.find { it.name == 'libjvm.a' }
+            def libjavaDebug = allFiles.find { it.name == 'libjava-debug.a' }
+            def libjvmDebug = allFiles.find { it.name == 'libjvm-debug.a' }
+
+            if (libjavaRelease == null || libjvmRelease == null) {
+                println "Extracted files:"
+                allFiles.sort { it.absolutePath }.each { println "  ${rel(extracted, it)}" }
+                throw new GradleException("Could not find libjava-release.a/libjvm-release.a in ${target.name} zip.")
+            }
+
+            copy { from libjavaRelease; into normalized; rename { 'libjava-release.a' } }
+            copy { from libjvmRelease; into normalized; rename { 'libjvm-release.a' } }
+            if (libjavaDebug != null) copy { from libjavaDebug; into normalized; rename { 'libjava-debug.a' } }
+            if (libjvmDebug != null) copy { from libjvmDebug; into normalized; rename { 'libjvm-debug.a' } }
+
+            def capFiles = allFiles.findAll { it.name.endsWith('.cap') }.sort { it.name }
+            if (capFiles.isEmpty()) {
+                println "Extracted files:"
+                allFiles.sort { it.absolutePath }.each { println "  ${rel(extracted, it)}" }
+                throw new GradleException("No CAP cache files found in ${target.name} zip.")
+            }
+            copy { from capFiles; into capDir }
+
+            new File(normalized, 'MANIFEST-libJGLIOS.txt').text = """target=${target.name}
+sdk=${target.sdk}
+sourceUrl=${target.url}
+zipSha256=${sha256Of(zipProvider.get().asFile)}
+libjavaRelease=libjava-release.a
+libjvmRelease=libjvm-release.a
+capFiles=${capFiles.collect { it.name }.join(',')}
+"""
+            println "Prepared ios-graal-jdk-21 ${target.name}: ${normalized}"
+            println "  caps: ${capFiles.size()} files"
+        }
+    }
+
+    tasks.register("verifyPreparedGraalJdk${capitalized}") {
+        group = 'verification'
+        description = "Verifies normalized ios-graal-jdk-21 ${target.name} runtime exists."
+        dependsOn "prepareGraalJdk${capitalized}"
+        doLast {
+            def normalized = normalizedDirProvider.asFile
+            [new File(normalized, 'libjava-release.a'), new File(normalized, 'libjvm-release.a'), new File(normalized, 'cap')].each { f ->
+                if (!f.exists()) throw new GradleException("Missing prepared Graal artifact for ${target.name}: ${f}")
+            }
+            def caps = fileTree(new File(normalized, 'cap')).matching { include '*.cap' }.files
+            if (caps.isEmpty()) throw new GradleException("Prepared Graal CAP cache is empty for ${target.name}")
+            println "Verified prepared Graal ${target.name}: ${normalized}"
+        }
+    }
+}
+
+tasks.register('prepareGraalIosJdk') {
+    group = 'libJGLIOS setup'
+    description = 'Downloads and prepares both iPhoneOS and iOS Simulator Graal runtime artifacts.'
+    dependsOn 'prepareGraalJdkIphoneosArm64', 'prepareGraalJdkIphonesimulatorArm64'
+}
+
+tasks.register('verifyPreparedGraalIosJdk') {
+    group = 'verification'
+    description = 'Verifies both prepared iPhoneOS and iOS Simulator Graal runtime artifacts.'
+    dependsOn 'verifyPreparedGraalJdkIphoneosArm64', 'verifyPreparedGraalJdkIphonesimulatorArm64'
+}

@@ -1,0 +1,35 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'iOS ANGLE frameworks used by libJGLIOS.'
+
+apply from: file('angle-provider.gradle')
+
+tasks.register('prepareANGLEIosFrameworks') {
+    group = 'build'
+    description = 'Prepares ANGLE xcframeworks for publication in the angle-ios jar.'
+    dependsOn 'prepareANGLE'
+    outputs.dir { new File(angleIosVendorDir.asFile, 'xcframeworks') }
+    doLast {
+        def frameworkRoot = new File(angleIosVendorDir.asFile, 'xcframeworks')
+        [
+            'libEGL.xcframework',
+            'libGLESv2.xcframework',
+            'libfeature_support.xcframework'
+        ].each { name ->
+            def framework = new File(frameworkRoot, name)
+            if (!framework.isDirectory()) {
+                throw new GradleException("Missing ANGLE framework: ${framework}")
+            }
+        }
+    }
+}
+
+tasks.named('processResources') {
+    dependsOn 'prepareANGLEIosFrameworks'
+    from({ new File(angleIosVendorDir.asFile, 'xcframeworks') }) {
+        include '*.xcframework/**'
+        into 'lib/ios'
+    }
+}

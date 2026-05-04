@@ -1,0 +1,1394 @@
+import groovy.json.JsonSlurper
+import groovy.io.FileType
+
+import java.util.Locale
+
+def libJGLIOSProviderTask = { String taskName ->
+    rootProject.findProject(':libjglios-gradle-plugin') == null ? taskName : ":libjglios-gradle-plugin:${taskName}"
+}
+
+def libJGLIOSDependency = { String projectPath, String module ->
+    rootProject.findProject(projectPath) == null ? module : project(projectPath)
+}
+
+def libJGLIOSUseBundledNativeSources = rootProject.findProject(':core-ios') == null
+def libJGLIOSMaterializedNativeDir = layout.buildDirectory.dir('libjglios/native')
+def libJGLIOSNativeResourcePrefix = 'org/ngengine/libjglios/gradle/native'
+def libJGLIOSNativeFiles = [
+    'libjglios_ios_app.mm',
+    'libjglios_ios_launcher.mm',
+    'libjglios_ios_launcher_jni.mm',
+    'libjglios_ios_launcher.h',
+    'jni_gles.mm',
+    'jni_gles_compat.mm',
+    'jni_sdl3.mm',
+    'jni_openal_ios.mm'
+]
+
+def libJGLIOSResource = { String path ->
+    def pluginLoader = null
+    try {
+        pluginLoader = Class.forName('org.ngengine.libjglios.gradle.LibJGLIOSGradlePlugin').classLoader
+    } catch (ClassNotFoundException ignored) {
+        pluginLoader = null
+    }
+    def candidates = [
+        getClass().classLoader,
+        Thread.currentThread().contextClassLoader,
+        buildscript.classLoader,
+        pluginLoader
+    ].findAll { it != null }
+    for (loader in candidates) {
+        def resource = loader.getResource(path)
+        if (resource != null) {
+            return resource
+        }
+    }
+    return null
+}
+
+if (!tasks.names.contains('materializeLibJGLIOSNativeSources')) {
+    tasks.register('materializeLibJGLIOSNativeSources') {
+        group = 'libJGLIOS'
+        description = 'Extracts bundled libJGLIOS native launcher/JNI sources from the Gradle plugin.'
+        outputs.dir(libJGLIOSMaterializedNativeDir)
+        outputs.upToDateWhen { false }
+        onlyIf { libJGLIOSUseBundledNativeSources }
+        doLast {
+            def outDir = libJGLIOSMaterializedNativeDir.get().asFile
+            delete outDir
+            outDir.mkdirs()
+            libJGLIOSNativeFiles.each { name ->
+                def resource = libJGLIOSResource("${libJGLIOSNativeResourcePrefix}/${name}")
+                if (resource == null) {
+                    throw new GradleException("Missing bundled libJGLIOS native resource: ${name}")
+                }
+                new File(outDir, name).bytes = resource.bytes
+            }
+        }
+    }
+}
+
+def libJGLIOSNativeFile = { String localPath, String name ->
+    libJGLIOSUseBundledNativeSources ? libJGLIOSMaterializedNativeDir.get().file(name).asFile : rootProject.file(localPath)
+}
+
+def libJGLIOSThirdPartyFile = { String path ->
+    rootProject.layout.buildDirectory.file("libjglios/third_party/${path}").get().asFile
+}
+
+def libJGLIOSIosFrameworkResourcePrefix = 'lib/ios'
+def libJGLIOSDefaultSystemFrameworks = [
+    'OpenAL',
+    'UIKit',
+    'Foundation',
+    'Metal',
+    'QuartzCore',
+    'GameController',
+    'AudioToolbox',
+    'AVFoundation',
+    'CoreGraphics'
+]
+
+def libJGLIOSSafeFileName = { File file, int index ->
+    "${index}-${file.name.replaceAll('[^A-Za-z0-9_.-]', '_')}"
+}
+
+def libJGLIOSBool = { Object value, boolean fallback ->
+    value == null ? fallback : value.toString().toBoolean()
+}
+
+def libJGLIOSFrameworkName = { File frameworkDir ->
+    frameworkDir.name.endsWith('.framework') ? frameworkDir.name[0..-11] : frameworkDir.name
+}
+
+def libJGLIOSXcframeworkName = { File xcframeworkDir ->
+    xcframeworkDir.name.endsWith('.xcframework') ? xcframeworkDir.name[0..-13] : xcframeworkDir.name
+}
+
+def libJGLIOSXcframeworkSortRank = { File xcframeworkDir ->
+    [
+        libJGLIOSCore: -50,
+        libJGLIOSGLES: -40,
+        libJGLIOSSdl3: -30,
+        libJGLIOSOpenAL: -20,
+        SDL3: 0,
+        libEGL: 10,
+        libGLESv2: 20,
+        libfeature_support: 40
+    ].get(libJGLIOSXcframeworkName(xcframeworkDir), 1000)
+}
+
+def libJGLIOSMapFrameworkDependency = { Object dependency ->
+    if (dependency instanceof Map) {
+        [
+            name: dependency.name?.toString(),
+            weak: libJGLIOSBool(dependency.weak, false)
+        ]
+    } else {
+        [
+            name: dependency.toString(),
+            weak: false
+        ]
+    }
+}
+
+def libJGLIOSParseFrameworkMetadata = { File frameworkBundle ->
+    def metadataFile = new File(frameworkBundle.parentFile, "${frameworkBundle.name}.json")
+    if (!metadataFile.isFile()) {
+        return [:]
+    }
+    def metadata = new JsonSlurper().parse(metadataFile)
+    if (!(metadata instanceof Map)) {
+        throw new GradleException("Invalid libJGLIOS iOS framework metadata next to ${frameworkBundle}: ${metadataFile}")
+    }
+    metadata
+}
+
+def libJGLIOSRuntimeIosRoots = { File extractionRoot ->
+    def roots = []
+    delete extractionRoot
+    extractionRoot.mkdirs()
+
+    sourceSets.main.runtimeClasspath.files.eachWithIndex { classpathFile, index ->
+        if (classpathFile.isDirectory()) {
+            def iosRoot = new File(classpathFile, libJGLIOSIosFrameworkResourcePrefix)
+            if (iosRoot.exists()) {
+                roots << iosRoot
+            }
+        } else if (classpathFile.exists()) {
+            def lowerName = classpathFile.name.toLowerCase(Locale.ROOT)
+            if (lowerName.endsWith('.jar') || lowerName.endsWith('.zip')) {
+                def destination = new File(extractionRoot, libJGLIOSSafeFileName(classpathFile, index))
+                copy {
+                    from zipTree(classpathFile)
+                    include "${libJGLIOSIosFrameworkResourcePrefix}/**"
+                    into destination
+                }
+                def iosRoot = new File(destination, libJGLIOSIosFrameworkResourcePrefix)
+                if (iosRoot.exists()) {
+                    roots << iosRoot
+                }
+            }
+        }
+    }
+
+    roots
+}
+
+def libJGLIOSBundledIosFrameworkRoots = {
+    []
+}
+
+def libJGLIOSFindFrameworkBundles = { File root ->
+    def frameworks = []
+    if (!root.exists()) {
+        return frameworks
+    }
+    if (root.isDirectory() && root.name.endsWith('.xcframework')) {
+        frameworks << root
+        return frameworks
+    }
+    root.eachDirRecurse { dir ->
+        if (dir.name.endsWith('.xcframework')) {
+            frameworks << dir
+        }
+    }
+    frameworks.sort { left, right ->
+        def rank = libJGLIOSXcframeworkSortRank(left) <=> libJGLIOSXcframeworkSortRank(right)
+        rank == 0 ? left.absolutePath <=> right.absolutePath : rank
+    }
+}
+
+def libJGLIOSSelectXcframeworkSlice = { File xcframework, String platform ->
+    def childDirs = (xcframework.listFiles()?.findAll { it.isDirectory() } ?: [])
+    def preferredNames = platform == 'simulator'
+        ? ['ios-arm64_x86_64-simulator', 'ios-arm64-simulator']
+        : ['ios-arm64']
+
+    for (sliceName in preferredNames) {
+        def sliceDir = childDirs.find { it.name == sliceName }
+        if (sliceDir != null) {
+            return sliceDir
+        }
+    }
+
+    if (platform == 'simulator') {
+        return childDirs.find { it.name.contains('simulator') }
+    }
+    childDirs.find { it.name.startsWith('ios-') && !it.name.contains('simulator') }
+}
+
+def libJGLIOSSelectFrameworkDir = { File frameworkBundle, String platform, String requestedName ->
+    def sliceDir = libJGLIOSSelectXcframeworkSlice(frameworkBundle, platform)
+    if (sliceDir == null) {
+        return null
+    }
+    def frameworks = (sliceDir.listFiles()?.findAll { it.isDirectory() && it.name.endsWith('.framework') } ?: [])
+    if (frameworks.isEmpty()) {
+        return null
+    }
+    if (requestedName != null) {
+        def requestedFramework = frameworks.find { libJGLIOSFrameworkName(it) == requestedName }
+        if (requestedFramework != null) {
+            return requestedFramework
+        }
+    }
+    if (frameworks.size() == 1) {
+        return frameworks.first()
+    }
+    throw new GradleException("Multiple frameworks found in ${sliceDir}; add ${frameworkBundle.name}.json next to ${frameworkBundle.name} to choose one.")
+}
+
+def libJGLIOSAddUniqueFrameworkSpec = { List specs, Map spec ->
+    def existing = specs.find { it.name == spec.name }
+    if (existing != null) {
+        if (existing.frameworkDir.canonicalFile != spec.frameworkDir.canonicalFile) {
+            throw new GradleException("Duplicate iOS framework '${spec.name}' found at ${existing.frameworkDir} and ${spec.frameworkDir}")
+        }
+        return
+    }
+    specs << spec
+}
+
+def libJGLIOSAddUniqueSystemFramework = { List frameworks, Object dependency ->
+    def mapped = libJGLIOSMapFrameworkDependency(dependency)
+    if (!mapped.name) {
+        return
+    }
+    def existing = frameworks.find { it.name == mapped.name }
+    if (existing == null) {
+        frameworks << mapped
+    } else if (mapped.weak) {
+        existing.weak = true
+    }
+}
+
+def libJGLIOSResolveIosFrameworks = { String platform, File appDir ->
+    def extractionRoot = layout.buildDirectory.dir("libjglios/ios-framework-classpath/${platform}").get().asFile
+    def frameworkRoots = []
+    frameworkRoots.addAll(libJGLIOSRuntimeIosRoots(extractionRoot))
+    frameworkRoots.addAll(libJGLIOSBundledIosFrameworkRoots())
+
+    def systemFrameworks = []
+    libJGLIOSDefaultSystemFrameworks.each { libJGLIOSAddUniqueSystemFramework(systemFrameworks, it) }
+
+    def frameworkBundles = []
+    frameworkRoots.each { root ->
+        frameworkBundles.addAll(libJGLIOSFindFrameworkBundles(root))
+    }
+    frameworkBundles = frameworkBundles.unique { it.canonicalPath }
+
+    def frameworkSpecs = []
+    frameworkBundles.each { frameworkBundle ->
+        def metadata = libJGLIOSParseFrameworkMetadata(frameworkBundle)
+        (metadata.systemFrameworks ?: []).each { libJGLIOSAddUniqueSystemFramework(systemFrameworks, it) }
+        def frameworkDir = libJGLIOSSelectFrameworkDir(frameworkBundle, platform, metadata.name?.toString())
+        if (frameworkDir == null) {
+            throw new GradleException("Could not find an iOS ${platform} framework slice in ${frameworkBundle}")
+        }
+        def spec = [
+            name: metadata.name?.toString() ?: libJGLIOSFrameworkName(frameworkDir),
+            frameworkDir: frameworkDir,
+            link: libJGLIOSBool(metadata.link, true),
+            embed: libJGLIOSBool(metadata.embed, true),
+            forceLoad: libJGLIOSBool(metadata.forceLoad, false),
+            weak: libJGLIOSBool(metadata.weak, false)
+        ]
+        libJGLIOSAddUniqueFrameworkSpec(frameworkSpecs, spec)
+    }
+
+    def linkFrameworksDir = layout.buildDirectory.dir("libjglios/ios-framework-link/${platform}").get().asFile
+    delete linkFrameworksDir
+    linkFrameworksDir.mkdirs()
+    frameworkSpecs.each { spec ->
+        copy {
+            from spec.frameworkDir
+            into new File(linkFrameworksDir, spec.frameworkDir.name)
+        }
+    }
+
+    def frameworksDir = new File(appDir, 'Frameworks')
+    delete frameworksDir
+    frameworksDir.mkdirs()
+    frameworkSpecs.findAll { it.embed }.each { spec ->
+        copy {
+            from spec.frameworkDir
+            into new File(frameworksDir, spec.frameworkDir.name)
+        }
+    }
+
+    [frameworksDir: linkFrameworksDir, embeddedFrameworksDir: frameworksDir, frameworks: frameworkSpecs, systemFrameworks: systemFrameworks]
+}
+
+def libJGLIOSFrameworkLinkArgs = { Map resolution ->
+    def args = []
+    resolution.frameworks.findAll { it.link }.each { framework ->
+        if (framework.forceLoad) {
+            args.add("-Wl,-force_load,${new File(framework.frameworkDir, framework.name).absolutePath}")
+        } else {
+            args.add(framework.weak ? '-weak_framework' : '-framework')
+            args.add(framework.name)
+        }
+    }
+    resolution.systemFrameworks.each { framework ->
+        args.add(framework.weak ? '-weak_framework' : '-framework')
+        args.add(framework.name)
+    }
+    args
+}
+
+def libJGLIOSSetting = { String name, String fallback ->
+    def extension = extensions.findByName('libJGLIOS')
+    if (extension != null && extension.hasProperty(name)) {
+        def value = extension."${name}"
+        if (value != null && value.respondsTo('getOrElse', Object)) {
+            return value.getOrElse(fallback).toString()
+        }
+        if (value != null) {
+            return value.toString()
+        }
+    }
+    def projectValue = findProperty("libJGLIOS.${name}") ?: findProperty("libjglios.${name}")
+    return (projectValue ?: fallback).toString()
+}
+
+def libJGLIOSExecutableName = { String value ->
+    def sanitized = value.replaceAll('[^A-Za-z0-9_.-]', '_')
+    sanitized ? sanitized : 'LibJGLIOSApp'
+}
+
+def libJGLIOSXmlEscape = { String value ->
+    value
+        .replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+        .replace('"', '&quot;')
+        .replace("'", '&apos;')
+}
+
+def libJGLIOSMainClass = {
+    if (rootProject.findProject(':core-ios') == null && project.hasProperty('libJGLIOSGeneratedEntrypointClass')) {
+        return project.ext.libJGLIOSGeneratedEntrypointClass.toString()
+    }
+    libJGLIOSSetting('mainClass', 'org.ngengine.libjglios.sample.IosGraalEntrypoints')
+}
+def libJGLIOSBundleId = { libJGLIOSSetting('bundleId', 'org.ngengine.libjglios.sample') }
+def libJGLIOSAppName = { libJGLIOSSetting('appName', 'IOSGlesGears') }
+def libJGLIOSMinIosVersion = { libJGLIOSSetting('minIosVersion', '15.0') }
+def libJGLIOSSimulatorDevice = { libJGLIOSSetting('simulatorDevice', 'iPhone 16') }
+def libJGLIOSSimulatorExecutableName = { libJGLIOSExecutableName("${libJGLIOSAppName()}Sim") }
+def libJGLIOSDeviceExecutableName = { libJGLIOSExecutableName(libJGLIOSAppName()) }
+def libJGLIOSSimulatorTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion()}-simulator" }
+def libJGLIOSDeviceTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion()}" }
+def libJGLIOSAutoIosDeviceSigningIdentity
+def libJGLIOSAutoIosDeviceProvisioningProfile
+def libJGLIOSAutoIosDeviceEntitlements
+def libJGLIOSIosDeviceCommandTimeoutSeconds = {
+    def value = findProperty('iosDeviceCommandTimeoutSeconds') ?: providers.environmentVariable('IOS_DEVICE_COMMAND_TIMEOUT_SECONDS').orNull ?: '120'
+    value.toString().trim()
+}
+def libJGLIOSExplicitIosDeviceSigningIdentity = {
+    def value = findProperty('iosSigningIdentity') ?: providers.environmentVariable('IOS_SIGNING_IDENTITY').orNull
+    value?.toString()?.trim()
+}
+def libJGLIOSIosDeviceSigningIdentity = {
+    libJGLIOSExplicitIosDeviceSigningIdentity() ?: libJGLIOSAutoIosDeviceSigningIdentity() ?: '-'
+}
+def libJGLIOSIosDeviceProvisioningProfile = {
+    def value = findProperty('iosProvisioningProfile') ?: providers.environmentVariable('IOS_PROVISIONING_PROFILE').orNull
+    value?.toString()?.trim() ?: libJGLIOSAutoIosDeviceProvisioningProfile()
+}
+def libJGLIOSIosDeviceEntitlements = {
+    def value = findProperty('iosCodesignEntitlements') ?: providers.environmentVariable('IOS_CODESIGN_ENTITLEMENTS').orNull
+    value?.toString()?.trim() ?: libJGLIOSAutoIosDeviceEntitlements()
+}
+def libJGLIOSIosDeviceLaunchConsole = {
+    def value = findProperty('iosDeviceLaunchConsole') ?: providers.environmentVariable('IOS_DEVICE_LAUNCH_CONSOLE').orNull ?: 'false'
+    value.toString().toBoolean()
+}
+
+def graalSimulatorBuildDir = layout.buildDirectory.dir('ios-graal-simulator')
+def graalSimulatorAppDir = graalSimulatorBuildDir.map { it.dir("${libJGLIOSSimulatorExecutableName()}.app") }
+def graalSimulatorExecutable = graalSimulatorAppDir.map { it.file(libJGLIOSSimulatorExecutableName()) }
+def graalSimulatorLibDir = layout.buildDirectory.dir('libs/ios-graal-simulator')
+def graalDeviceBuildDir = layout.buildDirectory.dir('ios-graal-device')
+def graalDeviceAppDir = graalDeviceBuildDir.map { it.dir("${libJGLIOSDeviceExecutableName()}.app") }
+def graalDeviceExecutable = graalDeviceAppDir.map { it.file(libJGLIOSDeviceExecutableName()) }
+def graalDeviceLibDir = layout.buildDirectory.dir('libs/ios-graal-device')
+def graalDevicePackage = graalDeviceBuildDir.map { it.file("${libJGLIOSDeviceExecutableName()}-device.zip") }
+def graalSimulatorInfoPlist = layout.buildDirectory.file('libjglios/ios-simulator/Info.plist')
+def graalDeviceInfoPlist = layout.buildDirectory.file('libjglios/ios-device/Info.plist')
+
+ext {
+    graalHostVendorDir = libJGLIOSThirdPartyFile('graalvm-host/liberica-nik-23.1.3-macos-aarch64')
+    graalHostMarkerFile = libJGLIOSThirdPartyFile('graalvm-host/liberica-nik-23.1.3-macos-aarch64/GRAAL_HOME.txt')
+    graalSimulatorRuntimeDir = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64')
+    graalSimulatorCapDir = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64/cap')
+    graalSimulatorLibJava = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64/libjava-release.a')
+    graalSimulatorLibJvm = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64/libjvm-release.a')
+    graalDeviceRuntimeDir = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64')
+    graalDeviceCapDir = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64/cap')
+    graalDeviceLibJava = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64/libjava-release.a')
+    graalDeviceLibJvm = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64/libjvm-release.a')
+}
+
+def captureCommand = { List<String> command, Map<String, String> environment = [:], File workingDirectory = null ->
+    def normalizedCommand = command.collect { it.toString() }
+    def processBuilder = new ProcessBuilder(normalizedCommand)
+    processBuilder.redirectErrorStream(true)
+    if (workingDirectory != null) {
+        workingDirectory.mkdirs()
+        processBuilder.directory(workingDirectory)
+    }
+    if (!environment.isEmpty()) {
+        def normalizedEnvironment = environment.collectEntries { key, value ->
+            [(key.toString()): value.toString()]
+        }
+        processBuilder.environment().putAll(normalizedEnvironment)
+    }
+    def process = processBuilder.start()
+    def output = process.inputStream.getText('UTF-8')
+    def exitCode = process.waitFor()
+    if (exitCode != 0) {
+        if (output.contains('Xcode license agreements') || output.contains('xcodebuild -license')) {
+            throw new GradleException("""Command failed (${normalizedCommand.join(' ')}):
+${output}
+Xcode command line tools are blocked because the Xcode license has not been accepted.
+Open Terminal and run:
+
+  sudo xcodebuild -license accept
+
+Then retry the Gradle task.""")
+        }
+        throw new GradleException("Command failed (${normalizedCommand.join(' ')}):\n${output}")
+    }
+    output.trim()
+}
+
+def runCommand = { List<String> command, Map<String, String> environment = [:], File workingDirectory = null ->
+    captureCommand(command, environment, workingDirectory)
+}
+
+def libJGLIOSXcrun = { List<String> args ->
+    captureCommand(['xcrun'] + args)
+}
+
+libJGLIOSAutoIosDeviceSigningIdentity = {
+    def output = ''
+    try {
+        output = captureCommand(['security', 'find-identity', '-v', '-p', 'codesigning'])
+    } catch (GradleException ignored) {
+        return null
+    }
+    def line = output.readLines().find { it.contains('"Apple Development:') }
+    if (line == null) {
+        return null
+    }
+    def matcher = line =~ /"([^"]+)"/
+    matcher.find() ? matcher.group(1) : null
+}
+
+def libJGLIOSProvisioningProfileDirs = {
+    [
+        new File(System.getProperty('user.home'), 'Library/Developer/Xcode/UserData/Provisioning Profiles'),
+        new File(System.getProperty('user.home'), 'Library/MobileDevice/Provisioning Profiles')
+    ].findAll { it.isDirectory() }
+}
+
+def libJGLIOSProvisioningProfilePlist = { File profile ->
+    def outputDir = layout.buildDirectory.dir('libjglios/provisioning-profiles').get().asFile
+    outputDir.mkdirs()
+    def plist = new File(outputDir, profile.name.replaceAll('[^A-Za-z0-9_.-]', '_') + '.plist')
+    plist.text = captureCommand(['security', 'cms', '-D', '-i', profile.absolutePath]) + System.lineSeparator()
+    plist
+}
+
+def libJGLIOSPlistValue = { File plist, String keyPath ->
+    try {
+        captureCommand(['/usr/libexec/PlistBuddy', '-c', "Print:${keyPath}", plist.absolutePath])
+    } catch (GradleException ignored) {
+        null
+    }
+}
+
+def libJGLIOSProvisioningProfileMatchesBundle = { File profile, String bundleId ->
+    def plist = libJGLIOSProvisioningProfilePlist(profile)
+    def applicationIdentifier = libJGLIOSPlistValue(plist, 'Entitlements:application-identifier')
+    if (!applicationIdentifier) {
+        return false
+    }
+    def appId = applicationIdentifier.toString()
+    def suffix = appId.contains('.') ? appId.substring(appId.indexOf('.') + 1) : appId
+    suffix == bundleId || suffix == '*'
+}
+
+libJGLIOSAutoIosDeviceProvisioningProfile = {
+    def bundleId = libJGLIOSBundleId()
+    def profiles = []
+    libJGLIOSProvisioningProfileDirs().each { dir ->
+        dir.eachFileMatch(~/.*\.(mobileprovision|provisionprofile)/) { profile ->
+            if (libJGLIOSProvisioningProfileMatchesBundle(profile, bundleId)) {
+                profiles.add(profile)
+            }
+        }
+    }
+    def profile = profiles.sort { -it.lastModified() }.find()
+    profile?.absolutePath
+}
+
+libJGLIOSAutoIosDeviceEntitlements = {
+    def provisioningProfilePath = libJGLIOSIosDeviceProvisioningProfile()
+    if (!provisioningProfilePath) {
+        return null
+    }
+    def profile = file(provisioningProfilePath)
+    if (!profile.isFile()) {
+        return null
+    }
+    def plist = libJGLIOSProvisioningProfilePlist(profile)
+    def entitlements = layout.buildDirectory.file('libjglios/ios-device/Entitlements.plist').get().asFile
+    entitlements.parentFile.mkdirs()
+    entitlements.text = captureCommand(['/usr/libexec/PlistBuddy', '-x', '-c', 'Print:Entitlements', plist.absolutePath]) + System.lineSeparator()
+    entitlements.absolutePath
+}
+
+def libJGLIOSGenerateWeakJniStubs = { File archiveFile, File outputFile ->
+    def output = captureCommand(['xcrun', 'nm', '-u', archiveFile.absolutePath])
+    def symbols = output.readLines()
+        .collect { it.trim().tokenize(' ').last() }
+        .findAll { it.startsWith('_Java_') || it.startsWith('_JNI_OnLoad_') }
+        .collect { it.substring(1) }
+        .unique()
+        .sort()
+
+    outputFile.parentFile.mkdirs()
+    if (symbols.isEmpty()) {
+        outputFile.text = '/* No JNI stubs required. */\n'
+        return outputFile
+    }
+
+    outputFile.text = """#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+${symbols.collect { "__attribute__((weak)) intptr_t ${it}(...) { return 0; }" }.join('\n')}
+
+#ifdef __cplusplus
+}
+#endif
+"""
+    println "Generated ${symbols.size()} weak JNI link stubs: ${outputFile.absolutePath}"
+    outputFile
+}
+
+def resolveNativeImageBinary = { File graalHome ->
+    def launcher = new File(graalHome, 'bin/native-image')
+    def svmBinary = new File(graalHome, 'lib/svm/bin/native-image')
+    if (launcher.exists()) {
+        def launcherText = launcher.isFile() ? launcher.text : ''
+        if (launcherText.startsWith('#!') || !svmBinary.exists()) {
+            return launcher
+        }
+    }
+    return svmBinary.exists() ? svmBinary : launcher
+}
+
+def resolvePathNativeImage = {
+    def binary = captureCommand(['bash', '-lc', 'command -v native-image || true'])
+    if (!binary) {
+        return null
+    }
+    def nativeImage = file(binary)
+    if (!nativeImage.exists()) {
+        return null
+    }
+    def parent = nativeImage.parentFile?.parentFile
+    if (parent?.name == 'Home' && parent.parentFile?.name == 'Contents') {
+        return [home: parent, nativeImage: nativeImage, source: 'PATH']
+    }
+    return [home: parent, nativeImage: nativeImage, source: 'PATH']
+}
+
+def resolveIosGraalVm = {
+    def candidates = [
+        [value: findProperty('iosGraalVmHome'), source: '-PiosGraalVmHome'],
+        [value: providers.environmentVariable('IOS_GRAALVM_HOME').orNull, source: 'IOS_GRAALVM_HOME'],
+        [value: findProperty('graalvmHome'), source: '-PgraalvmHome'],
+        [value: providers.environmentVariable('GRAALVM_HOME').orNull, source: 'GRAALVM_HOME']
+    ]
+
+    for (candidate in candidates) {
+        if (!candidate.value) {
+            continue
+        }
+        def home = file(candidate.value)
+        def nativeImage = resolveNativeImageBinary(home)
+        if (!nativeImage.exists()) {
+            throw new GradleException("Configured GraalVM home from ${candidate.source} does not contain bin/native-image: ${home}")
+        }
+        return [home: home, nativeImage: nativeImage, source: candidate.source]
+    }
+
+    if (graalHostMarkerFile.exists()) {
+        def preparedHome = file(graalHostMarkerFile.text.trim())
+        def nativeImage = resolveNativeImageBinary(preparedHome)
+        if (nativeImage.exists()) {
+            return [home: preparedHome, nativeImage: nativeImage, source: graalHostMarkerFile.absolutePath]
+        }
+        nativeImage = resolveNativeImageBinary(graalHostVendorDir)
+        if (nativeImage.exists()) {
+            return [home: graalHostVendorDir, nativeImage: nativeImage, source: graalHostMarkerFile.absolutePath]
+        }
+    }
+
+    if ((findProperty('allowPathNativeImageForIos') ?: 'false').toString().toBoolean()) {
+        def pathResolution = resolvePathNativeImage()
+        if (pathResolution != null) {
+            return pathResolution
+        }
+    }
+
+    throw new GradleException(
+        'Could not resolve the host iOS GraalVM/native-image. Set -PiosGraalVmHome=..., IOS_GRAALVM_HOME, ' +
+        '-PgraalvmHome=..., GRAALVM_HOME, or run :libjglios-gradle-plugin:prepareGraalHostNik. ' +
+        'PATH lookup is disabled unless -PallowPathNativeImageForIos=true is set.'
+    )
+}
+
+def graalSdkJars = files({
+    def hostHome = graalHostMarkerFile.exists() ? file(graalHostMarkerFile.text.trim()) : graalHostVendorDir
+    return fileTree(hostHome) {
+        include 'lib/**/*.jar'
+        include 'jre/lib/**/*.jar'
+    }
+})
+
+dependencies {
+    implementation libJGLIOSDependency(':core-ios', 'org.ngengine:libjglios-core-ios:0.1.0-SNAPSHOT')
+    implementation libJGLIOSDependency(':gles-ios', 'org.ngengine:libjglios-gles-ios:0.1.0-SNAPSHOT')
+    implementation libJGLIOSDependency(':sdl3-ios', 'org.ngengine:libjglios-sdl3-ios:0.1.0-SNAPSHOT')
+    compileOnly graalSdkJars
+}
+
+tasks.named('compileJava') {
+    dependsOn libJGLIOSProviderTask('prepareGraalHostNik')
+    doFirst {
+        def resolved = resolveIosGraalVm()
+        def jmodsDir = new File(resolved.home, 'jmods')
+        if (!new File(jmodsDir, 'org.graalvm.nativeimage.jmod').exists()) {
+            throw new GradleException("Missing org.graalvm.nativeimage.jmod in host Graal home: ${jmodsDir}")
+        }
+        options.compilerArgs += ['--module-path', jmodsDir.absolutePath, '--add-modules', 'org.graalvm.nativeimage']
+    }
+}
+
+def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String bundleId, String appName, String minIosVersion ->
+    outputFile.parentFile.mkdirs()
+    def escapedExecutableName = libJGLIOSXmlEscape(executableName)
+    def escapedBundleId = libJGLIOSXmlEscape(bundleId)
+    def escapedAppName = libJGLIOSXmlEscape(appName)
+    def escapedMinIosVersion = libJGLIOSXmlEscape(minIosVersion)
+    outputFile.text = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>${escapedExecutableName}</string>
+    <key>CFBundleIdentifier</key>
+    <string>${escapedBundleId}</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>${escapedAppName}</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>MinimumOSVersion</key>
+    <string>${escapedMinIosVersion}</string>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+    </dict>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+    <key>UILaunchStoryboardName</key>
+    <string></string>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+</dict>
+</plist>
+"""
+}
+
+tasks.register('generateLibJGLIOSSimulatorInfoPlist') {
+    group = 'libJGLIOS'
+    description = 'Generates the iOS Simulator app Info.plist from the libJGLIOS extension.'
+    outputs.file(graalSimulatorInfoPlist)
+    doLast {
+        libJGLIOSWriteInfoPlist(
+            graalSimulatorInfoPlist.get().asFile,
+            libJGLIOSSimulatorExecutableName(),
+            libJGLIOSBundleId(),
+            libJGLIOSAppName(),
+            libJGLIOSMinIosVersion()
+        )
+    }
+}
+
+tasks.register('generateLibJGLIOSInfoPlist') {
+    group = 'libJGLIOS'
+    description = 'Generates the iOS app Info.plist from the libJGLIOS extension.'
+    outputs.file(graalDeviceInfoPlist)
+    doLast {
+        libJGLIOSWriteInfoPlist(
+            graalDeviceInfoPlist.get().asFile,
+            libJGLIOSDeviceExecutableName(),
+            libJGLIOSBundleId(),
+            libJGLIOSAppName(),
+            libJGLIOSMinIosVersion()
+        )
+    }
+}
+
+def libJGLIOSRunCommandIgnoringFailure = { List<String> command ->
+    try {
+        captureCommand(command)
+    } catch (GradleException ignored) {
+        ''
+    }
+}
+
+def libJGLIOSDetectedAppTarget = null
+def libJGLIOSIosAppRunTarget = {
+    if (libJGLIOSDetectedAppTarget != null) {
+        return libJGLIOSDetectedAppTarget
+    }
+
+    def requestedTarget = (findProperty('iosAppTarget')
+        ?: findProperty('iosExamplesTarget')
+        ?: findProperty('iosRunTarget')
+        ?: providers.environmentVariable('IOS_APP_TARGET').orNull
+        ?: providers.environmentVariable('IOS_EXAMPLES_TARGET').orNull
+        ?: providers.environmentVariable('IOS_RUN_TARGET').orNull
+        ?: 'auto').toString().trim().toLowerCase(Locale.ROOT)
+    if (!['auto', 'device', 'simulator'].contains(requestedTarget)) {
+        throw new GradleException("Unsupported iOS app target '${requestedTarget}'. Expected auto, device, or simulator.")
+    }
+    if (requestedTarget == 'simulator') {
+        libJGLIOSDetectedAppTarget = [kind: 'simulator']
+        return libJGLIOSDetectedAppTarget
+    }
+
+    def explicitDevice = (findProperty('iosDevice') ?: providers.environmentVariable('IOS_DEVICE').orNull)?.toString()?.trim()
+    if (explicitDevice) {
+        libJGLIOSDetectedAppTarget = [kind: 'device', identifier: explicitDevice, name: explicitDevice]
+        return libJGLIOSDetectedAppTarget
+    }
+
+    def devicesJson = layout.buildDirectory.file('libjglios/devicectl/available-devices.json').get().asFile
+    devicesJson.parentFile.mkdirs()
+    delete devicesJson
+    try {
+        captureCommand([
+            'xcrun',
+            'devicectl',
+            '--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds(),
+            'list',
+            'devices',
+            '--json-output', devicesJson.absolutePath
+        ])
+        def parsed = new JsonSlurper().parse(devicesJson)
+        def devices = parsed?.result?.devices ?: []
+        def device = devices.find {
+            it?.hardwareProperties?.reality?.toString() == 'physical'
+                && it?.hardwareProperties?.platform?.toString() == 'iOS'
+        } ?: devices.find {
+            it?.hardwareProperties?.platform?.toString() == 'iOS'
+        }
+        if (device != null) {
+            def identifier = device.identifier?.toString()
+                ?: device.hardwareProperties?.udid?.toString()
+                ?: device.deviceProperties?.name?.toString()
+            if (identifier) {
+                libJGLIOSDetectedAppTarget = [
+                    kind: 'device',
+                    identifier: identifier,
+                    name: device.deviceProperties?.name?.toString() ?: identifier
+                ]
+                return libJGLIOSDetectedAppTarget
+            }
+        }
+    } catch (Exception exception) {
+        if (requestedTarget == 'device') {
+            throw new GradleException('Could not detect an available iOS device.', exception)
+        }
+        logger.info("Could not detect an available iOS device; falling back to simulator: ${exception.message}")
+    }
+
+    if (requestedTarget == 'device') {
+        throw new GradleException('No available real iOS device found. Pass -PiosDevice=<UDID-or-name> to select one explicitly.')
+    }
+
+    libJGLIOSDetectedAppTarget = [kind: 'simulator']
+    libJGLIOSDetectedAppTarget
+}
+
+def libJGLIOSRunIosAppOnSimulator = {
+    def deviceName = providers.gradleProperty('iosSimulatorDevice').orElse(libJGLIOSSimulatorDevice()).get()
+    def bundleId = libJGLIOSBundleId()
+    def simulatorApp = graalSimulatorAppDir.get().asFile
+    logger.lifecycle("Running iOS app on simulator ${deviceName}")
+    libJGLIOSRunCommandIgnoringFailure(['xcrun', 'simctl', 'boot', deviceName])
+    runCommand(['open', '-a', 'Simulator'])
+    runCommand(['xcrun', 'simctl', 'bootstatus', deviceName, '-b'])
+    libJGLIOSRunCommandIgnoringFailure(['xcrun', 'simctl', 'terminate', deviceName, bundleId])
+    runCommand(['xcrun', 'simctl', 'install', deviceName, simulatorApp.absolutePath])
+    runCommand(['xcrun', 'simctl', 'launch', deviceName, bundleId])
+}
+
+def libJGLIOSRunIosAppOnDevice = { Map target ->
+    def bundleId = libJGLIOSBundleId()
+    def deviceApp = graalDeviceAppDir.get().asFile
+    logger.lifecycle("Running iOS app on device ${target.name}")
+    runCommand([
+        'xcrun',
+        'devicectl',
+        '--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds(),
+        'device',
+        'install',
+        'app',
+        '--device', target.identifier,
+        deviceApp.absolutePath
+    ])
+    def launchArgs = [
+        'xcrun',
+        'devicectl',
+        '--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds(),
+        'device',
+        'process',
+        'launch',
+        '--terminate-existing',
+        '--device', target.identifier
+    ]
+    if (libJGLIOSIosDeviceLaunchConsole()) {
+        launchArgs.add('--console')
+    }
+    launchArgs.add(bundleId)
+    runCommand(launchArgs)
+}
+
+tasks.register('printIosGraalVmInfo') {
+    group = 'help'
+    description = 'Prints the resolved host native-image and simulator runtime paths used for Graal iOS.'
+    dependsOn libJGLIOSProviderTask('prepareGraalHostNik'), libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
+    doLast {
+        def resolved = resolveIosGraalVm()
+                def versionOut = captureCommand([resolved.nativeImage.absolutePath, '--version'])
+        println """
+iOS Graal VM info:
+  resolved from: ${resolved.source}
+  graal home: ${resolved.home}
+  native-image: ${resolved.nativeImage}
+    native-image --version: ${versionOut}
+  runtime target: iphonesimulator-arm64
+  runtime dir: ${graalSimulatorRuntimeDir}
+  libjava: ${graalSimulatorLibJava}
+  libjvm: ${graalSimulatorLibJvm}
+  cap dir: ${graalSimulatorCapDir}
+"""
+    }
+}
+
+tasks.register('verifyIosSimulatorToolchain') {
+    group = 'verification'
+    description = 'Verifies the host Liberica NIK, simulator runtime artifacts, and iOS SDK toolchain required for Graal iOS simulator builds.'
+    dependsOn libJGLIOSProviderTask('verifyPreparedGraalHostNik'), libJGLIOSProviderTask('verifyPreparedGraalJdkIphonesimulatorArm64')
+
+    doLast {
+        def resolved = resolveIosGraalVm()
+        def sdkPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path'])
+        def clangPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang++'])
+        def arPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'ar'])
+        def versionOut = captureCommand([resolved.nativeImage.absolutePath, '--version'])
+
+        [
+            ['Host graal home', resolved.home],
+            ['Host native-image', resolved.nativeImage],
+            ['Simulator runtime dir', graalSimulatorRuntimeDir],
+            ['Simulator CAP cache dir', graalSimulatorCapDir],
+            ['Simulator libjava', graalSimulatorLibJava],
+            ['Simulator libjvm', graalSimulatorLibJvm]
+        ].each { entry ->
+            if (!entry[1].exists()) {
+                throw new GradleException("Missing toolchain component: ${entry[0]}\n  ${entry[1]}")
+            }
+            println "  ✓ ${entry[0]}: ${entry[1]}"
+        }
+
+        def capFiles = fileTree(graalSimulatorCapDir).matching { include '*.cap' }.files
+        if (capFiles.isEmpty()) {
+            throw new GradleException("Prepared Graal CAP cache is empty: ${graalSimulatorCapDir}")
+        }
+
+        println "  ✓ native-image --version: ${versionOut}"
+        println "  ✓ CAP cache files: ${capFiles.size()}"
+        println "  ✓ iOS Simulator SDK: ${sdkPath}"
+        println "  ✓ iOS Simulator clang++: ${clangPath}"
+        println "  ✓ iOS Simulator ar: ${arPath}"
+        println "  ✓ Apple target triple: ${libJGLIOSSimulatorTargetTriple()}"
+    }
+}
+
+tasks.register('buildIosSimulatorUsercode') {
+    group = 'build'
+    description = 'Builds the relocatable Graal iOS simulator usercode image using BellSoft Liberica NIK.'
+    dependsOn 'classes', libJGLIOSProviderTask('prepareGraalHostNik'), libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
+    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir)
+    outputs.dir(graalSimulatorLibDir)
+
+    doLast {
+        def resolved = resolveIosGraalVm()
+        def libDir = graalSimulatorLibDir.get().asFile
+        delete libDir
+        libDir.mkdirs()
+
+        def nativeImageVersion = captureCommand([resolved.nativeImage.absolutePath, '--version'])
+        if (!nativeImageVersion.contains('Liberica-NIK-23.1.3')) {
+            throw new GradleException(
+                "Unexpected native-image distribution for iOS build. Expected Liberica-NIK-23.1.3 but got:\n${nativeImageVersion}\n" +
+                "Resolved from: ${resolved.source}\nBinary: ${resolved.nativeImage.absolutePath}"
+            )
+        }
+
+        def sdkPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path'])
+        def clangPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang'])
+        def clangxxPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang++'])
+
+        println "native-image executable path: ${resolved.nativeImage.absolutePath}"
+        println "native-image --version: ${nativeImageVersion}"
+        println 'selected target: iphonesimulator-arm64'
+        println "CAP cache dir: ${graalSimulatorCapDir.absolutePath}"
+        println "libjava path: ${graalSimulatorLibJava.absolutePath}"
+        println "libjvm path: ${graalSimulatorLibJvm.absolutePath}"
+        println "iOS SDK path: ${sdkPath}"
+        println "clang path: ${clangxxPath}"
+        println "Apple target triple: ${libJGLIOSSimulatorTargetTriple()}"
+
+        def useCapCache = (findProperty('iosGraalUseCapCache') ?: 'true').toString().toBoolean()
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
+        def includeResources = (findProperty('iosGraalIncludeResources')
+            ?: '(?i).*[.](cfg|properties|fnt|png|jpg|jpeg|bmp|gif|tga|hdr|pfm|dds|ktx|j3m|j3md|j3sn|j3o|j3f|j3odata|vert|frag|geom|tsctrl|tseval|glsl|glsllib|comp|obj|mtl|meshxml|skeletonxml|scene|material|gltf|glb|bin|ogg|wav|xml|txt|cl|clh)$').toString().trim()
+
+        def args = [
+            resolved.nativeImage.absolutePath,
+            '-cp', sourceSets.main.runtimeClasspath.asPath,
+            '--no-server',
+            '-R:-UsePerfData',
+            '-H:+ExitAfterRelocatableImageWrite',
+            '-H:+SharedLibrary',
+            "-H:TempDirectory=${libDir.absolutePath}",
+            '-H:Name=usercode',
+            '-H:+AddAllCharsets',
+            '-H:-DeadlockWatchdogExitOnTimeout',
+            '-H:DeadlockWatchdogInterval=0',
+            '-H:+RemoveSaturatedTypeFlows',
+            '-H:-SpawnIsolates',
+            '-H:PageSize=16384',
+            '-H:EnableURLProtocols=http,https,jar',
+            '-H:+PrintAnalysisCallTree',
+            '-H:Log=registerResource:',
+            '-Djdk.internal.lambda.eagerlyInitialize=false',
+            '-H:+ReportExceptionStackTraces',
+            '-Dsvm.targetName=iOS',
+            '-Dsvm.targetArch=arm64',
+            '-H:CompilerBackend=lir',
+            '-Dsvm.platform=org.graalvm.nativeimage.Platform$IOS_AARCH64',
+            '--no-fallback',
+            libJGLIOSMainClass()
+        ]
+
+        if (enableMonitoring) {
+            args.add(args.size() - 1, '--enable-monitoring=heapdump,jfr')
+        }
+        if (limitModules) {
+            args.add(args.size() - 1, "--limit-modules=${limitModules}")
+        }
+        if (includeResources) {
+            args.add(args.size() - 1, "-H:IncludeResources=${includeResources}")
+        }
+
+        def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
+
+        if (useCapCache) {
+            def argsWithCap = new ArrayList<String>(args)
+            argsWithCap.add('-H:+UseCAPCache')
+            argsWithCap.add("-H:CAPCacheDir=${graalSimulatorCapDir.absolutePath}")
+            try {
+                runCommand(argsWithCap, environment, libDir)
+            } catch (GradleException capFailure) {
+                if (!capFailure.message.contains('Missing CAP cache value for:')) {
+                    throw capFailure
+                }
+                logger.warn('CAP cache mismatch detected; retrying native-image without CAP cache.')
+                runCommand(args, environment, libDir)
+            }
+        } else {
+            println 'CAP cache disabled for this build (-PiosGraalUseCapCache=false).'
+            runCommand(args, environment, libDir)
+        }
+    }
+}
+
+tasks.register('archiveIosSimulatorUsercode') {
+    group = 'build'
+    description = 'Archives the newest Graal iOS simulator usercode.o into usercode.a.'
+    dependsOn 'buildIosSimulatorUsercode'
+    outputs.file(graalSimulatorLibDir.map { it.file('usercode.a') })
+
+    doLast {
+        def libDir = graalSimulatorLibDir.get().asFile
+        def svmDir = libDir.listFiles()?.findAll { it.isDirectory() && it.name.startsWith('SVM-') }?.max { it.lastModified() }
+        if (svmDir == null) {
+            throw new GradleException("Could not find SVM-* directory under ${libDir}")
+        }
+        def usercodeObject = new File(svmDir, 'usercode.o')
+        if (!usercodeObject.exists()) {
+            throw new GradleException("Could not find usercode.o under ${svmDir}")
+        }
+        def archiveFile = new File(libDir, 'usercode.a')
+        delete archiveFile
+        runCommand(['ar', '-r', archiveFile.absolutePath, usercodeObject.absolutePath])
+        if (!archiveFile.exists()) {
+            throw new GradleException("usercode.a was not created: ${archiveFile}")
+        }
+        println "Archived Graal simulator usercode: ${archiveFile}"
+    }
+}
+
+tasks.register('buildIosSimulatorApp', Exec) {
+    group = 'build'
+    description = 'Links the native simulator shell with Graal usercode.a and iOS runtime libs into a runnable simulator .app.'
+    dependsOn 'archiveIosSimulatorUsercode', 'generateLibJGLIOSSimulatorInfoPlist'
+    inputs.files(
+        graalSimulatorInfoPlist,
+        sourceSets.main.runtimeClasspath,
+        graalSimulatorLibDir,
+        graalSimulatorRuntimeDir
+    )
+    outputs.file(graalSimulatorExecutable)
+
+    doFirst {
+        def appDir = graalSimulatorAppDir.get().asFile
+        copy {
+            from graalSimulatorInfoPlist
+            into appDir
+        }
+    }
+
+    def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path']) }
+    def clangPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang++']) }
+
+    doFirst {
+        def resolved = resolveIosGraalVm()
+        def archiveFile = graalSimulatorLibDir.get().file('usercode.a').asFile
+        def weakJniStubs = libJGLIOSGenerateWeakJniStubs(archiveFile, new File(temporaryDir, 'weak-jni-stubs.cpp'))
+        def frameworkResolution = libJGLIOSResolveIosFrameworks('simulator', graalSimulatorAppDir.get().asFile)
+        def args = [
+            clangPath.get(),
+            '-target', libJGLIOSSimulatorTargetTriple(),
+            '-isysroot', sdkPath.get(),
+            '-std=c++17',
+            '-fobjc-arc',
+            '-DGL_GLEXT_PROTOTYPES=1',
+            '-DEGL_EGLEXT_PROTOTYPES=1',
+            '-I', file('src/main/native').absolutePath,
+            '-I', new File(resolved.home, 'include').absolutePath,
+            '-I', new File(resolved.home, 'include/darwin').absolutePath,
+            '-F', frameworkResolution.frameworksDir.absolutePath,
+            '-rpath', '@executable_path/Frameworks',
+            weakJniStubs.absolutePath,
+            "-Wl,-force_load,${archiveFile.absolutePath}",
+            graalSimulatorLibJava.absolutePath,
+            graalSimulatorLibJvm.absolutePath
+        ]
+        args.addAll(libJGLIOSFrameworkLinkArgs(frameworkResolution))
+        args.addAll(['-o', graalSimulatorExecutable.get().asFile.absolutePath])
+        commandLine(args)
+    }
+
+    doLast {
+        runCommand(['codesign', '--force', '--sign', '-', graalSimulatorAppDir.get().asFile.absolutePath])
+    }
+}
+
+tasks.register('prepareLibJGLIOSArtifacts') {
+    group = 'libJGLIOS'
+    description = 'Prepares third-party artifacts required by the iOS sample.'
+    dependsOn libJGLIOSProviderTask('prepareGraalHostNik'),
+        libJGLIOSProviderTask('prepareGraalIosJdk')
+}
+
+tasks.register('buildUsercode') {
+    group = 'build'
+    description = 'Builds the relocatable Graal iOS app usercode image using BellSoft Liberica NIK.'
+    dependsOn 'classes', libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64'), libJGLIOSProviderTask('prepareGraalHostNik')
+    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir)
+    outputs.dir(graalDeviceLibDir)
+
+    doLast {
+        def resolved = resolveIosGraalVm()
+        def libDir = graalDeviceLibDir.get().asFile
+        delete libDir
+        libDir.mkdirs()
+
+        def nativeImageVersion = captureCommand([resolved.nativeImage.absolutePath, '--version'])
+        if (!nativeImageVersion.contains('Liberica-NIK-23.1.3')) {
+            throw new GradleException("Unexpected native-image distribution for iOS build:\n${nativeImageVersion}")
+        }
+
+        def sdkPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--show-sdk-path'])
+        def clangPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--find', 'clang'])
+        def clangxxPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--find', 'clang++'])
+
+        println "native-image executable path: ${resolved.nativeImage.absolutePath}"
+        println "native-image --version: ${nativeImageVersion}"
+        println 'selected target: iphoneos-arm64'
+        println "CAP cache dir: ${graalDeviceCapDir.absolutePath}"
+        println "libjava path: ${graalDeviceLibJava.absolutePath}"
+        println "libjvm path: ${graalDeviceLibJvm.absolutePath}"
+        println "iOS SDK path: ${sdkPath}"
+        println "clang path: ${clangxxPath}"
+        println "Apple target triple: ${libJGLIOSDeviceTargetTriple()}"
+
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
+        def includeResources = (findProperty('iosGraalIncludeResources')
+            ?: '(?i).*[.](cfg|properties|fnt|png|jpg|jpeg|bmp|gif|tga|hdr|pfm|dds|ktx|j3m|j3md|j3sn|j3o|j3f|j3odata|vert|frag|geom|tsctrl|tseval|glsl|glsllib|comp|obj|mtl|meshxml|skeletonxml|scene|material|gltf|glb|bin|ogg|wav|xml|txt|cl|clh)$').toString().trim()
+
+        def args = [
+            resolved.nativeImage.absolutePath,
+            '-cp', sourceSets.main.runtimeClasspath.asPath,
+            '--no-server',
+            '-R:-UsePerfData',
+            '-H:+ExitAfterRelocatableImageWrite',
+            '-H:+SharedLibrary',
+            "-H:TempDirectory=${libDir.absolutePath}",
+            '-H:Name=usercode',
+            '-H:+AddAllCharsets',
+            '-H:-DeadlockWatchdogExitOnTimeout',
+            '-H:DeadlockWatchdogInterval=0',
+            '-H:+RemoveSaturatedTypeFlows',
+            '-H:-SpawnIsolates',
+            '-H:PageSize=16384',
+            '-H:EnableURLProtocols=http,https,jar',
+            '-H:+PrintAnalysisCallTree',
+            '-H:Log=registerResource:',
+            '-Djdk.internal.lambda.eagerlyInitialize=false',
+            '-H:+ReportExceptionStackTraces',
+            '-Dsvm.targetName=iOS',
+            '-Dsvm.targetArch=arm64',
+            '-H:CompilerBackend=lir',
+            '-Dsvm.platform=org.graalvm.nativeimage.Platform$IOS_AARCH64',
+            '--no-fallback',
+            libJGLIOSMainClass()
+        ]
+
+        if (enableMonitoring) {
+            args.add(args.size() - 1, '--enable-monitoring=heapdump,jfr')
+        }
+        if (limitModules) {
+            args.add(args.size() - 1, "--limit-modules=${limitModules}")
+        }
+        if (includeResources) {
+            args.add(args.size() - 1, "-H:IncludeResources=${includeResources}")
+        }
+
+        def argsWithCap = new ArrayList<String>(args)
+        argsWithCap.add('-H:+UseCAPCache')
+        argsWithCap.add("-H:CAPCacheDir=${graalDeviceCapDir.absolutePath}")
+        def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
+        try {
+            runCommand(argsWithCap, environment, libDir)
+        } catch (GradleException capFailure) {
+            if (!capFailure.message.contains('Missing CAP cache value for:')) {
+                throw capFailure
+            }
+            logger.warn('Device CAP cache mismatch detected; retrying native-image without CAP cache.')
+            runCommand(args, environment, libDir)
+        }
+    }
+}
+
+tasks.register('archiveUsercode') {
+    group = 'build'
+    description = 'Archives the newest Graal iOS app usercode.o into usercode.a.'
+    dependsOn 'buildUsercode'
+    outputs.file(graalDeviceLibDir.map { it.file('usercode.a') })
+
+    doLast {
+        def libDir = graalDeviceLibDir.get().asFile
+        def svmDir = libDir.listFiles()?.findAll { it.isDirectory() && it.name.startsWith('SVM-') }?.max { it.lastModified() }
+        if (svmDir == null) {
+            throw new GradleException("Could not find SVM-* directory under ${libDir}")
+        }
+        def usercodeObject = new File(svmDir, 'usercode.o')
+        if (!usercodeObject.exists()) {
+            throw new GradleException("Could not find usercode.o under ${svmDir}")
+        }
+        def archiveFile = new File(libDir, 'usercode.a')
+        delete archiveFile
+        runCommand(['ar', '-r', archiveFile.absolutePath, usercodeObject.absolutePath])
+        if (!archiveFile.exists()) {
+            throw new GradleException("device usercode.a was not created: ${archiveFile}")
+        }
+        println "Archived Graal device usercode: ${archiveFile}"
+    }
+}
+
+tasks.register('linkApp', Exec) {
+    group = 'build'
+    description = 'Links the iOS app for real devices.'
+    dependsOn 'archiveUsercode', 'generateLibJGLIOSInfoPlist'
+    inputs.files(
+        graalDeviceInfoPlist,
+        sourceSets.main.runtimeClasspath,
+        graalDeviceLibDir,
+        graalDeviceRuntimeDir
+    )
+    outputs.file(graalDeviceExecutable)
+
+    doFirst {
+        def appDir = graalDeviceAppDir.get().asFile
+        copy {
+            from graalDeviceInfoPlist
+            into appDir
+        }
+    }
+
+    def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphoneos', '--show-sdk-path']) }
+    def clangPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphoneos', '--find', 'clang++']) }
+
+    doFirst {
+        def resolved = resolveIosGraalVm()
+        def archiveFile = graalDeviceLibDir.get().file('usercode.a').asFile
+        def weakJniStubs = libJGLIOSGenerateWeakJniStubs(archiveFile, new File(temporaryDir, 'weak-jni-stubs.cpp'))
+        def frameworkResolution = libJGLIOSResolveIosFrameworks('device', graalDeviceAppDir.get().asFile)
+        def args = [
+            clangPath.get(),
+            '-target', libJGLIOSDeviceTargetTriple(),
+            '-isysroot', sdkPath.get(),
+            '-std=c++17',
+            '-fobjc-arc',
+            '-DGL_GLEXT_PROTOTYPES=1',
+            '-DEGL_EGLEXT_PROTOTYPES=1',
+            '-I', new File(resolved.home, 'include').absolutePath,
+            '-I', new File(resolved.home, 'include/darwin').absolutePath,
+            '-F', frameworkResolution.frameworksDir.absolutePath,
+            '-rpath', '@executable_path/Frameworks',
+            weakJniStubs.absolutePath,
+            "-Wl,-force_load,${archiveFile.absolutePath}",
+            graalDeviceLibJava.absolutePath,
+            graalDeviceLibJvm.absolutePath
+        ]
+        args.addAll(libJGLIOSFrameworkLinkArgs(frameworkResolution))
+        args.addAll(['-o', graalDeviceExecutable.get().asFile.absolutePath])
+        commandLine(args)
+    }
+
+}
+
+tasks.register('buildApp') {
+    group = 'build'
+    description = 'Builds and signs the iOS app for real devices.'
+    dependsOn 'linkApp'
+    inputs.dir(graalDeviceAppDir)
+    inputs.property('iosSigningIdentity', providers.provider { libJGLIOSIosDeviceSigningIdentity() })
+    inputs.property('iosProvisioningProfile', providers.provider { libJGLIOSIosDeviceProvisioningProfile() ?: '' })
+    inputs.property('iosCodesignEntitlements', providers.provider { libJGLIOSIosDeviceEntitlements() ?: '' })
+
+    doLast {
+        def appDir = graalDeviceAppDir.get().asFile
+        def provisioningProfilePath = libJGLIOSIosDeviceProvisioningProfile()
+        if (provisioningProfilePath) {
+            def provisioningProfile = file(provisioningProfilePath)
+            if (!provisioningProfile.isFile()) {
+                throw new GradleException("Configured iOS provisioning profile does not exist: ${provisioningProfile}")
+            }
+            copy {
+                from provisioningProfile
+                into appDir
+                rename { 'embedded.mobileprovision' }
+            }
+        }
+        def signingIdentity = libJGLIOSIosDeviceSigningIdentity()
+        def nestedCodeItems = []
+        appDir.eachFileRecurse(FileType.DIRECTORIES) { item ->
+            if (item.name.endsWith('.framework') || item.name.endsWith('.appex')) {
+                nestedCodeItems.add(item)
+            }
+        }
+        appDir.eachFileRecurse(FileType.FILES) { item ->
+            if (item.name.endsWith('.dylib')) {
+                nestedCodeItems.add(item)
+            }
+        }
+        nestedCodeItems.sort { -it.absolutePath.count(File.separator) }.each { signedItem ->
+            runCommand(['codesign', '--force', '--sign', signingIdentity, '--timestamp=none', signedItem.absolutePath])
+        }
+
+        def codesignArgs = ['codesign', '--force', '--sign', signingIdentity, '--timestamp=none', '--generate-entitlement-der']
+        def entitlementsPath = libJGLIOSIosDeviceEntitlements()
+        if (entitlementsPath) {
+            def entitlements = file(entitlementsPath)
+            if (!entitlements.isFile()) {
+                throw new GradleException("Configured iOS codesign entitlements file does not exist: ${entitlements}")
+            }
+            codesignArgs.addAll(['--entitlements', entitlements.absolutePath])
+        }
+        codesignArgs.add(appDir.absolutePath)
+        runCommand(codesignArgs)
+
+    }
+}
+
+tasks.register('packageApp', Zip) {
+    group = 'build'
+    description = 'Packages the iOS app as a zip.'
+    dependsOn 'buildApp'
+    archiveFileName = graalDevicePackage.get().asFile.name
+    destinationDirectory = graalDevicePackage.get().asFile.parentFile
+    from(graalDeviceAppDir)
+}
+
+tasks.register('runIosApp') {
+    group = 'verification'
+    description = 'Builds, installs, and launches the iOS app. Uses a connected real device when available; otherwise opens the simulator.'
+    dependsOn {
+        libJGLIOSIosAppRunTarget().kind == 'device' ? 'buildApp' : 'buildIosSimulatorApp'
+    }
+
+    doLast {
+        def target = libJGLIOSIosAppRunTarget()
+        if (target.kind == 'device') {
+            libJGLIOSRunIosAppOnDevice(target)
+        } else {
+            libJGLIOSRunIosAppOnSimulator()
+        }
+    }
+}
