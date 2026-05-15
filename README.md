@@ -45,7 +45,7 @@ Useful app tasks:
 
 - `runIosApp` - builds and runs the app on a connected iOS device, or on the simulator when no device is selected.
 - `buildIosSimulatorApp` - builds a runnable simulator app.
-- `buildApp` - builds and signs the app for a real iOS device.
+- `buildIosApp` - builds and signs the app for a real iOS device.
 - `packageApp` - packages the device app as a zip.
 
 
@@ -115,7 +115,7 @@ Then build or run the app normally:
 ```bash
 ./gradlew runIosApp -PiosAppTarget=simulator
 ./gradlew buildIosSimulatorApp
-./gradlew buildApp
+./gradlew buildIosApp
 ```
 
 During the app build, libJGLIOS scans the runtime classpath for
