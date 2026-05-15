@@ -9,6 +9,8 @@
 #include <vector>
 
 #include <SDL3/SDL.h>
+#include <TargetConditionals.h>
+#import <AudioToolbox/AudioServices.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -292,6 +294,41 @@ static void push_input_event(const LibJGLIOSQueuedInputEvent& queued) {
     g_inputEvents.push_back(queued);
 }
 
+static void push_device_event(int type, SDL_JoystickID id, bool gamepad) {
+    LibJGLIOSQueuedInputEvent queued;
+    queued.intData[0] = type;
+    queued.intData[1] = static_cast<int>(id);
+    queued.intData[2] = gamepad ? 1 : 0;
+    push_input_event(queued);
+}
+
+static float normalize_gamepad_axis(Sint16 value, bool trigger) {
+    if (trigger) {
+        return value <= 0 ? 0.0f : static_cast<float>(value) / 32767.0f;
+    }
+    if (value == SDL_MIN_SINT16) {
+        return -1.0f;
+    }
+    return static_cast<float>(value) / 32767.0f;
+}
+
+bool libjglios_device_rumble_supported(void) {
+#if TARGET_OS_SIMULATOR
+    return false;
+#elif TARGET_OS_IOS
+    return true;
+#else
+    return false;
+#endif
+}
+
+void libjglios_device_rumble(float amount) {
+    if (amount <= 0.0f || !libjglios_device_rumble_supported()) {
+        return;
+    }
+    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
+}
+
 static const char* next_utf8_codepoint(const char* text, int& codepoint) {
     codepoint = 0;
     if (text == nullptr || text[0] == '\0') {
@@ -404,27 +441,29 @@ void libjglios_input_enqueue_sdl_event(const void* rawEvent) {
             push_text_input_events(event->text.text);
             break;
         case SDL_EVENT_GAMEPAD_ADDED:
-            queued.intData[0] = 7;
-            queued.intData[1] = static_cast<int>(event->gdevice.which);
-            push_input_event(queued);
+            push_device_event(7, event->gdevice.which, true);
             break;
         case SDL_EVENT_GAMEPAD_REMOVED:
-            queued.intData[0] = 8;
-            queued.intData[1] = static_cast<int>(event->gdevice.which);
-            push_input_event(queued);
+            push_device_event(8, event->gdevice.which, true);
+            break;
+        case SDL_EVENT_JOYSTICK_ADDED:
+            if (!SDL_IsGamepad(event->jdevice.which)) {
+                push_device_event(7, event->jdevice.which, false);
+            }
+            break;
+        case SDL_EVENT_JOYSTICK_REMOVED:
+            if (!SDL_IsGamepad(event->jdevice.which)) {
+                push_device_event(8, event->jdevice.which, false);
+            }
             break;
         case SDL_EVENT_GAMEPAD_AXIS_MOTION:
             queued.intData[0] = 9;
             queued.intData[1] = static_cast<int>(event->gaxis.which);
             queued.intData[2] = static_cast<int>(event->gaxis.axis);
             queued.intData[3] = static_cast<int>(event->gaxis.value);
-            if (event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || event->gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) {
-                queued.floatData[0] = event->gaxis.value <= 0 ? 0.0f : static_cast<float>(event->gaxis.value) / 32767.0f;
-            } else if (event->gaxis.value == SDL_MIN_SINT16) {
-                queued.floatData[0] = -1.0f;
-            } else {
-                queued.floatData[0] = static_cast<float>(event->gaxis.value) / 32767.0f;
-            }
+            queued.floatData[0] = normalize_gamepad_axis(
+                event->gaxis.value,
+                event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || event->gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
             push_input_event(queued);
             break;
         case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
@@ -433,6 +472,28 @@ void libjglios_input_enqueue_sdl_event(const void* rawEvent) {
             queued.intData[1] = static_cast<int>(event->gbutton.which);
             queued.intData[2] = static_cast<int>(event->gbutton.button);
             queued.intData[3] = event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ? 1 : 0;
+            push_input_event(queued);
+            break;
+        case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+            if (SDL_IsGamepad(event->jaxis.which)) {
+                break;
+            }
+            queued.intData[0] = 9;
+            queued.intData[1] = static_cast<int>(event->jaxis.which);
+            queued.intData[2] = static_cast<int>(event->jaxis.axis);
+            queued.intData[3] = static_cast<int>(event->jaxis.value);
+            queued.floatData[0] = normalize_gamepad_axis(event->jaxis.value, false);
+            push_input_event(queued);
+            break;
+        case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+        case SDL_EVENT_JOYSTICK_BUTTON_UP:
+            if (SDL_IsGamepad(event->jbutton.which)) {
+                break;
+            }
+            queued.intData[0] = 10;
+            queued.intData[1] = static_cast<int>(event->jbutton.which);
+            queued.intData[2] = static_cast<int>(event->jbutton.button);
+            queued.intData[3] = event->type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ? 1 : 0;
             push_input_event(queued);
             break;
         default:

@@ -715,6 +715,8 @@ def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String b
     <true/>
     <key>MinimumOSVersion</key>
     <string>${escapedMinIosVersion}</string>
+    <key>GCSupportsControllerUserInteraction</key>
+    <true/>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

@@ -19,12 +19,20 @@ class SDL3BindingShapeTest {
         assertEquals(6, SDL3.SDL_GAMEPAD_AXIS_COUNT);
         assertEquals(0, SDL3.SDL_GAMEPAD_BUTTON_SOUTH);
         assertEquals(22, SDL3.SDL_GAMEPAD_BUTTON_COUNT);
+        assertEquals(1, SDL3.SDL_GAMEPAD_BUTTON_LABEL_A);
+        assertEquals(8, SDL3.SDL_GAMEPAD_BUTTON_LABEL_TRIANGLE);
 
         assertNative("SDL_CreateWindow", String.class, int.class, int.class, long.class);
         assertNative("SDL_Metal_CreateView", long.class);
         assertNative("SDL_Metal_GetLayer", long.class);
         assertNative("SDL_PollEvent", long.class);
         assertNative("SDL_OpenGamepad", int.class);
+        assertNative("SDL_GetGamepads");
+        assertNative("SDL_GetJoysticks");
+        assertNative("SDL_IsGamepad", int.class);
+        assertNative("SDL_GetGamepadButtonLabel", long.class, int.class);
+        assertNative("SDL_RumbleGamepad", long.class, int.class, int.class, int.class);
+        assertNative("SDL_RumbleJoystick", long.class, int.class, int.class, int.class);
     }
 
     private static void assertNative(String name, Class<?>... parameterTypes) throws Exception {

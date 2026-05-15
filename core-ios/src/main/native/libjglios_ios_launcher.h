@@ -19,6 +19,8 @@ void libjglios_app_reset_quit_request(void);
 bool libjglios_app_quit_requested(void);
 void libjglios_app_set_window(void* window);
 bool libjglios_app_set_software_keyboard_visible(bool visible);
+bool libjglios_device_rumble_supported(void);
+void libjglios_device_rumble(float amount);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,7 @@
 #include <jni.h>
+#include <algorithm>
 #include <cstdint>
+#include <vector>
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_metal.h>
@@ -18,6 +20,34 @@ inline jlong addr(T* value) {
 
 inline SDL_GLContext glContext(jlong value) {
     return reinterpret_cast<SDL_GLContext>(static_cast<uintptr_t>(value));
+}
+
+inline Uint16 clampUint16(jint value) {
+    return static_cast<Uint16>(std::max(0, std::min(0xffff, static_cast<int>(value))));
+}
+
+inline Uint32 clampUint32(jint value) {
+    return static_cast<Uint32>(std::max(0, static_cast<int>(value)));
+}
+
+jintArray joystickIdsToArray(JNIEnv* env, SDL_JoystickID* ids, int count) {
+    if (ids == nullptr || count <= 0) {
+        if (ids != nullptr) {
+            SDL_free(ids);
+        }
+        return env->NewIntArray(0);
+    }
+
+    jintArray result = env->NewIntArray(count);
+    if (result != nullptr) {
+        std::vector<jint> values(static_cast<size_t>(count));
+        for (int i = 0; i < count; ++i) {
+            values[static_cast<size_t>(i)] = static_cast<jint>(ids[i]);
+        }
+        env->SetIntArrayRegion(result, 0, count, values.data());
+    }
+    SDL_free(ids);
+    return result;
 }
 
 } // namespace
@@ -157,6 +187,25 @@ JNIEXPORT jstring JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetError(JN
     return env->NewStringUTF(result);
 }
 
+JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetGamepadButtonLabel(JNIEnv*, jclass, jlong gamepad, jint button) {
+    auto result = SDL_GetGamepadButtonLabel(ptr<SDL_Gamepad>(gamepad), static_cast<SDL_GamepadButton>(button));
+    return static_cast<jint>(result);
+}
+
+JNIEXPORT jstring JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetGamepadName(JNIEnv* env, jclass, jlong gamepad) {
+    const char* result = SDL_GetGamepadName(ptr<SDL_Gamepad>(gamepad));
+    if (result == nullptr) {
+        return nullptr;
+    }
+    return env->NewStringUTF(result);
+}
+
+JNIEXPORT jintArray JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetGamepads(JNIEnv* env, jclass) {
+    int count = 0;
+    SDL_JoystickID* result = SDL_GetGamepads(&count);
+    return joystickIdsToArray(env, result, count);
+}
+
 JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetGlobalProperties(JNIEnv* env, jclass) {
     auto result = SDL_GetGlobalProperties();
     return static_cast<jint>(result);
@@ -186,6 +235,30 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetMouseState(
     auto result = SDL_GetMouseState(reinterpret_cast<jfloat*>(x_elems), reinterpret_cast<jfloat*>(y_elems));
     env->ReleaseFloatArrayElements(y, y_elems, 0);
     env->ReleaseFloatArrayElements(x, x_elems, 0);
+    return static_cast<jint>(result);
+}
+
+JNIEXPORT jstring JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetJoystickName(JNIEnv* env, jclass, jlong joystick) {
+    const char* result = SDL_GetJoystickName(ptr<SDL_Joystick>(joystick));
+    if (result == nullptr) {
+        return nullptr;
+    }
+    return env->NewStringUTF(result);
+}
+
+JNIEXPORT jintArray JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetJoysticks(JNIEnv* env, jclass) {
+    int count = 0;
+    SDL_JoystickID* result = SDL_GetJoysticks(&count);
+    return joystickIdsToArray(env, result, count);
+}
+
+JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetNumJoystickAxes(JNIEnv*, jclass, jlong joystick) {
+    auto result = SDL_GetNumJoystickAxes(ptr<SDL_Joystick>(joystick));
+    return static_cast<jint>(result);
+}
+
+JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetNumJoystickButtons(JNIEnv*, jclass, jlong joystick) {
+    auto result = SDL_GetNumJoystickButtons(ptr<SDL_Joystick>(joystick));
     return static_cast<jint>(result);
 }
 
@@ -264,6 +337,11 @@ JNIEXPORT jboolean JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1InitSubSys
     return static_cast<jboolean>(result);
 }
 
+JNIEXPORT jboolean JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1IsGamepad(JNIEnv*, jclass, jint instance_id) {
+    auto result = SDL_IsGamepad(static_cast<SDL_JoystickID>(instance_id));
+    return static_cast<jboolean>(result);
+}
+
 JNIEXPORT jlong JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1Metal_1CreateView(JNIEnv* env, jclass, jlong window) {
     auto result = SDL_Metal_CreateView(ptr<SDL_Window>(window));
     return addr(reinterpret_cast<void*>(result));
@@ -329,9 +407,31 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1ResumeAudioStr
     return static_cast<jint>(result);
 }
 
+JNIEXPORT jboolean JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1RumbleGamepad(JNIEnv*, jclass, jlong gamepad, jint lowFrequency, jint highFrequency, jint durationMs) {
+    auto result = SDL_RumbleGamepad(
+        ptr<SDL_Gamepad>(gamepad),
+        clampUint16(lowFrequency),
+        clampUint16(highFrequency),
+        clampUint32(durationMs));
+    return static_cast<jboolean>(result);
+}
+
+JNIEXPORT jboolean JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1RumbleJoystick(JNIEnv*, jclass, jlong joystick, jint lowFrequency, jint highFrequency, jint durationMs) {
+    auto result = SDL_RumbleJoystick(
+        ptr<SDL_Joystick>(joystick),
+        clampUint16(lowFrequency),
+        clampUint16(highFrequency),
+        clampUint32(durationMs));
+    return static_cast<jboolean>(result);
+}
+
 JNIEXPORT jboolean JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1SetCursor(JNIEnv* env, jclass, jlong cursor) {
     auto result = SDL_SetCursor(ptr<SDL_Cursor>(cursor));
     return static_cast<jboolean>(result);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1SetGamepadEventsEnabled(JNIEnv*, jclass, jboolean enabled) {
+    SDL_SetGamepadEventsEnabled(enabled == JNI_TRUE);
 }
 
 JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1SetHint(JNIEnv* env, jclass, jstring name, jstring value) {
@@ -341,6 +441,10 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1SetHint(JNIEnv
     env->ReleaseStringUTFChars(value, value_chars);
     env->ReleaseStringUTFChars(name, name_chars);
     return static_cast<jint>(result);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1SetJoystickEventsEnabled(JNIEnv*, jclass, jboolean enabled) {
+    SDL_SetJoystickEventsEnabled(enabled == JNI_TRUE);
 }
 
 JNIEXPORT jboolean JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1SetWindowIcon(JNIEnv* env, jclass, jlong window, jlong iconSurface) {

@@ -53,6 +53,15 @@ public final class SDL3 {
                                                 SDL_GAMEPAD_BUTTON_DPAD_LEFT = 13,
                                                 SDL_GAMEPAD_BUTTON_DPAD_RIGHT = 14,
                                                 SDL_GAMEPAD_BUTTON_COUNT = 22,
+                                                SDL_GAMEPAD_BUTTON_LABEL_UNKNOWN = 0,
+                                                SDL_GAMEPAD_BUTTON_LABEL_A = 1,
+                                                SDL_GAMEPAD_BUTTON_LABEL_B = 2,
+                                                SDL_GAMEPAD_BUTTON_LABEL_X = 3,
+                                                SDL_GAMEPAD_BUTTON_LABEL_Y = 4,
+                                                SDL_GAMEPAD_BUTTON_LABEL_CROSS = 5,
+                                                SDL_GAMEPAD_BUTTON_LABEL_CIRCLE = 6,
+                                                SDL_GAMEPAD_BUTTON_LABEL_SQUARE = 7,
+                                                SDL_GAMEPAD_BUTTON_LABEL_TRIANGLE = 8,
                                                 SDL_EVENT_JOYSTICK_ADDED = 1541,
                                                 SDL_EVENT_JOYSTICK_AXIS_MOTION = 0x600,
                                                 SDL_EVENT_JOYSTICK_BUTTON_DOWN = 0x603,
@@ -265,10 +274,17 @@ public final class SDL3 {
     public static native String SDL_GetDisplayName(int displayID);
     public static native long SDL_GetDisplays(int[] count);
     public static native String SDL_GetError();
+    public static native int SDL_GetGamepadButtonLabel(long gamepad, int button);
+    public static native String SDL_GetGamepadName(long gamepad);
+    public static native int[] SDL_GetGamepads();
     public static native int SDL_GetGlobalProperties();
     public static native String SDL_GetHint(String name);
     public static native String SDL_GetKeyName(int key);
     public static native int SDL_GetMouseState(float[] x, float[] y);
+    public static native String SDL_GetJoystickName(long joystick);
+    public static native int[] SDL_GetJoysticks();
+    public static native int SDL_GetNumJoystickAxes(long joystick);
+    public static native int SDL_GetNumJoystickButtons(long joystick);
     public static native int SDL_GetPrimaryDisplay();
     public static native String SDL_GetScancodeName(int scancode);
     public static native long SDL_GetTicks();
@@ -281,6 +297,7 @@ public final class SDL3 {
     public static native boolean SDL_HideCursor();
     public static native boolean SDL_Init(int flags);
     public static native boolean SDL_InitSubSystem(int flags);
+    public static native boolean SDL_IsGamepad(int instance_id);
     public static native long SDL_Metal_CreateView(long window);
     public static native void SDL_Metal_DestroyView(long view);
     public static native long SDL_Metal_GetLayer(long view);
@@ -294,8 +311,12 @@ public final class SDL3 {
     public static native void SDL_Quit();
     public static native void SDL_QuitSubSystem(int flags);
     public static native int SDL_ResumeAudioStreamDevice(long stream);
+    public static native boolean SDL_RumbleGamepad(long gamepad, int lowFrequency, int highFrequency, int durationMs);
+    public static native boolean SDL_RumbleJoystick(long joystick, int lowFrequency, int highFrequency, int durationMs);
     public static native boolean SDL_SetCursor(long cursor);
+    public static native void SDL_SetGamepadEventsEnabled(boolean enabled);
     public static native int SDL_SetHint(String name, String value);
+    public static native void SDL_SetJoystickEventsEnabled(boolean enabled);
     public static native boolean SDL_SetWindowIcon(long window, long iconSurface);
     public static native boolean SDL_SetWindowMouseGrab(long window, boolean grabbed);
     public static native boolean SDL_SetWindowPosition(long window, int x, int y);

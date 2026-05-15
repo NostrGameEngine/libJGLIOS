@@ -94,6 +94,16 @@ Java_org_ngengine_libjglios_core_LibJGLIOSInputBridge_pollEvent(JNIEnv* env, jcl
     return JNI_TRUE;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_isRumbleSupported(JNIEnv*, jclass) {
+    return libjglios_device_rumble_supported() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_setRumble(JNIEnv*, jclass, jfloat amount) {
+    libjglios_device_rumble(static_cast<float>(amount));
+}
+
 extern "C" JNIEXPORT jobject JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSBufferAllocator_allocate(JNIEnv* env, jclass, jint size) {
     if (size < 0) {
