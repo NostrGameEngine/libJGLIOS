@@ -9,5 +9,5 @@ class LibJGLIOSExtension {
     Property<String> minIosVersion
     Property<String> simulatorDevice
     Property<String> buildType
+    Property<String> orientation
 }
-

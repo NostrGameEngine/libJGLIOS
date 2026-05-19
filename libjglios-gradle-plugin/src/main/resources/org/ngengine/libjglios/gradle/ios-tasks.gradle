@@ -24,6 +24,7 @@ def libJGLIOSNativeFiles = [
     'jni_sdl3.mm',
     'jni_openal_ios.mm'
 ]
+def libJGLIOSNativeImageMetadataTasks = tasks.matching { it.name == 'generateNativeImageMetadata' }
 
 def libJGLIOSResource = { String path ->
     def pluginLoader = null
@@ -377,6 +378,39 @@ def libJGLIOSBundleId = { libJGLIOSSetting('bundleId', 'org.ngengine.libjglios.s
 def libJGLIOSAppName = { libJGLIOSSetting('appName', 'IOSGlesGears') }
 def libJGLIOSMinIosVersion = { libJGLIOSSetting('minIosVersion', '15.0') }
 def libJGLIOSSimulatorDevice = { libJGLIOSSetting('simulatorDevice', 'iPhone 16') }
+def libJGLIOSOrientation = {
+    def orientation = libJGLIOSSetting('orientation', 'landscape')
+        .trim()
+        .toLowerCase(Locale.ROOT)
+        .replace('_', '-')
+    if (orientation == 'force-portrait') {
+        return 'portrait'
+    }
+    if (orientation == 'force-landscape') {
+        return 'landscape'
+    }
+    if (!['portrait', 'landscape', 'auto'].contains(orientation)) {
+        throw new GradleException("Unsupported libJGLIOS.orientation '${orientation}'. Expected portrait, landscape, or auto.")
+    }
+    orientation
+}
+def libJGLIOSInterfaceOrientations = {
+    switch (libJGLIOSOrientation()) {
+        case 'portrait':
+            return ['UIInterfaceOrientationPortrait']
+        case 'auto':
+            return [
+                'UIInterfaceOrientationPortrait',
+                'UIInterfaceOrientationLandscapeLeft',
+                'UIInterfaceOrientationLandscapeRight'
+            ]
+        default:
+            return [
+                'UIInterfaceOrientationLandscapeLeft',
+                'UIInterfaceOrientationLandscapeRight'
+            ]
+    }
+}
 def libJGLIOSSimulatorExecutableName = { libJGLIOSExecutableName("${libJGLIOSAppName()}Sim") }
 def libJGLIOSDeviceExecutableName = { libJGLIOSExecutableName(libJGLIOSAppName()) }
 def libJGLIOSSimulatorTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion()}-simulator" }
@@ -685,12 +719,19 @@ tasks.named('compileJava') {
     }
 }
 
+def libJGLIOSPlistStringArray = { List<String> values ->
+    values.collect { value ->
+        "        <string>${libJGLIOSXmlEscape(value)}</string>"
+    }.join(System.lineSeparator())
+}
+
 def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String bundleId, String appName, String minIosVersion ->
     outputFile.parentFile.mkdirs()
     def escapedExecutableName = libJGLIOSXmlEscape(executableName)
     def escapedBundleId = libJGLIOSXmlEscape(bundleId)
     def escapedAppName = libJGLIOSXmlEscape(appName)
     def escapedMinIosVersion = libJGLIOSXmlEscape(minIosVersion)
+    def supportedOrientations = libJGLIOSPlistStringArray(libJGLIOSInterfaceOrientations())
     outputFile.text = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -728,9 +769,11 @@ def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String b
     <string></string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
+${supportedOrientations}
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+${supportedOrientations}
     </array>
 </dict>
 </plist>
@@ -741,6 +784,7 @@ tasks.register('generateLibJGLIOSSimulatorInfoPlist') {
     group = 'libJGLIOS'
     description = 'Generates the iOS Simulator app Info.plist from the libJGLIOS extension.'
     outputs.file(graalSimulatorInfoPlist)
+    inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
         libJGLIOSWriteInfoPlist(
             graalSimulatorInfoPlist.get().asFile,
@@ -756,6 +800,7 @@ tasks.register('generateLibJGLIOSInfoPlist') {
     group = 'libJGLIOS'
     description = 'Generates the iOS app Info.plist from the libJGLIOS extension.'
     outputs.file(graalDeviceInfoPlist)
+    inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
         libJGLIOSWriteInfoPlist(
             graalDeviceInfoPlist.get().asFile,
@@ -959,7 +1004,10 @@ tasks.register('verifyIosSimulatorToolchain') {
 tasks.register('buildIosSimulatorUsercode') {
     group = 'build'
     description = 'Builds the relocatable Graal iOS simulator usercode image using BellSoft Liberica NIK.'
-    dependsOn 'classes', libJGLIOSProviderTask('prepareGraalHostNik'), libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
+    dependsOn 'classes',
+        libJGLIOSNativeImageMetadataTasks,
+        libJGLIOSProviderTask('prepareGraalHostNik'),
+        libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir)
     outputs.dir(graalSimulatorLibDir)
 
@@ -1149,7 +1197,10 @@ tasks.register('prepareLibJGLIOSArtifacts') {
 tasks.register('buildUsercode') {
     group = 'build'
     description = 'Builds the relocatable Graal iOS app usercode image using BellSoft Liberica NIK.'
-    dependsOn 'classes', libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64'), libJGLIOSProviderTask('prepareGraalHostNik')
+    dependsOn 'classes',
+        libJGLIOSNativeImageMetadataTasks,
+        libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64'),
+        libJGLIOSProviderTask('prepareGraalHostNik')
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir)
     outputs.dir(graalDeviceLibDir)
 

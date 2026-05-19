@@ -38,6 +38,7 @@ libJGLIOS {
     minIosVersion = '15.0'
     simulatorDevice = 'iPhone 16'
     buildType = 'release'
+    orientation = 'landscape'
 }
 ```
  
@@ -47,6 +48,11 @@ Useful app tasks:
 - `buildIosSimulatorApp` - builds a runnable simulator app.
 - `buildIosApp` - builds and signs the app for a real iOS device.
 - `packageApp` - packages the device app as a zip.
+
+If the project has a `generateNativeImageMetadata` task, libJGLIOS runs it
+before the iOS native-image build. This lets apps or engine plugins generate
+their own `META-INF/native-image` reachability metadata without libJGLIOS
+owning that discovery logic.
 
 
 ## Build

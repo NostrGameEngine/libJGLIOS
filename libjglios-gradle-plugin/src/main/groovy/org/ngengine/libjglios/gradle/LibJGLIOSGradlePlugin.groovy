@@ -14,12 +14,14 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.minIosVersion = project.objects.property(String)
         extension.simulatorDevice = project.objects.property(String)
         extension.buildType = project.objects.property(String)
+        extension.orientation = project.objects.property(String)
 
-        extension.bundleId.convention('org.ngengine.libjglios.app')
-        extension.appName.convention(project.name)
-        extension.minIosVersion.convention('15.0')
-        extension.simulatorDevice.convention('iPhone 16')
-        extension.buildType.convention('release')
+        extension.bundleId.convention(settingProvider(project, 'bundleId', 'org.ngengine.libjglios.app'))
+        extension.appName.convention(settingProvider(project, 'appName', project.name))
+        extension.minIosVersion.convention(settingProvider(project, 'minIosVersion', '15.0'))
+        extension.simulatorDevice.convention(settingProvider(project, 'simulatorDevice', 'iPhone 16'))
+        extension.buildType.convention(settingProvider(project, 'buildType', 'release'))
+        extension.orientation.convention(settingProvider(project, 'orientation', 'landscape'))
 
         registerGeneratedEntrypointsTask(project, extension)
         registerMaterializeNativeSourcesTask(project)
@@ -35,6 +37,12 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
             }
             project.apply(from: resource)
         }
+    }
+
+    private static org.gradle.api.provider.Provider<String> settingProvider(Project project, String name, String fallback) {
+        project.providers.gradleProperty("libJGLIOS.${name}")
+            .orElse(project.providers.gradleProperty("libjglios.${name}"))
+            .orElse(fallback)
     }
 
     private static void registerGeneratedEntrypointsTask(Project project, LibJGLIOSExtension extension) {
