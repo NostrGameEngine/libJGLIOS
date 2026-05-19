@@ -100,8 +100,15 @@ Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_isRumbleSupported(JNIEnv*
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_setRumble(JNIEnv*, jclass, jfloat amount) {
-    libjglios_device_rumble(static_cast<float>(amount));
+Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_rumble(JNIEnv*, jclass, jfloat amountHigh, jfloat amountLow,
+        jfloat duration) {
+    libjglios_device_rumble(static_cast<float>(amountHigh), static_cast<float>(amountLow),
+            static_cast<float>(duration));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_stopRumble(JNIEnv*, jclass) {
+    libjglios_device_stop_rumble();
 }
 
 extern "C" JNIEXPORT jobject JNICALL

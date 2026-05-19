@@ -6,5 +6,7 @@ public final class LibJGLIOSDeviceBridge {
 
     public static native boolean isRumbleSupported();
 
-    public static native void setRumble(float amount);
+    public static native void rumble(float amountHigh, float amountLow, float duration);
+
+    public static native void stopRumble();
 }

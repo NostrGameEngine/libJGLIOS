@@ -1,5 +1,7 @@
 #include "libjglios_ios_launcher.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
@@ -10,7 +12,7 @@
 
 #include <SDL3/SDL.h>
 #include <TargetConditionals.h>
-#import <AudioToolbox/AudioServices.h>
+#import <CoreHaptics/CoreHaptics.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -45,6 +47,17 @@ struct LibJGLIOSQueuedInputEvent {
 
 static std::mutex g_inputMutex;
 static std::vector<LibJGLIOSQueuedInputEvent> g_inputEvents;
+
+static std::mutex g_hapticMutex;
+static CHHapticEngine* g_hapticEngine = nil;
+static id<CHHapticPatternPlayer> g_hapticPlayer = nil;
+
+static float clamp01(float value) {
+    if (!std::isfinite(value)) {
+        return value > 0.0f ? 1.0f : 0.0f;
+    }
+    return std::max(0.0f, std::min(1.0f, value));
+}
 
 static int fail(int code, const char* message) {
     g_lastError = message ? message : "unknown error";
@@ -313,20 +326,94 @@ static float normalize_gamepad_axis(Sint16 value, bool trigger) {
 }
 
 bool libjglios_device_rumble_supported(void) {
-#if TARGET_OS_SIMULATOR
+#if !TARGET_OS_IOS || TARGET_OS_SIMULATOR
     return false;
-#elif TARGET_OS_IOS
-    return true;
 #else
+    if (@available(iOS 13.0, *)) {
+        return [CHHapticEngine capabilitiesForHardware].supportsHaptics;
+    }
     return false;
 #endif
 }
 
-void libjglios_device_rumble(float amount) {
-    if (amount <= 0.0f || !libjglios_device_rumble_supported()) {
+void libjglios_device_stop_rumble(void) {
+#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+    if (@available(iOS 13.0, *)) {
+        std::lock_guard<std::mutex> lock(g_hapticMutex);
+        if (g_hapticPlayer != nil) {
+            NSError* error = nil;
+            [g_hapticPlayer cancelAndReturnError:&error];
+            g_hapticPlayer = nil;
+        }
+    }
+#endif
+}
+
+void libjglios_device_rumble(float amountHigh, float amountLow, float duration) {
+    float high = clamp01(amountHigh);
+    float low = clamp01(amountLow);
+    float intensity = std::max(high, low);
+    if (intensity <= 0.0f || duration <= 0.0f || std::isnan(duration)) {
+        libjglios_device_stop_rumble();
         return;
     }
-    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
+
+    if (!libjglios_device_rumble_supported()) {
+        return;
+    }
+
+#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+    if (@available(iOS 13.0, *)) {
+        std::lock_guard<std::mutex> lock(g_hapticMutex);
+
+        NSError* error = nil;
+        if (g_hapticEngine == nil) {
+            g_hapticEngine = [[CHHapticEngine alloc] initAndReturnError:&error];
+            if (g_hapticEngine == nil) {
+                return;
+            }
+            g_hapticEngine.playsHapticsOnly = YES;
+            g_hapticEngine.autoShutdownEnabled = YES;
+        }
+
+        if (![g_hapticEngine startAndReturnError:&error]) {
+            return;
+        }
+
+        if (g_hapticPlayer != nil) {
+            [g_hapticPlayer cancelAndReturnError:&error];
+            g_hapticPlayer = nil;
+        }
+
+        float sum = high + low;
+        float sharpness = sum > 0.0f ? high / sum : 0.5f;
+        NSTimeInterval hapticDuration = std::isinf(duration) && duration > 0.0f
+                ? static_cast<NSTimeInterval>(21 * 24 * 60 * 60)
+                : static_cast<NSTimeInterval>(duration);
+        NSArray<CHHapticEventParameter*>* parameters = @[
+            [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticIntensity
+                                                          value:intensity],
+            [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticSharpness
+                                                          value:sharpness]
+        ];
+        CHHapticEvent* event = [[CHHapticEvent alloc] initWithEventType:CHHapticEventTypeHapticContinuous
+                                                             parameters:parameters
+                                                           relativeTime:0.0
+                                                               duration:hapticDuration];
+        CHHapticPattern* pattern = [[CHHapticPattern alloc] initWithEvents:@[event] parameters:@[] error:&error];
+        if (pattern == nil) {
+            return;
+        }
+
+        g_hapticPlayer = [g_hapticEngine createPlayerWithPattern:pattern error:&error];
+        if (g_hapticPlayer == nil) {
+            return;
+        }
+        if (![g_hapticPlayer startAtTime:CHHapticTimeImmediate error:&error]) {
+            g_hapticPlayer = nil;
+        }
+    }
+#endif
 }
 
 static const char* next_utf8_codepoint(const char* text, int& codepoint) {

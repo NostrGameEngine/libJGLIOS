@@ -20,7 +20,8 @@ bool libjglios_app_quit_requested(void);
 void libjglios_app_set_window(void* window);
 bool libjglios_app_set_software_keyboard_visible(bool visible);
 bool libjglios_device_rumble_supported(void);
-void libjglios_device_rumble(float amount);
+void libjglios_device_rumble(float amountHigh, float amountLow, float duration);
+void libjglios_device_stop_rumble(void);
 
 #ifdef __cplusplus
 }
