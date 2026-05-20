@@ -16,15 +16,20 @@ void throwJavaException(JNIEnv* env, const char* className, const char* message)
     }
 }
 
-void* directBufferAddress(JNIEnv* env, jobject buffer) {
+void* directBufferAddress(JNIEnv* env, jobject buffer, jlong byteOffset = 0) {
     if (!buffer) {
+        return nullptr;
+    }
+    if (byteOffset < 0) {
+        throwJavaException(env, "java/lang/IllegalArgumentException", "Buffer offset must be non-negative");
         return nullptr;
     }
     void* address = env->GetDirectBufferAddress(buffer);
     if (!address) {
         throwJavaException(env, "java/lang/IllegalArgumentException", "Expected a direct NIO buffer");
+        return nullptr;
     }
-    return address;
+    return static_cast<void*>(static_cast<std::uint8_t*>(address) + byteOffset);
 }
 
 } // namespace
@@ -470,13 +475,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferData(JNIEnv
     fn(target, size, data, usage);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferData__IJLjava_nio_Buffer_2I(JNIEnv* env, jclass, jint target, jlong size, jobject data, jint usage) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferData__IJLjava_nio_Buffer_2JI(JNIEnv* env, jclass, jint target, jlong size, jobject data, jlong dataOffset, jint usage) {
     using Fn = void (*)(jint, jlong, void*, jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glBufferData"));
     if (!fn) {
         return;
     }
-    void* dataPtr = directBufferAddress(env, data);
+    void* dataPtr = directBufferAddress(env, data, dataOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -528,13 +533,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferSubData(JNI
     fn(target, offset, size, data);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferSubData__IJJLjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jlong offset, jlong size, jobject data) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferSubData__IJJLjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jlong offset, jlong size, jobject data, jlong dataOffset) {
     using Fn = void (*)(jint, jlong, jlong, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glBufferSubData"));
     if (!fn) {
         return;
     }
-    void* dataPtr = directBufferAddress(env, data);
+    void* dataPtr = directBufferAddress(env, data, dataOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -732,13 +737,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImag
     fn(target, level, internalformat, width, height, border, imageSize, data);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage2D__IIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint imageSize, jobject data) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage2D__IIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint imageSize, jobject data, jlong dataOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexImage2D"));
     if (!fn) {
         return;
     }
-    void* dataPtr = directBufferAddress(env, data);
+    void* dataPtr = directBufferAddress(env, data, dataOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -754,13 +759,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImag
     fn(target, level, internalformat, width, height, depth, border, imageSize, data);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage3D__IIIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint imageSize, jobject data) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage3D__IIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint imageSize, jobject data, jlong dataOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexImage3D"));
     if (!fn) {
         return;
     }
-    void* dataPtr = directBufferAddress(env, data);
+    void* dataPtr = directBufferAddress(env, data, dataOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -785,13 +790,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubI
     fn(target, level, xoffset, yoffset, width, height, format, imageSize, data);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage2D__IIIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint imageSize, jobject data) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage2D__IIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint imageSize, jobject data, jlong dataOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexSubImage2D"));
     if (!fn) {
         return;
     }
-    void* dataPtr = directBufferAddress(env, data);
+    void* dataPtr = directBufferAddress(env, data, dataOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -807,13 +812,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubI
     fn(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage3D__IIIIIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint imageSize, jobject data) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage3D__IIIIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint imageSize, jobject data, jlong dataOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexSubImage3D"));
     if (!fn) {
         return;
     }
-    void* dataPtr = directBufferAddress(env, data);
+    void* dataPtr = directBufferAddress(env, data, dataOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -1122,13 +1127,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteBuffers(JNI
     env->ReleaseIntArrayElements(buffers, buffers_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteBuffers__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject buffers) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteBuffers__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject buffers, jlong buffersOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteBuffers"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, buffers));
+    jint* data = static_cast<jint*>(directBufferAddress(env, buffers, buffersOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -1157,13 +1162,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteFramebuffer
     env->ReleaseIntArrayElements(framebuffers, framebuffers_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteFramebuffers__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject framebuffers) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteFramebuffers__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject framebuffers, jlong framebuffersOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteFramebuffers"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, framebuffers));
+    jint* data = static_cast<jint*>(directBufferAddress(env, framebuffers, framebuffersOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -1241,13 +1246,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteQueries(JNI
     env->ReleaseIntArrayElements(ids, ids_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteQueries__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject ids) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteQueries__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject ids, jlong idsOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteQueries"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, ids));
+    jint* data = static_cast<jint*>(directBufferAddress(env, ids, idsOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -1276,13 +1281,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteRenderbuffe
     env->ReleaseIntArrayElements(renderbuffers, renderbuffers_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteRenderbuffers__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject renderbuffers) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteRenderbuffers__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject renderbuffers, jlong renderbuffersOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteRenderbuffers"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, renderbuffers));
+    jint* data = static_cast<jint*>(directBufferAddress(env, renderbuffers, renderbuffersOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -1349,13 +1354,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteTextures(JN
     env->ReleaseIntArrayElements(textures, textures_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteTextures__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject textures) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteTextures__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject textures, jlong texturesOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteTextures"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, textures));
+    jint* data = static_cast<jint*>(directBufferAddress(env, textures, texturesOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -2381,13 +2386,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenBuffers(JNIEnv
     env->ReleaseIntArrayElements(buffers, buffers_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenBuffers__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject buffers) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenBuffers__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject buffers, jlong buffersOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenBuffers"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, buffers));
+    jint* data = static_cast<jint*>(directBufferAddress(env, buffers, buffersOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -2416,13 +2421,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenFramebuffers(J
     env->ReleaseIntArrayElements(framebuffers, framebuffers_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenFramebuffers__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject framebuffers) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenFramebuffers__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject framebuffers, jlong framebuffersOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenFramebuffers"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, framebuffers));
+    jint* data = static_cast<jint*>(directBufferAddress(env, framebuffers, framebuffersOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -2472,13 +2477,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueries(JNIEnv
     env->ReleaseIntArrayElements(ids, ids_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueries__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject ids) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueries__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject ids, jlong idsOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenQueries"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, ids));
+    jint* data = static_cast<jint*>(directBufferAddress(env, ids, idsOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -2507,13 +2512,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers(
     env->ReleaseIntArrayElements(renderbuffers, renderbuffers_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject renderbuffers) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject renderbuffers, jlong renderbuffersOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenRenderbuffers"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, renderbuffers));
+    jint* data = static_cast<jint*>(directBufferAddress(env, renderbuffers, renderbuffersOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -2553,13 +2558,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTextures(JNIEn
     env->ReleaseIntArrayElements(textures, textures_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTextures__ILjava_nio_IntBuffer_2(JNIEnv* env, jclass, jint n, jobject textures) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTextures__ILjava_nio_IntBuffer_2J(JNIEnv* env, jclass, jint n, jobject textures, jlong texturesOffset) {
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenTextures"));
     if (!fn) {
         return;
     }
-    jint* data = static_cast<jint*>(directBufferAddress(env, textures));
+    jint* data = static_cast<jint*>(directBufferAddress(env, textures, texturesOffset));
     if (env->ExceptionCheck()) {
         return;
     }
@@ -6010,13 +6015,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glReadPixels(JNIEnv
     fn(x, y, width, height, format, type, pixels);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glReadPixels__IIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint x, jint y, jint width, jint height, jint format, jint type, jobject pixels) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glReadPixels__IIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint x, jint y, jint width, jint height, jint format, jint type, jobject pixels, jlong pixelsOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glReadPixels"));
     if (!fn) {
         return;
     }
-    void* pixelsPtr = directBufferAddress(env, pixels);
+    void* pixelsPtr = directBufferAddress(env, pixels, pixelsOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -6738,13 +6743,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D(JNIEnv
     fn(target, level, internalformat, width, height, border, format, type, pixels);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D__IIIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jobject pixels) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D__IIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jobject pixels, jlong pixelsOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexImage2D"));
     if (!fn) {
         return;
     }
-    void* pixelsPtr = directBufferAddress(env, pixels);
+    void* pixelsPtr = directBufferAddress(env, pixels, pixelsOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -6760,13 +6765,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage3D(JNIEnv
     fn(target, level, internalformat, width, height, depth, border, format, type, pixels);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage3D__IIIIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint format, jint type, jobject pixels) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage3D__IIIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint format, jint type, jobject pixels, jlong pixelsOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexImage3D"));
     if (!fn) {
         return;
     }
-    void* pixelsPtr = directBufferAddress(env, pixels);
+    void* pixelsPtr = directBufferAddress(env, pixels, pixelsOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -6983,13 +6988,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D(JNI
     fn(target, level, xoffset, yoffset, width, height, format, type, pixels);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D__IIIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jobject pixels) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D__IIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jobject pixels, jlong pixelsOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexSubImage2D"));
     if (!fn) {
         return;
     }
-    void* pixelsPtr = directBufferAddress(env, pixels);
+    void* pixelsPtr = directBufferAddress(env, pixels, pixelsOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -7005,13 +7010,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage3D(JNI
     fn(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage3D__IIIIIIIIIILjava_nio_Buffer_2(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint type, jobject pixels) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage3D__IIIIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint type, jobject pixels, jlong pixelsOffset) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jint, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexSubImage3D"));
     if (!fn) {
         return;
     }
-    void* pixelsPtr = directBufferAddress(env, pixels);
+    void* pixelsPtr = directBufferAddress(env, pixels, pixelsOffset);
     if (env->ExceptionCheck()) {
         return;
     }
@@ -8001,13 +8006,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribPoint
     fn(index, size, type, normalized, stride, pointer);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribPointer__IIIBILjava_nio_Buffer_2(JNIEnv* env, jclass, jint index, jint size, jint type, jbyte normalized, jint stride, jobject pointer) {
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribPointer__IIIBILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint index, jint size, jint type, jbyte normalized, jint stride, jobject pointer, jlong pointerOffset) {
     using Fn = void (*)(jint, jint, jint, jbyte, jint, void*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttribPointer"));
     if (!fn) {
         return;
     }
-    void* pointerPtr = directBufferAddress(env, pointer);
+    void* pointerPtr = directBufferAddress(env, pointer, pointerOffset);
     if (env->ExceptionCheck()) {
         return;
     }

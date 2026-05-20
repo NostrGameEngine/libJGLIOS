@@ -23,17 +23,30 @@ class GLESBindingShapeTest {
         assertNative("glDrawArrays", int.class, int.class, int.class);
         assertNative("glShaderSource", int.class, int.class, byte[].class, int[].class);
 
-        assertNative("glGenBuffers", int.class, IntBuffer.class);
-        assertNative("glGenFramebuffers", int.class, IntBuffer.class);
-        assertNative("glGenRenderbuffers", int.class, IntBuffer.class);
-        assertNative("glGenTextures", int.class, IntBuffer.class);
-        assertNative("glGenQueries", int.class, IntBuffer.class);
-        assertNative("glDeleteBuffers", int.class, IntBuffer.class);
-        assertNative("glDeleteFramebuffers", int.class, IntBuffer.class);
-        assertNative("glDeleteRenderbuffers", int.class, IntBuffer.class);
-        assertNative("glDeleteTextures", int.class, IntBuffer.class);
-        assertNative("glDeleteQueries", int.class, IntBuffer.class);
-        assertNative("glBufferData", int.class, long.class, Buffer.class, int.class);
+        assertNative("glGenBuffers", int.class, IntBuffer.class, long.class);
+        assertNative("glGenFramebuffers", int.class, IntBuffer.class, long.class);
+        assertNative("glGenRenderbuffers", int.class, IntBuffer.class, long.class);
+        assertNative("glGenTextures", int.class, IntBuffer.class, long.class);
+        assertNative("glGenQueries", int.class, IntBuffer.class, long.class);
+        assertNative("glDeleteBuffers", int.class, IntBuffer.class, long.class);
+        assertNative("glDeleteFramebuffers", int.class, IntBuffer.class, long.class);
+        assertNative("glDeleteRenderbuffers", int.class, IntBuffer.class, long.class);
+        assertNative("glDeleteTextures", int.class, IntBuffer.class, long.class);
+        assertNative("glDeleteQueries", int.class, IntBuffer.class, long.class);
+        assertNative("glBufferData", int.class, long.class, Buffer.class, long.class, int.class);
+        assertNative("glBufferSubData", int.class, long.class, long.class, Buffer.class, long.class);
+        assertNative("glCompressedTexImage2D", int.class, int.class, int.class, int.class, int.class,
+                int.class, int.class, Buffer.class, long.class);
+        assertNative("glCompressedTexSubImage2D", int.class, int.class, int.class, int.class, int.class,
+                int.class, int.class, int.class, Buffer.class, long.class);
+        assertNative("glReadPixels", int.class, int.class, int.class, int.class, int.class, int.class,
+                Buffer.class, long.class);
+        assertNative("glTexImage2D", int.class, int.class, int.class, int.class, int.class, int.class,
+                int.class, int.class, Buffer.class, long.class);
+        assertNative("glTexSubImage2D", int.class, int.class, int.class, int.class, int.class,
+                int.class, int.class, int.class, Buffer.class, long.class);
+        assertNative("glVertexAttribPointer", int.class, int.class, int.class, byte.class, int.class,
+                Buffer.class, long.class);
     }
 
     private static void assertNative(String name, Class<?>... parameterTypes) throws Exception {
