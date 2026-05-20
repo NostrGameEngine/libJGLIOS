@@ -1,10 +1,11 @@
 package org.ngengine.libjglios.gles;
 
-import org.junit.jupiter.api.Test;
-import org.ngengine.libjglios.gles.GLES;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.Buffer;
+import java.nio.IntBuffer;
+
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,6 +22,18 @@ class GLESBindingShapeTest {
         assertNative("glClear", int.class);
         assertNative("glDrawArrays", int.class, int.class, int.class);
         assertNative("glShaderSource", int.class, int.class, byte[].class, int[].class);
+
+        assertNative("glGenBuffers", int.class, IntBuffer.class);
+        assertNative("glGenFramebuffers", int.class, IntBuffer.class);
+        assertNative("glGenRenderbuffers", int.class, IntBuffer.class);
+        assertNative("glGenTextures", int.class, IntBuffer.class);
+        assertNative("glGenQueries", int.class, IntBuffer.class);
+        assertNative("glDeleteBuffers", int.class, IntBuffer.class);
+        assertNative("glDeleteFramebuffers", int.class, IntBuffer.class);
+        assertNative("glDeleteRenderbuffers", int.class, IntBuffer.class);
+        assertNative("glDeleteTextures", int.class, IntBuffer.class);
+        assertNative("glDeleteQueries", int.class, IntBuffer.class);
+        assertNative("glBufferData", int.class, long.class, Buffer.class, int.class);
     }
 
     private static void assertNative(String name, Class<?>... parameterTypes) throws Exception {
