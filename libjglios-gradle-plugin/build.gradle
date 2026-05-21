@@ -22,7 +22,6 @@ tasks.named('processResources') {
         }
         from(rootProject.file('gles-ios/src/main/native')) {
             include 'jni_gles.mm'
-            include 'jni_gles_compat.mm'
         }
         from(rootProject.file('sdl3-ios/src/main/native')) {
             include 'jni_sdl3.mm'

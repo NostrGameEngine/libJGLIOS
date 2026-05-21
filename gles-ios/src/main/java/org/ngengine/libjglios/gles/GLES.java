@@ -837,6 +837,7 @@ public final class GLES {
     public static native void glBufferStorageMemEXT(int target, long size, int memory, long offset);
     public static native void glBufferSubData(int target, long offset, long size, long data);
     public static native void glBufferSubData(int target, long offset, long size, Buffer data, long dataOffset);
+    public static native void glGetBufferSubData(int target, long offset, long size, Buffer data, long dataOffset);
     public static native int glCheckFramebufferStatus(int target);
     public static native void glClear(int mask);
     public static native void glClearBufferfi(int buffer, int drawbuffer, float depth, int stencil);

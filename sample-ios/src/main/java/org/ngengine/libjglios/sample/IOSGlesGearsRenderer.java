@@ -1,7 +1,10 @@
 package org.ngengine.libjglios.sample;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
 import java.nio.charset.StandardCharsets;
-import org.ngengine.libjglios.gles.GLESCompat;
 
 import static org.ngengine.libjglios.gles.GLES.*;
 
@@ -188,7 +191,8 @@ public final class IOSGlesGearsRenderer {
 
     private static int compileShader(int type, String source) {
         int shader = glCreateShader(type);
-        GLESCompat.glShaderSourceString(shader, source);
+        byte[] sourceBytes = source.getBytes(StandardCharsets.UTF_8);
+        glShaderSource(shader, 1, sourceBytes, new int[]{sourceBytes.length});
         glCompileShader(shader);
 
         int[] status = new int[1];
@@ -316,10 +320,24 @@ public final class IOSGlesGearsRenderer {
 
             glBindVertexArray(vao);
             glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            GLESCompat.glBufferDataFloats(GL_ARRAY_BUFFER, vertices.toArray(), GL_STATIC_DRAW);
+            float[] vertexData = vertices.toArray();
+            FloatBuffer vertexBuffer = ByteBuffer.allocateDirect(vertexData.length * Float.BYTES)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer();
+            vertexBuffer.put(vertexData);
+            vertexBuffer.flip();
+            glBufferData(GL_ARRAY_BUFFER, vertexBuffer.remaining() * (long) Float.BYTES,
+                    vertexBuffer, vertexBuffer.position() * (long) Float.BYTES, GL_STATIC_DRAW);
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-            GLESCompat.glBufferDataShorts(GL_ELEMENT_ARRAY_BUFFER, indices.toArray(), GL_STATIC_DRAW);
+            short[] indexData = indices.toArray();
+            ShortBuffer indexBuffer = ByteBuffer.allocateDirect(indexData.length * Short.BYTES)
+                    .order(ByteOrder.nativeOrder())
+                    .asShortBuffer();
+            indexBuffer.put(indexData);
+            indexBuffer.flip();
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.remaining() * (long) Short.BYTES,
+                    indexBuffer, indexBuffer.position() * (long) Short.BYTES, GL_STATIC_DRAW);
 
             int stride = 6 * Float.BYTES;
             glEnableVertexAttribArray(0);

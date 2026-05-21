@@ -546,6 +546,33 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferSubData__IJ
     fn(target, offset, size, dataPtr);
 }
 
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetBufferSubData(JNIEnv* env, jclass, jint target, jlong offset, jlong size, jobject data, jlong dataOffset) {
+    if (offset < 0 || size < 0) {
+        throwJavaException(env, "java/lang/IllegalArgumentException", "Offset and size must be non-negative");
+        return;
+    }
+
+    void* destination = directBufferAddress(env, data, dataOffset);
+    if (env->ExceptionCheck()) {
+        return;
+    }
+
+    void* mapped = glMapBufferRange(
+            static_cast<GLenum>(target),
+            static_cast<GLintptr>(offset),
+            static_cast<GLsizeiptr>(size),
+            GL_MAP_READ_BIT);
+    if (mapped == nullptr) {
+        throwJavaException(env, "java/lang/IllegalStateException", "Unable to map buffer for reading");
+        return;
+    }
+
+    std::memcpy(destination, mapped, static_cast<std::size_t>(size));
+    if (glUnmapBuffer(static_cast<GLenum>(target)) != GL_TRUE) {
+        throwJavaException(env, "java/lang/IllegalStateException", "Mapped buffer data became corrupted while reading");
+    }
+}
+
 JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glCheckFramebufferStatus(JNIEnv* env, jclass, jint target) {
     using Fn = jint (*)(jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCheckFramebufferStatus"));

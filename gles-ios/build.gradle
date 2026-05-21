@@ -13,8 +13,7 @@ libJGLIOSStaticIosFramework(
     taskName: 'buildLibJGLIOSGLESXcframework',
     dependsOn: [':angle-ios:prepareANGLEIosFrameworks'],
     sources: [
-        file('src/main/native/jni_gles.mm'),
-        file('src/main/native/jni_gles_compat.mm')
+        file('src/main/native/jni_gles.mm')
     ],
     includes: [{ angleVendorDir.get().dir('include').asFile }]
 )

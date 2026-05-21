@@ -259,10 +259,9 @@ final class Target_com_sun_management_internal_OperatingSystemImpl {
         def nativeFiles = [
             'libjglios_ios_app.mm',
             'libjglios_ios_launcher.mm',
-            'libjglios_ios_launcher_jni.mm',
+                'libjglios_ios_launcher_jni.mm',
                 'libjglios_ios_launcher.h',
                 'jni_gles.mm',
-                'jni_gles_compat.mm',
                 'jni_sdl3.mm',
                 'jni_openal_ios.mm'
         ]

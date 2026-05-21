@@ -35,6 +35,7 @@ class GLESBindingShapeTest {
         assertNative("glDeleteQueries", int.class, IntBuffer.class, long.class);
         assertNative("glBufferData", int.class, long.class, Buffer.class, long.class, int.class);
         assertNative("glBufferSubData", int.class, long.class, long.class, Buffer.class, long.class);
+        assertNative("glGetBufferSubData", int.class, long.class, long.class, Buffer.class, long.class);
         assertNative("glCompressedTexImage2D", int.class, int.class, int.class, int.class, int.class,
                 int.class, int.class, Buffer.class, long.class);
         assertNative("glCompressedTexSubImage2D", int.class, int.class, int.class, int.class, int.class,
