@@ -103,6 +103,7 @@ import org.graalvm.nativeimage.c.function.CEntryPoint;
 public final class LibJGLIOSGeneratedEntrypoints {
     private static final String MAIN_CLASS = "${escapedMainClass}";
     private static Object application;
+    private static boolean fatalErrorShown;
 
     private LibJGLIOSGeneratedEntrypoints() {
     }
@@ -124,14 +125,17 @@ public final class LibJGLIOSGeneratedEntrypoints {
             return 0;
         } catch (Throwable throwable) {
             logThrowable("libJGLIOS_GRAAL_START_EXCEPTION", throwable);
-            showThrowable("Application startup failed", throwable);
+            showFatalThrowable("Application startup failed", throwable);
             throwable.printStackTrace(System.out);
-            return -1;
+            return 0;
         }
     }
 
     @CEntryPoint(name = "libjglios_app_frame")
     public static int frame(IsolateThread thread) {
+        if (fatalErrorShown) {
+            return 0;
+        }
         try {
             if (application != null) {
                 if (invokeIfPresent(application, "frame", new Class<?>[0]) == MissingMethod.INSTANCE) {
@@ -142,9 +146,9 @@ public final class LibJGLIOSGeneratedEntrypoints {
             return -1;
         } catch (Throwable throwable) {
             logThrowable("libJGLIOS_GRAAL_FRAME_EXCEPTION", throwable);
-            showThrowable("Application frame failed", throwable);
+            showFatalThrowable("Application frame failed", throwable);
             throwable.printStackTrace(System.out);
-            return -2;
+            return 0;
         }
     }
 
@@ -157,9 +161,9 @@ public final class LibJGLIOSGeneratedEntrypoints {
             return 0;
         } catch (Throwable throwable) {
             logThrowable("libJGLIOS_GRAAL_RESIZE_EXCEPTION", throwable);
-            showThrowable("Application resize failed", throwable);
+            showFatalThrowable("Application resize failed", throwable);
             throwable.printStackTrace(System.out);
-            return -1;
+            return 0;
         }
     }
 
@@ -173,9 +177,9 @@ public final class LibJGLIOSGeneratedEntrypoints {
             return 0;
         } catch (Throwable throwable) {
             logThrowable("libJGLIOS_GRAAL_STOP_EXCEPTION", throwable);
-            showThrowable("Application stop failed", throwable);
+            showFatalThrowable("Application stop failed", throwable);
             throwable.printStackTrace(System.out);
-            return -1;
+            return 0;
         }
     }
 
@@ -198,13 +202,23 @@ public final class LibJGLIOSGeneratedEntrypoints {
         main.invoke(null, (Object) new String[0]);
     }
 
-    private static void showThrowable(String phase, Throwable throwable) {
+    private static void showFatalThrowable(String phase, Throwable throwable) {
+        if (fatalErrorShown) {
+            return;
+        }
+        fatalErrorShown = true;
         Throwable current = unwrapInvocationTarget(throwable);
         String message = phase + "\\n" + current.getClass().getName() + ": " + String.valueOf(current.getMessage());
         try {
             LibJGLIOSLifecycleBridge.showError("libJGLIOS Error", message);
         } catch (Throwable dialogFailure) {
             logThrowable("libJGLIOS_GRAAL_ERROR_DIALOG_EXCEPTION", dialogFailure);
+        } finally {
+            try {
+                LibJGLIOSLifecycleBridge.requestQuit();
+            } catch (Throwable quitFailure) {
+                logThrowable("libJGLIOS_GRAAL_ERROR_QUIT_EXCEPTION", quitFailure);
+            }
         }
     }
 

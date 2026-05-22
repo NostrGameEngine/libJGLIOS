@@ -1,7 +1,73 @@
 #include <jni.h>
 #include <cstdlib>
 #include <SDL3/SDL.h>
+#import <UIKit/UIKit.h>
 #include "libjglios_ios_launcher.h"
+
+namespace {
+
+UIViewController* libjglios_top_view_controller() {
+    UIWindow* window = UIApplication.sharedApplication.keyWindow;
+    if (window == nil) {
+        for (UIWindow* candidate in UIApplication.sharedApplication.windows) {
+            if (candidate.isKeyWindow) {
+                window = candidate;
+                break;
+            }
+        }
+    }
+    UIViewController* controller = window.rootViewController;
+    while (controller.presentedViewController != nil) {
+        controller = controller.presentedViewController;
+    }
+    return controller;
+}
+
+void libjglios_show_error_alert(const char* title, const char* message) {
+    NSString* alertTitle = [NSString stringWithUTF8String:title != nullptr ? title : "libJGLIOS Error"];
+    NSString* alertMessage = [NSString stringWithUTF8String:message != nullptr ? message : "An unknown error occurred."];
+
+    void (^presentAlert)(void) = ^{
+        UIViewController* controller = libjglios_top_view_controller();
+        if (controller == nil) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, message, nullptr);
+            return;
+        }
+
+        __block bool dismissed = false;
+        UIAlertController* alert = [UIAlertController
+            alertControllerWithTitle:alertTitle
+            message:alertMessage
+            preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction
+            actionWithTitle:@"OK"
+            style:UIAlertActionStyleDefault
+            handler:^(__unused UIAlertAction* action) {
+                dismissed = true;
+            }]];
+        [controller presentViewController:alert animated:YES completion:nil];
+
+        while (!dismissed) {
+            @autoreleasepool {
+                [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                                        beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+            }
+        }
+    };
+
+    if ([NSThread isMainThread]) {
+        presentAlert();
+    } else {
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            presentAlert();
+            dispatch_semaphore_signal(semaphore);
+        });
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+    }
+}
+
+} // namespace
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_initWithMetalLayer(JNIEnv*, jclass, jlong metalLayer) {
@@ -47,11 +113,7 @@ extern "C" JNIEXPORT void JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSLifecycleBridge_showError(JNIEnv* env, jclass, jstring title, jstring message) {
     const char* nativeTitle = title != nullptr ? env->GetStringUTFChars(title, nullptr) : nullptr;
     const char* nativeMessage = message != nullptr ? env->GetStringUTFChars(message, nullptr) : nullptr;
-    SDL_ShowSimpleMessageBox(
-        SDL_MESSAGEBOX_ERROR,
-        nativeTitle != nullptr ? nativeTitle : "libJGLIOS Error",
-        nativeMessage != nullptr ? nativeMessage : "An unknown error occurred.",
-        nullptr);
+    libjglios_show_error_alert(nativeTitle, nativeMessage);
     if (nativeMessage != nullptr) {
         env->ReleaseStringUTFChars(message, nativeMessage);
     }
