@@ -2,6 +2,7 @@ plugins {
     id 'base'
     id 'maven-publish'
     id 'signing'
+    id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
 }
 
 ext {
@@ -16,6 +17,17 @@ ext {
 allprojects {
     group = 'org.ngengine.libjglios'
     version = rootProject.ext.libJGLIOSVersion
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri('https://ossrh-staging-api.central.sonatype.com/service/local/'))
+            snapshotRepositoryUrl.set(uri('https://central.sonatype.com/repository/maven-snapshots/'))
+            username = rootProject.ext.publishingUsername
+            password = rootProject.ext.publishingPassword
+        }
+    }
 }
 
 subprojects { sub ->
@@ -108,17 +120,6 @@ subprojects { sub ->
                         snapshotsOnly()
                     }
                 }
-                maven {
-                    name = 'MavenCentral'
-                    url = uri(findProperty('mavenCentralReleaseUrl') ?: 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
-                    credentials {
-                        username = rootProject.ext.publishingUsername
-                        password = rootProject.ext.publishingPassword
-                    }
-                    mavenContent {
-                        releasesOnly()
-                    }
-                }
             }
         }
 
@@ -142,14 +143,5 @@ tasks.register('publishAllPublicationsToSonatypeSnapshotsRepository') {
     dependsOn(provider {
         subprojects.findAll { it.path != ':sample-ios' }
             .collect { it.tasks.named('publishAllPublicationsToSonatypeSnapshotsRepository') }
-    })
-}
-
-tasks.register('publishAllPublicationsToMavenCentralRepository') {
-    group = 'publishing'
-    description = 'Publishes all publishable artifacts to Maven Central through the Central Portal OSSRH staging API.'
-    dependsOn(provider {
-        subprojects.findAll { it.path != ':sample-ios' }
-            .collect { it.tasks.named('publishAllPublicationsToMavenCentralRepository') }
     })
 }

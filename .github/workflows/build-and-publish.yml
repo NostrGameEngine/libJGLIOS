@@ -99,4 +99,4 @@ jobs:
           SIGNING_PASSWORD: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          ./gradlew --no-daemon clean build publishAllPublicationsToMavenCentralRepository -PlibJGLIOSVersion="${VERSION}"
+          ./gradlew --no-daemon clean build publishToSonatype closeAndReleaseSonatypeStagingRepository -PlibJGLIOSVersion="${VERSION}"
