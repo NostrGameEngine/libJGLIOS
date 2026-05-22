@@ -1437,6 +1437,7 @@ public final class GLES {
     public static native void glTexEstimateMotionQCOM(int ref, int target, int output);
     public static native void glTexEstimateMotionRegionsQCOM(int ref, int target, int output, int mask);
     public static native void glTexImage2D(int target, int level, int internalformat, int width, int height, int border, int format, int type, long pixels);
+    public static native void glTexImage2D(int target, int level, int internalformat, int width, int height, int border, int format, int type, byte[] pixels);
     public static native void glTexImage2D(int target, int level, int internalformat, int width, int height, int border, int format, int type, Buffer pixels, long pixelsOffset);
     public static native void glTexImage3D(int target, int level, int internalformat, int width, int height, int depth, int border, int format, int type, long pixels);
     public static native void glTexImage3D(int target, int level, int internalformat, int width, int height, int depth, int border, int format, int type, Buffer pixels, long pixelsOffset);
@@ -1462,6 +1463,7 @@ public final class GLES {
     public static native void glTexStorageMem3DEXT(int target, int levels, int internalFormat, int width, int height, int depth, int memory, long offset);
     public static native void glTexStorageMem3DMultisampleEXT(int target, int samples, int internalFormat, int width, int height, int depth, byte fixedSampleLocations, int memory, long offset);
     public static native void glTexSubImage2D(int target, int level, int xoffset, int yoffset, int width, int height, int format, int type, long pixels);
+    public static native void glTexSubImage2D(int target, int level, int xoffset, int yoffset, int width, int height, int format, int type, byte[] pixels);
     public static native void glTexSubImage2D(int target, int level, int xoffset, int yoffset, int width, int height, int format, int type, Buffer pixels, long pixelsOffset);
     public static native void glTexSubImage3D(int target, int level, int xoffset, int yoffset, int zoffset, int width, int height, int depth, int format, int type, long pixels);
     public static native void glTexSubImage3D(int target, int level, int xoffset, int yoffset, int zoffset, int width, int height, int depth, int format, int type, Buffer pixels, long pixelsOffset);

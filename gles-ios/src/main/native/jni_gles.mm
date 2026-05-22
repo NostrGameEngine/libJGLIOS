@@ -150,6 +150,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBindAttribLocatio
     using Fn = void (*)(jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glBindAttribLocation"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return;
     }
     fn(program, index, reinterpret_cast<jbyte*>(name_elems));
@@ -188,6 +189,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBindFragDataLocat
     using Fn = void (*)(jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glBindFragDataLocationEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return;
     }
     fn(program, color, reinterpret_cast<jbyte*>(name_elems));
@@ -199,6 +201,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBindFragDataLocat
     using Fn = void (*)(jint, jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glBindFragDataLocationIndexedEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return;
     }
     fn(program, colorNumber, index, reinterpret_cast<jbyte*>(name_elems));
@@ -466,7 +469,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferAttachMemor
     fn(target, memory, offset);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferData(JNIEnv* env, jclass, jint target, jlong size, jlong data, jint usage) {
+static void libjglios_gles_glBufferData(JNIEnv* env, jclass, jint target, jlong size, jlong data, jint usage) {
     using Fn = void (*)(jint, jlong, jlong, jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glBufferData"));
     if (!fn) {
@@ -524,7 +527,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferStorageMemE
     fn(target, size, memory, offset);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferSubData(JNIEnv* env, jclass, jint target, jlong offset, jlong size, jlong data) {
+static void libjglios_gles_glBufferSubData(JNIEnv* env, jclass, jint target, jlong offset, jlong size, jlong data) {
     using Fn = void (*)(jint, jlong, jlong, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glBufferSubData"));
     if (!fn) {
@@ -606,6 +609,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glClearBufferfv(JNI
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glClearBufferfv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(buffer, drawbuffer, reinterpret_cast<jfloat*>(value_elems));
@@ -617,6 +621,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glClearBufferiv(JNI
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glClearBufferiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(buffer, drawbuffer, reinterpret_cast<jint*>(value_elems));
@@ -628,6 +633,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glClearBufferuiv(JN
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glClearBufferuiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(buffer, drawbuffer, reinterpret_cast<jint*>(value_elems));
@@ -657,6 +663,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glClearPixelLocalSt
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glClearPixelLocalStorageuiEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(values, values_elems, JNI_ABORT);
         return;
     }
     fn(offset, n, reinterpret_cast<jint*>(values_elems));
@@ -755,7 +762,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompileShader(JNI
     fn(shader);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage2D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint imageSize, jlong data) {
+static void libjglios_gles_glCompressedTexImage2D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint imageSize, jlong data) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexImage2D"));
     if (!fn) {
@@ -777,7 +784,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImag
     fn(target, level, internalformat, width, height, border, imageSize, dataPtr);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage3D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint imageSize, jlong data) {
+static void libjglios_gles_glCompressedTexImage3D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint imageSize, jlong data) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexImage3D"));
     if (!fn) {
@@ -808,7 +815,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImag
     fn(target, level, internalformat, width, height, depth, border, imageSize, data);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage2D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint imageSize, jlong data) {
+static void libjglios_gles_glCompressedTexSubImage2D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint imageSize, jlong data) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexSubImage2D"));
     if (!fn) {
@@ -830,7 +837,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubI
     fn(target, level, xoffset, yoffset, width, height, format, imageSize, dataPtr);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage3D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint imageSize, jlong data) {
+static void libjglios_gles_glCompressedTexSubImage3D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint imageSize, jlong data) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCompressedTexSubImage3D"));
     if (!fn) {
@@ -965,6 +972,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCoverFillPathInst
     using Fn = void (*)(jint, jint, jlong, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCoverFillPathInstancedNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(transformValues, transformValues_elems, JNI_ABORT);
         return;
     }
     fn(numPaths, pathNameType, paths, pathBase, coverMode, transformType, reinterpret_cast<jfloat*>(transformValues_elems));
@@ -985,6 +993,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCoverStrokePathIn
     using Fn = void (*)(jint, jint, jlong, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCoverStrokePathInstancedNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(transformValues, transformValues_elems, JNI_ABORT);
         return;
     }
     fn(numPaths, pathNameType, paths, pathBase, coverMode, transformType, reinterpret_cast<jfloat*>(transformValues_elems));
@@ -1023,6 +1032,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCoverageModulatio
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCoverageModulationTableNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jfloat*>(v_elems));
@@ -1043,6 +1053,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCreateMemoryObjec
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCreateMemoryObjectsEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(memoryObjects, memoryObjects_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(memoryObjects_elems));
@@ -1054,6 +1065,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCreatePerfQueryIN
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCreatePerfQueryINTEL"));
     if (!fn) {
+        env->ReleaseIntArrayElements(queryHandle, queryHandle_elems, JNI_ABORT);
         return;
     }
     fn(queryId, reinterpret_cast<jint*>(queryHandle_elems));
@@ -1075,6 +1087,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCreateSemaphoresN
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCreateSemaphoresNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(semaphores, semaphores_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(semaphores_elems));
@@ -1096,6 +1109,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glCreateShaderProgr
     using Fn = jint (*)(jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glCreateShaderProgramvEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(strings, strings_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(type, count, reinterpret_cast<jbyte*>(strings_elems));
@@ -1126,6 +1140,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDebugMessageContr
     using Fn = void (*)(jint, jint, jint, jint, jint*, jbyte);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDebugMessageControlKHR"));
     if (!fn) {
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
         return;
     }
     fn(source, type, severity, count, reinterpret_cast<jint*>(ids_elems), enabled);
@@ -1137,17 +1152,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDebugMessageInser
     using Fn = void (*)(jint, jint, jint, jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDebugMessageInsertKHR"));
     if (!fn) {
+        env->ReleaseByteArrayElements(buf, buf_elems, JNI_ABORT);
         return;
     }
     fn(source, type, id, severity, length, reinterpret_cast<jbyte*>(buf_elems));
     env->ReleaseByteArrayElements(buf, buf_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteBuffers(JNIEnv* env, jclass, jint n, jintArray buffers) {
+static void libjglios_gles_glDeleteBuffers(JNIEnv* env, jclass, jint n, jintArray buffers) {
     jint* buffers_elems = env->GetIntArrayElements(buffers, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteBuffers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(buffers, buffers_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(buffers_elems));
@@ -1172,17 +1189,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteFencesNV(JN
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteFencesNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(fences, fences_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(fences_elems));
     env->ReleaseIntArrayElements(fences, fences_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteFramebuffers(JNIEnv* env, jclass, jint n, jintArray framebuffers) {
+static void libjglios_gles_glDeleteFramebuffers(JNIEnv* env, jclass, jint n, jintArray framebuffers) {
     jint* framebuffers_elems = env->GetIntArrayElements(framebuffers, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteFramebuffers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(framebuffers, framebuffers_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(framebuffers_elems));
@@ -1207,6 +1226,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteMemoryObjec
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteMemoryObjectsEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(memoryObjects, memoryObjects_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(memoryObjects_elems));
@@ -1227,6 +1247,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeletePerfMonitor
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeletePerfMonitorsAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(monitors, monitors_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(monitors_elems));
@@ -1256,17 +1277,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteProgramPipe
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteProgramPipelinesEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(pipelines, pipelines_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(pipelines_elems));
     env->ReleaseIntArrayElements(pipelines, pipelines_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteQueries(JNIEnv* env, jclass, jint n, jintArray ids) {
+static void libjglios_gles_glDeleteQueries(JNIEnv* env, jclass, jint n, jintArray ids) {
     jint* ids_elems = env->GetIntArrayElements(ids, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteQueries"));
     if (!fn) {
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(ids_elems));
@@ -1291,17 +1314,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteQueriesEXT(
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteQueriesEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(ids_elems));
     env->ReleaseIntArrayElements(ids, ids_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteRenderbuffers(JNIEnv* env, jclass, jint n, jintArray renderbuffers) {
+static void libjglios_gles_glDeleteRenderbuffers(JNIEnv* env, jclass, jint n, jintArray renderbuffers) {
     jint* renderbuffers_elems = env->GetIntArrayElements(renderbuffers, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteRenderbuffers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(renderbuffers, renderbuffers_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(renderbuffers_elems));
@@ -1326,6 +1351,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteSamplers(JN
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteSamplers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(samplers, samplers_elems, JNI_ABORT);
         return;
     }
     fn(count, reinterpret_cast<jint*>(samplers_elems));
@@ -1337,6 +1363,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteSemaphoresE
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteSemaphoresEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(semaphores, semaphores_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(semaphores_elems));
@@ -1370,11 +1397,12 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteSyncAPPLE(J
     fn(sync);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteTextures(JNIEnv* env, jclass, jint n, jintArray textures) {
+static void libjglios_gles_glDeleteTextures(JNIEnv* env, jclass, jint n, jintArray textures) {
     jint* textures_elems = env->GetIntArrayElements(textures, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteTextures"));
     if (!fn) {
+        env->ReleaseIntArrayElements(textures, textures_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(textures_elems));
@@ -1399,6 +1427,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteTransformFe
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteTransformFeedbacks"));
     if (!fn) {
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(ids_elems));
@@ -1410,6 +1439,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteVertexArray
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteVertexArrays"));
     if (!fn) {
+        env->ReleaseIntArrayElements(arrays, arrays_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(arrays_elems));
@@ -1421,6 +1451,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteVertexArray
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDeleteVertexArraysOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(arrays, arrays_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(arrays_elems));
@@ -1450,6 +1481,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDepthRangeArrayfv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDepthRangeArrayfvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(first, count, reinterpret_cast<jfloat*>(v_elems));
@@ -1461,6 +1493,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDepthRangeArrayfv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDepthRangeArrayfvOES"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(first, count, reinterpret_cast<jfloat*>(v_elems));
@@ -1562,6 +1595,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDiscardFramebuffe
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDiscardFramebufferEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(attachments, attachments_elems, JNI_ABORT);
         return;
     }
     fn(target, numAttachments, reinterpret_cast<jint*>(attachments_elems));
@@ -1627,6 +1661,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDrawBuffers(JNIEn
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDrawBuffers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(bufs, bufs_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(bufs_elems));
@@ -1638,6 +1673,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDrawBuffersEXT(JN
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDrawBuffersEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(bufs, bufs_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(bufs_elems));
@@ -1650,6 +1686,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDrawBuffersIndexe
     using Fn = void (*)(jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDrawBuffersIndexedEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(location, location_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(indices, indices_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(location_elems), reinterpret_cast<jint*>(indices_elems));
@@ -1662,6 +1700,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDrawBuffersNV(JNI
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glDrawBuffersNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(bufs, bufs_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(bufs_elems));
@@ -1853,6 +1892,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glEGLImageTargetTex
     using Fn = void (*)(jint, jlong, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glEGLImageTargetTexStorageEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(attrib_list, attrib_list_elems, JNI_ABORT);
         return;
     }
     fn(target, image, reinterpret_cast<jint*>(attrib_list_elems));
@@ -1873,6 +1913,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glEGLImageTargetTex
     using Fn = void (*)(jint, jlong, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glEGLImageTargetTextureStorageEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(attrib_list, attrib_list_elems, JNI_ABORT);
         return;
     }
     fn(texture, image, reinterpret_cast<jint*>(attrib_list_elems));
@@ -2011,6 +2052,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetBuffersQCOM
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetBuffersQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(buffers, buffers_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(numBuffers, numBuffers_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(buffers_elems), maxBuffers, reinterpret_cast<jint*>(numBuffers_elems));
@@ -2024,6 +2067,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetFramebuffer
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetFramebuffersQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(framebuffers, framebuffers_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(numFramebuffers, numFramebuffers_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(framebuffers_elems), maxFramebuffers, reinterpret_cast<jint*>(numFramebuffers_elems));
@@ -2037,6 +2082,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetProgramBina
     using Fn = void (*)(jint, jint, jbyte*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetProgramBinarySourceQCOM"));
     if (!fn) {
+        env->ReleaseByteArrayElements(source, source_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
         return;
     }
     fn(program, shadertype, reinterpret_cast<jbyte*>(source_elems), reinterpret_cast<jint*>(length_elems));
@@ -2050,6 +2097,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetProgramsQCO
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetProgramsQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(programs, programs_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(numPrograms, numPrograms_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(programs_elems), maxPrograms, reinterpret_cast<jint*>(numPrograms_elems));
@@ -2063,6 +2112,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetRenderbuffe
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetRenderbuffersQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(renderbuffers, renderbuffers_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(numRenderbuffers, numRenderbuffers_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(renderbuffers_elems), maxRenderbuffers, reinterpret_cast<jint*>(numRenderbuffers_elems));
@@ -2076,6 +2127,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetShadersQCOM
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetShadersQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(shaders, shaders_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(numShaders, numShaders_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(shaders_elems), maxShaders, reinterpret_cast<jint*>(numShaders_elems));
@@ -2088,6 +2141,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetTexLevelPar
     using Fn = void (*)(jint, jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetTexLevelParameterivQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(texture, face, level, pname, reinterpret_cast<jint*>(params_elems));
@@ -2109,6 +2163,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glExtGetTexturesQCO
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glExtGetTexturesQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(textures, textures_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(numTextures, numTextures_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(textures_elems), maxTextures, reinterpret_cast<jint*>(numTextures_elems));
@@ -2241,6 +2297,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glFramebufferFoveat
     using Fn = void (*)(jint, jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glFramebufferFoveationConfigQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(providedFeatures, providedFeatures_elems, JNI_ABORT);
         return;
     }
     fn(framebuffer, numLayers, focalPointsPerLayer, requestedFeatures, reinterpret_cast<jint*>(providedFeatures_elems));
@@ -2288,6 +2345,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glFramebufferSample
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glFramebufferSampleLocationsfvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(target, start, count, reinterpret_cast<jfloat*>(v_elems));
@@ -2402,11 +2460,12 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glFrontFace(JNIEnv*
     fn(mode);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenBuffers(JNIEnv* env, jclass, jint n, jintArray buffers) {
+static void libjglios_gles_glGenBuffers(JNIEnv* env, jclass, jint n, jintArray buffers) {
     jint* buffers_elems = env->GetIntArrayElements(buffers, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenBuffers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(buffers, buffers_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(buffers_elems));
@@ -2431,17 +2490,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenFencesNV(JNIEn
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenFencesNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(fences, fences_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(fences_elems));
     env->ReleaseIntArrayElements(fences, fences_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenFramebuffers(JNIEnv* env, jclass, jint n, jintArray framebuffers) {
+static void libjglios_gles_glGenFramebuffers(JNIEnv* env, jclass, jint n, jintArray framebuffers) {
     jint* framebuffers_elems = env->GetIntArrayElements(framebuffers, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenFramebuffers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(framebuffers, framebuffers_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(framebuffers_elems));
@@ -2476,6 +2537,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenPerfMonitorsAM
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenPerfMonitorsAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(monitors, monitors_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(monitors_elems));
@@ -2487,17 +2549,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenProgramPipelin
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenProgramPipelinesEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(pipelines, pipelines_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(pipelines_elems));
     env->ReleaseIntArrayElements(pipelines, pipelines_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueries(JNIEnv* env, jclass, jint n, jintArray ids) {
+static void libjglios_gles_glGenQueries(JNIEnv* env, jclass, jint n, jintArray ids) {
     jint* ids_elems = env->GetIntArrayElements(ids, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenQueries"));
     if (!fn) {
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(ids_elems));
@@ -2522,17 +2586,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueriesEXT(JNI
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenQueriesEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(ids_elems));
     env->ReleaseIntArrayElements(ids, ids_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers(JNIEnv* env, jclass, jint n, jintArray renderbuffers) {
+static void libjglios_gles_glGenRenderbuffers(JNIEnv* env, jclass, jint n, jintArray renderbuffers) {
     jint* renderbuffers_elems = env->GetIntArrayElements(renderbuffers, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenRenderbuffers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(renderbuffers, renderbuffers_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(renderbuffers_elems));
@@ -2557,6 +2623,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenSamplers(JNIEn
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenSamplers"));
     if (!fn) {
+        env->ReleaseIntArrayElements(samplers, samplers_elems, JNI_ABORT);
         return;
     }
     fn(count, reinterpret_cast<jint*>(samplers_elems));
@@ -2568,17 +2635,19 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenSemaphoresEXT(
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenSemaphoresEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(semaphores, semaphores_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(semaphores_elems));
     env->ReleaseIntArrayElements(semaphores, semaphores_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTextures(JNIEnv* env, jclass, jint n, jintArray textures) {
+static void libjglios_gles_glGenTextures(JNIEnv* env, jclass, jint n, jintArray textures) {
     jint* textures_elems = env->GetIntArrayElements(textures, nullptr);
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenTextures"));
     if (!fn) {
+        env->ReleaseIntArrayElements(textures, textures_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(textures_elems));
@@ -2603,6 +2672,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTransformFeedb
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenTransformFeedbacks"));
     if (!fn) {
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(ids_elems));
@@ -2614,6 +2684,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenVertexArrays(J
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenVertexArrays"));
     if (!fn) {
+        env->ReleaseIntArrayElements(arrays, arrays_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(arrays_elems));
@@ -2625,6 +2696,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenVertexArraysOE
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGenVertexArraysOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(arrays, arrays_elems, JNI_ABORT);
         return;
     }
     fn(n, reinterpret_cast<jint*>(arrays_elems));
@@ -2648,6 +2720,10 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetActiveAttrib(J
     using Fn = void (*)(jint, jint, jint, jint*, jint*, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetActiveAttrib"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(size, size_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(type, type_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return;
     }
     fn(program, index, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jint*>(size_elems), reinterpret_cast<jint*>(type_elems), reinterpret_cast<jbyte*>(name_elems));
@@ -2665,6 +2741,10 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetActiveUniform(
     using Fn = void (*)(jint, jint, jint, jint*, jint*, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetActiveUniform"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(size, size_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(type, type_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return;
     }
     fn(program, index, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jint*>(size_elems), reinterpret_cast<jint*>(type_elems), reinterpret_cast<jbyte*>(name_elems));
@@ -2680,6 +2760,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetActiveUniformB
     using Fn = void (*)(jint, jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetActiveUniformBlockName"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(uniformBlockName, uniformBlockName_elems, JNI_ABORT);
         return;
     }
     fn(program, uniformBlockIndex, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(uniformBlockName_elems));
@@ -2692,6 +2774,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetActiveUniformB
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetActiveUniformBlockiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, uniformBlockIndex, pname, reinterpret_cast<jint*>(params_elems));
@@ -2704,6 +2787,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetActiveUniforms
     using Fn = void (*)(jint, jint, jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetActiveUniformsiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(uniformIndices, uniformIndices_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, uniformCount, reinterpret_cast<jint*>(uniformIndices_elems), pname, reinterpret_cast<jint*>(params_elems));
@@ -2717,6 +2802,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetAttachedShader
     using Fn = void (*)(jint, jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetAttachedShaders"));
     if (!fn) {
+        env->ReleaseIntArrayElements(count, count_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(shaders, shaders_elems, JNI_ABORT);
         return;
     }
     fn(program, maxCount, reinterpret_cast<jint*>(count_elems), reinterpret_cast<jint*>(shaders_elems));
@@ -2729,6 +2816,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetAttribLocation
     using Fn = jint (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetAttribLocation"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(program, reinterpret_cast<jbyte*>(name_elems));
@@ -2741,6 +2829,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetBooleanv(JNIEn
     using Fn = void (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetBooleanv"));
     if (!fn) {
+        env->ReleaseByteArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(pname, reinterpret_cast<jbyte*>(data_elems));
@@ -2752,6 +2841,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetBufferParamete
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetBufferParameteri64v"));
     if (!fn) {
+        env->ReleaseLongArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jlong*>(params_elems));
@@ -2763,6 +2853,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetBufferParamete
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetBufferParameteriv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -2792,6 +2883,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetCoverageModula
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetCoverageModulationTableNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(bufSize, reinterpret_cast<jfloat*>(v_elems));
@@ -2808,6 +2900,12 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetDebugMessageLo
     using Fn = jint (*)(jint, jint, jint*, jint*, jint*, jint*, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetDebugMessageLogKHR"));
     if (!fn) {
+        env->ReleaseIntArrayElements(sources, sources_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(types, types_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(ids, ids_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(severities, severities_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(lengths, lengths_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(messageLog, messageLog_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(count, bufSize, reinterpret_cast<jint*>(sources_elems), reinterpret_cast<jint*>(types_elems), reinterpret_cast<jint*>(ids_elems), reinterpret_cast<jint*>(severities_elems), reinterpret_cast<jint*>(lengths_elems), reinterpret_cast<jbyte*>(messageLog_elems));
@@ -2826,6 +2924,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetDriverControlS
     using Fn = void (*)(jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetDriverControlStringQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(driverControlString, driverControlString_elems, JNI_ABORT);
         return;
     }
     fn(driverControl, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(driverControlString_elems));
@@ -2839,6 +2939,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetDriverControls
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetDriverControlsQCOM"));
     if (!fn) {
+        env->ReleaseIntArrayElements(num, num_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(driverControls, driverControls_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(num_elems), size, reinterpret_cast<jint*>(driverControls_elems));
@@ -2861,6 +2963,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFenceivNV(JNIE
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFenceivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(fence, pname, reinterpret_cast<jint*>(params_elems));
@@ -2872,6 +2975,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFirstPerfQuery
     using Fn = void (*)(jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFirstPerfQueryIdINTEL"));
     if (!fn) {
+        env->ReleaseIntArrayElements(queryId, queryId_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(queryId_elems));
@@ -2883,6 +2987,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFloati_1vNV(JN
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFloati_vNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(target, index, reinterpret_cast<jfloat*>(data_elems));
@@ -2894,6 +2999,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFloati_1vOES(J
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFloati_vOES"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(target, index, reinterpret_cast<jfloat*>(data_elems));
@@ -2905,6 +3011,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFloatv(JNIEnv*
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFloatv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(pname, reinterpret_cast<jfloat*>(data_elems));
@@ -2916,6 +3023,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFragDataIndexE
     using Fn = jint (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFragDataIndexEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(program, reinterpret_cast<jbyte*>(name_elems));
@@ -2928,6 +3036,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFragDataLocati
     using Fn = jint (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFragDataLocation"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(program, reinterpret_cast<jbyte*>(name_elems));
@@ -2940,6 +3049,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFramebufferAtt
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFramebufferAttachmentParameteriv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, attachment, pname, reinterpret_cast<jint*>(params_elems));
@@ -2951,6 +3061,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFramebufferPar
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetFramebufferParameterivMESA"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3002,6 +3113,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetInteger64i_1v(
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetInteger64i_v"));
     if (!fn) {
+        env->ReleaseLongArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(target, index, reinterpret_cast<jlong*>(data_elems));
@@ -3013,6 +3125,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetInteger64v(JNI
     using Fn = void (*)(jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetInteger64v"));
     if (!fn) {
+        env->ReleaseLongArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(pname, reinterpret_cast<jlong*>(data_elems));
@@ -3024,6 +3137,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetInteger64vAPPL
     using Fn = void (*)(jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetInteger64vAPPLE"));
     if (!fn) {
+        env->ReleaseLongArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(pname, reinterpret_cast<jlong*>(params_elems));
@@ -3035,6 +3149,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetInteger64vEXT(
     using Fn = void (*)(jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetInteger64vEXT"));
     if (!fn) {
+        env->ReleaseLongArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(pname, reinterpret_cast<jlong*>(data_elems));
@@ -3046,6 +3161,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetIntegeri_1v(JN
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetIntegeri_v"));
     if (!fn) {
+        env->ReleaseIntArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(target, index, reinterpret_cast<jint*>(data_elems));
@@ -3057,6 +3173,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetIntegeri_1vEXT
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetIntegeri_vEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(target, index, reinterpret_cast<jint*>(data_elems));
@@ -3068,6 +3185,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetIntegerv(JNIEn
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetIntegerv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(pname, reinterpret_cast<jint*>(data_elems));
@@ -3079,6 +3197,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetInternalformat
     using Fn = void (*)(jint, jint, jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetInternalformatSampleivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, internalformat, samples, pname, count, reinterpret_cast<jint*>(params_elems));
@@ -3090,6 +3209,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetInternalformat
     using Fn = void (*)(jint, jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetInternalformativ"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, internalformat, pname, count, reinterpret_cast<jint*>(params_elems));
@@ -3101,6 +3221,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetMemoryObjectDe
     using Fn = void (*)(jint, jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetMemoryObjectDetachedResourcesuivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(memory, pname, first, count, reinterpret_cast<jint*>(params_elems));
@@ -3112,6 +3233,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetMemoryObjectPa
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetMemoryObjectParameterivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(memoryObject, pname, reinterpret_cast<jint*>(params_elems));
@@ -3123,6 +3245,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetNextPerfQueryI
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetNextPerfQueryIdINTEL"));
     if (!fn) {
+        env->ReleaseIntArrayElements(nextQueryId, nextQueryId_elems, JNI_ABORT);
         return;
     }
     fn(queryId, reinterpret_cast<jint*>(nextQueryId_elems));
@@ -3135,6 +3258,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetObjectLabelEXT
     using Fn = void (*)(jint, jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetObjectLabelEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(label, label_elems, JNI_ABORT);
         return;
     }
     fn(type, object, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(label_elems));
@@ -3148,6 +3273,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetObjectLabelKHR
     using Fn = void (*)(jint, jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetObjectLabelKHR"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(label, label_elems, JNI_ABORT);
         return;
     }
     fn(identifier, name, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(label_elems));
@@ -3161,6 +3288,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetObjectPtrLabel
     using Fn = void (*)(jlong, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetObjectPtrLabelKHR"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(label, label_elems, JNI_ABORT);
         return;
     }
     fn(ptr, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(label_elems));
@@ -3173,6 +3302,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathCommandsNV
     using Fn = void (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathCommandsNV"));
     if (!fn) {
+        env->ReleaseByteArrayElements(commands, commands_elems, JNI_ABORT);
         return;
     }
     fn(path, reinterpret_cast<jbyte*>(commands_elems));
@@ -3184,6 +3314,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathCoordsNV(J
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathCoordsNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(coords, coords_elems, JNI_ABORT);
         return;
     }
     fn(path, reinterpret_cast<jfloat*>(coords_elems));
@@ -3195,6 +3326,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathDashArrayN
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathDashArrayNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(dashArray, dashArray_elems, JNI_ABORT);
         return;
     }
     fn(path, reinterpret_cast<jfloat*>(dashArray_elems));
@@ -3216,6 +3348,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathMetricRang
     using Fn = void (*)(jint, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathMetricRangeNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(metrics, metrics_elems, JNI_ABORT);
         return;
     }
     fn(metricQueryMask, firstPathName, numPaths, stride, reinterpret_cast<jfloat*>(metrics_elems));
@@ -3227,6 +3360,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathMetricsNV(
     using Fn = void (*)(jint, jint, jint, jlong, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathMetricsNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(metrics, metrics_elems, JNI_ABORT);
         return;
     }
     fn(metricQueryMask, numPaths, pathNameType, paths, pathBase, stride, reinterpret_cast<jfloat*>(metrics_elems));
@@ -3238,6 +3372,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathParameterf
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathParameterfvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(path, pname, reinterpret_cast<jfloat*>(value_elems));
@@ -3249,6 +3384,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathParameteri
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathParameterivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(path, pname, reinterpret_cast<jint*>(value_elems));
@@ -3260,6 +3396,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPathSpacingNV(
     using Fn = void (*)(jint, jint, jint, jlong, jint, jfloat, jfloat, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPathSpacingNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(returnedSpacing, returnedSpacing_elems, JNI_ABORT);
         return;
     }
     fn(pathListMode, numPaths, pathNameType, paths, pathBase, advanceScale, kerningScale, transformType, reinterpret_cast<jfloat*>(returnedSpacing_elems));
@@ -3277,6 +3414,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfCounterInf
     using Fn = void (*)(jint, jint, jint, jbyte*, jint, jbyte*, jint*, jint*, jint*, jint*, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfCounterInfoINTEL"));
     if (!fn) {
+        env->ReleaseByteArrayElements(counterName, counterName_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(counterDesc, counterDesc_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(counterOffset, counterOffset_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(counterDataSize, counterDataSize_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(counterTypeEnum, counterTypeEnum_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(counterDataTypeEnum, counterDataTypeEnum_elems, JNI_ABORT);
+        env->ReleaseLongArrayElements(rawCounterMaxValue, rawCounterMaxValue_elems, JNI_ABORT);
         return;
     }
     fn(queryId, counterId, counterNameLength, reinterpret_cast<jbyte*>(counterName_elems), counterDescLength, reinterpret_cast<jbyte*>(counterDesc_elems), reinterpret_cast<jint*>(counterOffset_elems), reinterpret_cast<jint*>(counterDataSize_elems), reinterpret_cast<jint*>(counterTypeEnum_elems), reinterpret_cast<jint*>(counterDataTypeEnum_elems), reinterpret_cast<jlong*>(rawCounterMaxValue_elems));
@@ -3295,6 +3439,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfMonitorCou
     using Fn = void (*)(jint, jint, jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfMonitorCounterDataAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(data, data_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(bytesWritten, bytesWritten_elems, JNI_ABORT);
         return;
     }
     fn(monitor, pname, dataSize, reinterpret_cast<jint*>(data_elems), reinterpret_cast<jint*>(bytesWritten_elems));
@@ -3317,6 +3463,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfMonitorCou
     using Fn = void (*)(jint, jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfMonitorCounterStringAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(counterString, counterString_elems, JNI_ABORT);
         return;
     }
     fn(group, counter, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(counterString_elems));
@@ -3331,6 +3479,9 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfMonitorCou
     using Fn = void (*)(jint, jint*, jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfMonitorCountersAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(numCounters, numCounters_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(maxActiveCounters, maxActiveCounters_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(counters, counters_elems, JNI_ABORT);
         return;
     }
     fn(group, reinterpret_cast<jint*>(numCounters_elems), reinterpret_cast<jint*>(maxActiveCounters_elems), counterSize, reinterpret_cast<jint*>(counters_elems));
@@ -3345,6 +3496,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfMonitorGro
     using Fn = void (*)(jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfMonitorGroupStringAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(groupString, groupString_elems, JNI_ABORT);
         return;
     }
     fn(group, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(groupString_elems));
@@ -3358,6 +3511,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfMonitorGro
     using Fn = void (*)(jint*, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfMonitorGroupsAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(numGroups, numGroups_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(groups, groups_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jint*>(numGroups_elems), groupsSize, reinterpret_cast<jint*>(groups_elems));
@@ -3370,6 +3525,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfQueryDataI
     using Fn = void (*)(jint, jint, jint, jlong, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfQueryDataINTEL"));
     if (!fn) {
+        env->ReleaseIntArrayElements(bytesWritten, bytesWritten_elems, JNI_ABORT);
         return;
     }
     fn(queryHandle, flags, dataSize, data, reinterpret_cast<jint*>(bytesWritten_elems));
@@ -3382,6 +3538,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfQueryIdByN
     using Fn = void (*)(jbyte*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfQueryIdByNameINTEL"));
     if (!fn) {
+        env->ReleaseByteArrayElements(queryName, queryName_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(queryId, queryId_elems, JNI_ABORT);
         return;
     }
     fn(reinterpret_cast<jbyte*>(queryName_elems), reinterpret_cast<jint*>(queryId_elems));
@@ -3398,6 +3556,11 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetPerfQueryInfoI
     using Fn = void (*)(jint, jint, jbyte*, jint*, jint*, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetPerfQueryInfoINTEL"));
     if (!fn) {
+        env->ReleaseByteArrayElements(queryName, queryName_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(dataSize, dataSize_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(noCounters, noCounters_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(noInstances, noInstances_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(capsMask, capsMask_elems, JNI_ABORT);
         return;
     }
     fn(queryId, queryNameLength, reinterpret_cast<jbyte*>(queryName_elems), reinterpret_cast<jint*>(dataSize_elems), reinterpret_cast<jint*>(noCounters_elems), reinterpret_cast<jint*>(noInstances_elems), reinterpret_cast<jint*>(capsMask_elems));
@@ -3423,6 +3586,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramBinary(
     using Fn = void (*)(jint, jint, jint*, jint*, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramBinary"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(binaryFormat, binaryFormat_elems, JNI_ABORT);
         return;
     }
     fn(program, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jint*>(binaryFormat_elems), binary);
@@ -3436,6 +3601,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramBinaryO
     using Fn = void (*)(jint, jint, jint*, jint*, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramBinaryOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(binaryFormat, binaryFormat_elems, JNI_ABORT);
         return;
     }
     fn(program, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jint*>(binaryFormat_elems), binary);
@@ -3449,6 +3616,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramInfoLog
     using Fn = void (*)(jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramInfoLog"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(infoLog, infoLog_elems, JNI_ABORT);
         return;
     }
     fn(program, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(infoLog_elems));
@@ -3462,6 +3631,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramPipelin
     using Fn = void (*)(jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramPipelineInfoLogEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(infoLog, infoLog_elems, JNI_ABORT);
         return;
     }
     fn(pipeline, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(infoLog_elems));
@@ -3474,6 +3645,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramPipelin
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramPipelineivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(pipeline, pname, reinterpret_cast<jint*>(params_elems));
@@ -3485,6 +3657,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramResourc
     using Fn = jint (*)(jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramResourceLocationIndexEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(program, programInterface, reinterpret_cast<jbyte*>(name_elems));
@@ -3499,6 +3672,9 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramResourc
     using Fn = void (*)(jint, jint, jint, jint, jint*, jint, jint*, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramResourcefvNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(props, props_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, programInterface, index, propCount, reinterpret_cast<jint*>(props_elems), count, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jfloat*>(params_elems));
@@ -3512,6 +3688,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramiv(JNIE
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetProgramiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, pname, reinterpret_cast<jint*>(params_elems));
@@ -3523,6 +3700,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetQueryObjecti64
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetQueryObjecti64vEXT"));
     if (!fn) {
+        env->ReleaseLongArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(id, pname, reinterpret_cast<jlong*>(params_elems));
@@ -3534,6 +3712,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetQueryObjectivE
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetQueryObjectivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(id, pname, reinterpret_cast<jint*>(params_elems));
@@ -3545,6 +3724,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetQueryObjectui6
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetQueryObjectui64vEXT"));
     if (!fn) {
+        env->ReleaseLongArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(id, pname, reinterpret_cast<jlong*>(params_elems));
@@ -3556,6 +3736,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetQueryObjectuiv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetQueryObjectuiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(id, pname, reinterpret_cast<jint*>(params_elems));
@@ -3567,6 +3748,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetQueryObjectuiv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetQueryObjectuivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(id, pname, reinterpret_cast<jint*>(params_elems));
@@ -3578,6 +3760,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetQueryiv(JNIEnv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetQueryiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3589,6 +3772,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetQueryivEXT(JNI
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetQueryivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3600,6 +3784,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetRenderbufferPa
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetRenderbufferParameteriv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3611,6 +3796,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSamplerParamet
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSamplerParameterIivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(params_elems));
@@ -3622,6 +3808,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSamplerParamet
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSamplerParameterIivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(params_elems));
@@ -3633,6 +3820,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSamplerParamet
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSamplerParameterIuivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(params_elems));
@@ -3644,6 +3832,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSamplerParamet
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSamplerParameterIuivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(params_elems));
@@ -3655,6 +3844,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSamplerParamet
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSamplerParameterfv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jfloat*>(params_elems));
@@ -3666,6 +3856,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSamplerParamet
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSamplerParameteriv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(params_elems));
@@ -3677,6 +3868,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSemaphoreParam
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSemaphoreParameterivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(semaphore, pname, reinterpret_cast<jint*>(params_elems));
@@ -3688,6 +3880,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSemaphoreParam
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSemaphoreParameterui64vEXT"));
     if (!fn) {
+        env->ReleaseLongArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(semaphore, pname, reinterpret_cast<jlong*>(params_elems));
@@ -3700,6 +3893,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetShaderInfoLog(
     using Fn = void (*)(jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetShaderInfoLog"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(infoLog, infoLog_elems, JNI_ABORT);
         return;
     }
     fn(shader, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(infoLog_elems));
@@ -3713,6 +3908,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetShaderPrecisio
     using Fn = void (*)(jint, jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetShaderPrecisionFormat"));
     if (!fn) {
+        env->ReleaseIntArrayElements(range, range_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(precision, precision_elems, JNI_ABORT);
         return;
     }
     fn(shadertype, precisiontype, reinterpret_cast<jint*>(range_elems), reinterpret_cast<jint*>(precision_elems));
@@ -3726,6 +3923,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetShaderSource(J
     using Fn = void (*)(jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetShaderSource"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(source, source_elems, JNI_ABORT);
         return;
     }
     fn(shader, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(source_elems));
@@ -3738,6 +3937,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetShaderiv(JNIEn
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetShaderiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(shader, pname, reinterpret_cast<jint*>(params_elems));
@@ -3749,6 +3949,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetShadingRateIma
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetShadingRateImagePaletteNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(rate, rate_elems, JNI_ABORT);
         return;
     }
     fn(viewport, entry, reinterpret_cast<jint*>(rate_elems));
@@ -3760,6 +3961,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetShadingRateSam
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetShadingRateSampleLocationivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(location, location_elems, JNI_ABORT);
         return;
     }
     fn(rate, samples, index, reinterpret_cast<jint*>(location_elems));
@@ -3804,6 +4006,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSynciv(JNIEnv*
     using Fn = void (*)(jlong, jint, jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSynciv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(values, values_elems, JNI_ABORT);
         return;
     }
     fn(sync, pname, count, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jint*>(values_elems));
@@ -3817,6 +4021,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetSyncivAPPLE(JN
     using Fn = void (*)(jlong, jint, jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetSyncivAPPLE"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(values, values_elems, JNI_ABORT);
         return;
     }
     fn(sync, pname, count, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jint*>(values_elems));
@@ -3829,6 +4035,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexParameterIi
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTexParameterIivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3840,6 +4047,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexParameterIi
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTexParameterIivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3851,6 +4059,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexParameterIu
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTexParameterIuivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3862,6 +4071,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexParameterIu
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTexParameterIuivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3873,6 +4083,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexParameterfv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTexParameterfv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jfloat*>(params_elems));
@@ -3884,6 +4095,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexParameteriv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTexParameteriv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -3938,6 +4150,10 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTransformFeedb
     using Fn = void (*)(jint, jint, jint, jint*, jint*, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTransformFeedbackVarying"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(size, size_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(type, type_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return;
     }
     fn(program, index, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jint*>(size_elems), reinterpret_cast<jint*>(type_elems), reinterpret_cast<jbyte*>(name_elems));
@@ -3953,6 +4169,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTranslatedShad
     using Fn = void (*)(jint, jint, jint*, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetTranslatedShaderSourceANGLE"));
     if (!fn) {
+        env->ReleaseIntArrayElements(length, length_elems, JNI_ABORT);
+        env->ReleaseByteArrayElements(source, source_elems, JNI_ABORT);
         return;
     }
     fn(shader, bufSize, reinterpret_cast<jint*>(length_elems), reinterpret_cast<jbyte*>(source_elems));
@@ -3965,6 +4183,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUniformBlockIn
     using Fn = jint (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUniformBlockIndex"));
     if (!fn) {
+        env->ReleaseByteArrayElements(uniformBlockName, uniformBlockName_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(program, reinterpret_cast<jbyte*>(uniformBlockName_elems));
@@ -3978,6 +4197,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUniformIndices
     using Fn = void (*)(jint, jint, jbyte*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUniformIndices"));
     if (!fn) {
+        env->ReleaseByteArrayElements(uniformNames, uniformNames_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(uniformIndices, uniformIndices_elems, JNI_ABORT);
         return;
     }
     fn(program, uniformCount, reinterpret_cast<jbyte*>(uniformNames_elems), reinterpret_cast<jint*>(uniformIndices_elems));
@@ -3990,6 +4211,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUniformLocatio
     using Fn = jint (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUniformLocation"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(program, reinterpret_cast<jbyte*>(name_elems));
@@ -4002,6 +4224,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUniformfv(JNIE
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUniformfv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, reinterpret_cast<jfloat*>(params_elems));
@@ -4013,6 +4236,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUniformi64vNV(
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUniformi64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, reinterpret_cast<jlong*>(params_elems));
@@ -4024,6 +4248,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUniformiv(JNIE
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUniformiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, reinterpret_cast<jint*>(params_elems));
@@ -4035,6 +4260,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUniformuiv(JNI
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUniformuiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, reinterpret_cast<jint*>(params_elems));
@@ -4046,6 +4272,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUnsignedBytei_
     using Fn = void (*)(jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUnsignedBytei_vEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(target, index, reinterpret_cast<jbyte*>(data_elems));
@@ -4057,6 +4284,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetUnsignedBytevE
     using Fn = void (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetUnsignedBytevEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(data, data_elems, JNI_ABORT);
         return;
     }
     fn(pname, reinterpret_cast<jbyte*>(data_elems));
@@ -4068,6 +4296,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetVertexAttribIi
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetVertexAttribIiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(index, pname, reinterpret_cast<jint*>(params_elems));
@@ -4079,6 +4308,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetVertexAttribIu
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetVertexAttribIuiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(index, pname, reinterpret_cast<jint*>(params_elems));
@@ -4099,6 +4329,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetVertexAttribfv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetVertexAttribfv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(index, pname, reinterpret_cast<jfloat*>(params_elems));
@@ -4110,6 +4341,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetVertexAttribiv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetVertexAttribiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(index, pname, reinterpret_cast<jint*>(params_elems));
@@ -4121,6 +4353,7 @@ JNIEXPORT jlong JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetVkProcAddrNV(
     using Fn = jlong (*)(jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetVkProcAddrNV"));
     if (!fn) {
+        env->ReleaseByteArrayElements(name, name_elems, JNI_ABORT);
         return static_cast<jlong>(0);
     }
     auto result = fn(reinterpret_cast<jbyte*>(name_elems));
@@ -4133,6 +4366,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetnUniformfvEXT(
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetnUniformfvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, bufSize, reinterpret_cast<jfloat*>(params_elems));
@@ -4144,6 +4378,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetnUniformfvKHR(
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetnUniformfvKHR"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, bufSize, reinterpret_cast<jfloat*>(params_elems));
@@ -4155,6 +4390,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetnUniformivEXT(
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetnUniformivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, bufSize, reinterpret_cast<jint*>(params_elems));
@@ -4166,6 +4402,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetnUniformivKHR(
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetnUniformivKHR"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, bufSize, reinterpret_cast<jint*>(params_elems));
@@ -4177,6 +4414,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetnUniformuivKHR
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glGetnUniformuivKHR"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(program, location, bufSize, reinterpret_cast<jint*>(params_elems));
@@ -4251,6 +4489,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glInsertEventMarker
     using Fn = void (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glInsertEventMarkerEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(marker, marker_elems, JNI_ABORT);
         return;
     }
     fn(length, reinterpret_cast<jbyte*>(marker_elems));
@@ -4271,6 +4510,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glInvalidateFramebu
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glInvalidateFramebuffer"));
     if (!fn) {
+        env->ReleaseIntArrayElements(attachments, attachments_elems, JNI_ABORT);
         return;
     }
     fn(target, numAttachments, reinterpret_cast<jint*>(attachments_elems));
@@ -4282,6 +4522,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glInvalidateSubFram
     using Fn = void (*)(jint, jint, jint*, jint, jint, jint, jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glInvalidateSubFramebuffer"));
     if (!fn) {
+        env->ReleaseIntArrayElements(attachments, attachments_elems, JNI_ABORT);
         return;
     }
     fn(target, numAttachments, reinterpret_cast<jint*>(attachments_elems), x, y, width, height);
@@ -4563,6 +4804,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glLabelObjectEXT(JN
     using Fn = void (*)(jint, jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glLabelObjectEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(label, label_elems, JNI_ABORT);
         return;
     }
     fn(type, object, length, reinterpret_cast<jbyte*>(label_elems));
@@ -4667,6 +4909,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixLoad3x2fNV(
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixLoad3x2fNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(matrixMode, reinterpret_cast<jfloat*>(m_elems));
@@ -4678,6 +4921,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixLoad3x3fNV(
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixLoad3x3fNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(matrixMode, reinterpret_cast<jfloat*>(m_elems));
@@ -4698,6 +4942,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixLoadTranspo
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixLoadTranspose3x3fNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(matrixMode, reinterpret_cast<jfloat*>(m_elems));
@@ -4709,6 +4954,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixLoadTranspo
     using Fn = void (*)(jint, jdouble*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixLoadTransposedEXT"));
     if (!fn) {
+        env->ReleaseDoubleArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jdouble*>(m_elems));
@@ -4720,6 +4966,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixLoadTranspo
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixLoadTransposefEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jfloat*>(m_elems));
@@ -4731,6 +4978,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixLoaddEXT(JN
     using Fn = void (*)(jint, jdouble*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixLoaddEXT"));
     if (!fn) {
+        env->ReleaseDoubleArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jdouble*>(m_elems));
@@ -4742,6 +4990,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixLoadfEXT(JN
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixLoadfEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jfloat*>(m_elems));
@@ -4753,6 +5002,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixMult3x2fNV(
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixMult3x2fNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(matrixMode, reinterpret_cast<jfloat*>(m_elems));
@@ -4764,6 +5014,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixMult3x3fNV(
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixMult3x3fNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(matrixMode, reinterpret_cast<jfloat*>(m_elems));
@@ -4775,6 +5026,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixMultTranspo
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixMultTranspose3x3fNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(matrixMode, reinterpret_cast<jfloat*>(m_elems));
@@ -4786,6 +5038,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixMultTranspo
     using Fn = void (*)(jint, jdouble*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixMultTransposedEXT"));
     if (!fn) {
+        env->ReleaseDoubleArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jdouble*>(m_elems));
@@ -4797,6 +5050,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixMultTranspo
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixMultTransposefEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jfloat*>(m_elems));
@@ -4808,6 +5062,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixMultdEXT(JN
     using Fn = void (*)(jint, jdouble*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixMultdEXT"));
     if (!fn) {
+        env->ReleaseDoubleArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jdouble*>(m_elems));
@@ -4819,6 +5074,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMatrixMultfEXT(JN
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMatrixMultfEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(m, m_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jfloat*>(m_elems));
@@ -4920,6 +5176,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMemoryObjectParam
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMemoryObjectParameterivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(memoryObject, pname, reinterpret_cast<jint*>(params_elems));
@@ -4941,6 +5198,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawArraysEX
     using Fn = void (*)(jint, jint*, jint*, jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMultiDrawArraysEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(first, first_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(count, count_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jint*>(first_elems), reinterpret_cast<jint*>(count_elems), primcount);
@@ -4963,6 +5222,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawElements
     using Fn = void (*)(jint, jint*, jint, jlong, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMultiDrawElementsBaseVertexEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(count, count_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(basevertex, basevertex_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jint*>(count_elems), type, indices, drawcount, reinterpret_cast<jint*>(basevertex_elems));
@@ -4975,6 +5236,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawElements
     using Fn = void (*)(jint, jint*, jint, jlong, jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glMultiDrawElementsEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(count, count_elems, JNI_ABORT);
         return;
     }
     fn(mode, reinterpret_cast<jint*>(count_elems), type, indices, primcount);
@@ -5049,6 +5311,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glNamedFramebufferS
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glNamedFramebufferSampleLocationsfvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(framebuffer, start, count, reinterpret_cast<jfloat*>(v_elems));
@@ -5069,6 +5332,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glObjectLabelKHR(JN
     using Fn = void (*)(jint, jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glObjectLabelKHR"));
     if (!fn) {
+        env->ReleaseByteArrayElements(label, label_elems, JNI_ABORT);
         return;
     }
     fn(identifier, name, length, reinterpret_cast<jbyte*>(label_elems));
@@ -5080,6 +5344,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glObjectPtrLabelKHR
     using Fn = void (*)(jlong, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glObjectPtrLabelKHR"));
     if (!fn) {
+        env->ReleaseByteArrayElements(label, label_elems, JNI_ABORT);
         return;
     }
     fn(ptr, length, reinterpret_cast<jbyte*>(label_elems));
@@ -5109,6 +5374,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glPathCommandsNV(JN
     using Fn = void (*)(jint, jint, jbyte*, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPathCommandsNV"));
     if (!fn) {
+        env->ReleaseByteArrayElements(commands, commands_elems, JNI_ABORT);
         return;
     }
     fn(path, numCommands, reinterpret_cast<jbyte*>(commands_elems), numCoords, coordType, coords);
@@ -5138,6 +5404,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glPathDashArrayNV(J
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPathDashArrayNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(dashArray, dashArray_elems, JNI_ABORT);
         return;
     }
     fn(path, dashCount, reinterpret_cast<jfloat*>(dashArray_elems));
@@ -5159,6 +5426,7 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glPathGlyphIndexRan
     using Fn = jint (*)(jint, jlong, jint, jint, jfloat, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPathGlyphIndexRangeNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(baseAndCount, baseAndCount_elems, JNI_ABORT);
         return static_cast<jint>(0);
     }
     auto result = fn(fontTarget, fontName, fontStyle, pathParameterTemplate, emScale, reinterpret_cast<jint*>(baseAndCount_elems));
@@ -5208,6 +5476,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glPathParameterfvNV
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPathParameterfvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(path, pname, reinterpret_cast<jfloat*>(value_elems));
@@ -5228,6 +5497,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glPathParameterivNV
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPathParameterivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(path, pname, reinterpret_cast<jint*>(value_elems));
@@ -5266,6 +5536,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glPathSubCommandsNV
     using Fn = void (*)(jint, jint, jint, jint, jbyte*, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPathSubCommandsNV"));
     if (!fn) {
+        env->ReleaseByteArrayElements(commands, commands_elems, JNI_ABORT);
         return;
     }
     fn(path, commandStart, commandsToDelete, numCommands, reinterpret_cast<jbyte*>(commands_elems), numCoords, coordType, coords);
@@ -5307,6 +5578,10 @@ JNIEXPORT jbyte JNICALL Java_org_ngengine_libjglios_gles_GLES_glPointAlongPathNV
     using Fn = jbyte (*)(jint, jint, jint, jfloat, jfloat*, jfloat*, jfloat*, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPointAlongPathNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(x, x_elems, JNI_ABORT);
+        env->ReleaseFloatArrayElements(y, y_elems, JNI_ABORT);
+        env->ReleaseFloatArrayElements(tangentX, tangentX_elems, JNI_ABORT);
+        env->ReleaseFloatArrayElements(tangentY, tangentY_elems, JNI_ABORT);
         return static_cast<jbyte>(0);
     }
     auto result = fn(path, startSegment, numSegments, distance, reinterpret_cast<jfloat*>(x_elems), reinterpret_cast<jfloat*>(y_elems), reinterpret_cast<jfloat*>(tangentX_elems), reinterpret_cast<jfloat*>(tangentY_elems));
@@ -5421,6 +5696,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramPathFragme
     using Fn = void (*)(jint, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramPathFragmentInputGenNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(coeffs, coeffs_elems, JNI_ABORT);
         return;
     }
     fn(program, location, genMode, components, reinterpret_cast<jfloat*>(coeffs_elems));
@@ -5441,6 +5717,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1fv
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform1fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -5461,6 +5738,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1i6
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform1i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5481,6 +5759,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1iv
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform1ivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5501,6 +5780,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1ui
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform1ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5521,6 +5801,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1ui
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform1uivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5541,6 +5822,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2fv
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform2fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -5561,6 +5843,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2i6
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform2i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5581,6 +5864,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2iv
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform2ivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5601,6 +5885,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2ui
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform2ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5621,6 +5906,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2ui
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform2uivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5641,6 +5927,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3fv
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform3fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -5661,6 +5948,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3i6
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform3i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5681,6 +5969,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3iv
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform3ivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5701,6 +5990,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3ui
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform3ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5721,6 +6011,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3ui
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform3uivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5741,6 +6032,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4fv
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform4fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -5761,6 +6053,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4i6
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform4i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5781,6 +6074,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4iv
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform4ivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5801,6 +6095,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4ui
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform4ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(value_elems));
@@ -5821,6 +6116,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4ui
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniform4uivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jint*>(value_elems));
@@ -5850,6 +6146,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformHan
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformHandleui64vIMG"));
     if (!fn) {
+        env->ReleaseLongArrayElements(values, values_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(values_elems));
@@ -5861,6 +6158,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformHan
     using Fn = void (*)(jint, jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformHandleui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(values, values_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, reinterpret_cast<jlong*>(values_elems));
@@ -5872,6 +6170,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix2fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5883,6 +6182,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix2x3fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5894,6 +6194,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix2x4fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5905,6 +6206,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix3fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5916,6 +6218,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix3x2fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5927,6 +6230,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix3x4fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5938,6 +6242,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix4fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5949,6 +6254,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix4x2fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5960,6 +6266,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMat
     using Fn = void (*)(jint, jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glProgramUniformMatrix4x3fvEXT"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(program, location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -5971,6 +6278,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glPushDebugGroupKHR
     using Fn = void (*)(jint, jint, jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPushDebugGroupKHR"));
     if (!fn) {
+        env->ReleaseByteArrayElements(message, message_elems, JNI_ABORT);
         return;
     }
     fn(source, id, length, reinterpret_cast<jbyte*>(message_elems));
@@ -5982,6 +6290,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glPushGroupMarkerEX
     using Fn = void (*)(jint, jbyte*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glPushGroupMarkerEXT"));
     if (!fn) {
+        env->ReleaseByteArrayElements(marker, marker_elems, JNI_ABORT);
         return;
     }
     fn(length, reinterpret_cast<jbyte*>(marker_elems));
@@ -6033,7 +6342,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glReadBufferNV(JNIE
     fn(mode);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glReadPixels(JNIEnv* env, jclass, jint x, jint y, jint width, jint height, jint format, jint type, jlong pixels) {
+static void libjglios_gles_glReadPixels(JNIEnv* env, jclass, jint x, jint y, jint width, jint height, jint format, jint type, jlong pixels) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glReadPixels"));
     if (!fn) {
@@ -6214,6 +6523,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSamplerParameterI
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSamplerParameterIivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(param, param_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(param_elems));
@@ -6225,6 +6535,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSamplerParameterI
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSamplerParameterIivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(param, param_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(param_elems));
@@ -6236,6 +6547,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSamplerParameterI
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSamplerParameterIuivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(param, param_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(param_elems));
@@ -6247,6 +6559,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSamplerParameterI
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSamplerParameterIuivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(param, param_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(param_elems));
@@ -6267,6 +6580,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSamplerParameterf
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSamplerParameterfv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(param, param_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jfloat*>(param_elems));
@@ -6287,6 +6601,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSamplerParameteri
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSamplerParameteriv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(param, param_elems, JNI_ABORT);
         return;
     }
     fn(sampler, pname, reinterpret_cast<jint*>(param_elems));
@@ -6307,6 +6622,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glScissorArrayvNV(J
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glScissorArrayvNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(first, count, reinterpret_cast<jint*>(v_elems));
@@ -6318,6 +6634,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glScissorArrayvOES(
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glScissorArrayvOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(first, count, reinterpret_cast<jint*>(v_elems));
@@ -6329,6 +6646,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glScissorExclusiveA
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glScissorExclusiveArrayvNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(first, count, reinterpret_cast<jint*>(v_elems));
@@ -6367,6 +6685,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glScissorIndexedvNV
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glScissorIndexedvNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jint*>(v_elems));
@@ -6378,6 +6697,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glScissorIndexedvOE
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glScissorIndexedvOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jint*>(v_elems));
@@ -6389,6 +6709,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSelectPerfMonitor
     using Fn = void (*)(jint, jbyte, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSelectPerfMonitorCountersAMD"));
     if (!fn) {
+        env->ReleaseIntArrayElements(counterList, counterList_elems, JNI_ABORT);
         return;
     }
     fn(monitor, enable, group, numCounters, reinterpret_cast<jint*>(counterList_elems));
@@ -6400,6 +6721,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSemaphoreParamete
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSemaphoreParameterivNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(semaphore, pname, reinterpret_cast<jint*>(params_elems));
@@ -6411,6 +6733,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSemaphoreParamete
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSemaphoreParameterui64vEXT"));
     if (!fn) {
+        env->ReleaseLongArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(semaphore, pname, reinterpret_cast<jlong*>(params_elems));
@@ -6431,6 +6754,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glShaderBinary(JNIE
     using Fn = void (*)(jint, jint*, jint, jlong, jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glShaderBinary"));
     if (!fn) {
+        env->ReleaseIntArrayElements(shaders, shaders_elems, JNI_ABORT);
         return;
     }
     fn(count, reinterpret_cast<jint*>(shaders_elems), binaryFormat, binary, length);
@@ -6468,6 +6792,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glShadingRateImageP
     using Fn = void (*)(jint, jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glShadingRateImagePaletteNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(rates, rates_elems, JNI_ABORT);
         return;
     }
     fn(viewport, first, count, reinterpret_cast<jint*>(rates_elems));
@@ -6488,6 +6813,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glShadingRateSample
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glShadingRateSampleOrderCustomNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(locations, locations_elems, JNI_ABORT);
         return;
     }
     fn(rate, samples, reinterpret_cast<jint*>(locations_elems));
@@ -6510,6 +6836,9 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSignalSemaphoreEX
     using Fn = void (*)(jint, jint, jint*, jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glSignalSemaphoreEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(buffers, buffers_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(textures, textures_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(dstLayouts, dstLayouts_elems, JNI_ABORT);
         return;
     }
     fn(semaphore, numBufferBarriers, reinterpret_cast<jint*>(buffers_elems), numTextureBarriers, reinterpret_cast<jint*>(textures_elems), reinterpret_cast<jint*>(dstLayouts_elems));
@@ -6550,6 +6879,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glStencilFillPathIn
     using Fn = void (*)(jint, jint, jlong, jint, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glStencilFillPathInstancedNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(transformValues, transformValues_elems, JNI_ABORT);
         return;
     }
     fn(numPaths, pathNameType, paths, pathBase, fillMode, mask, transformType, reinterpret_cast<jfloat*>(transformValues_elems));
@@ -6624,6 +6954,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glStencilStrokePath
     using Fn = void (*)(jint, jint, jlong, jint, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glStencilStrokePathInstancedNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(transformValues, transformValues_elems, JNI_ABORT);
         return;
     }
     fn(numPaths, pathNameType, paths, pathBase, reference, mask, transformType, reinterpret_cast<jfloat*>(transformValues_elems));
@@ -6644,6 +6975,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glStencilThenCoverF
     using Fn = void (*)(jint, jint, jlong, jint, jint, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glStencilThenCoverFillPathInstancedNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(transformValues, transformValues_elems, JNI_ABORT);
         return;
     }
     fn(numPaths, pathNameType, paths, pathBase, fillMode, mask, coverMode, transformType, reinterpret_cast<jfloat*>(transformValues_elems));
@@ -6664,6 +6996,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glStencilThenCoverS
     using Fn = void (*)(jint, jint, jlong, jint, jint, jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glStencilThenCoverStrokePathInstancedNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(transformValues, transformValues_elems, JNI_ABORT);
         return;
     }
     fn(numPaths, pathNameType, paths, pathBase, reference, mask, coverMode, transformType, reinterpret_cast<jfloat*>(transformValues_elems));
@@ -6761,13 +7094,24 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexEstimateMotion
     fn(ref, target, output, mask);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jlong pixels) {
+static void libjglios_gles_glTexImage2D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jlong pixels) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexImage2D"));
     if (!fn) {
         return;
     }
     fn(target, level, internalformat, width, height, border, format, type, pixels);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D__IIIIIIII_3B(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jbyteArray pixels) {
+    using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, void*);
+    static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexImage2D"));
+    if (!fn) {
+        return;
+    }
+    jbyte* pixels_elems = env->GetByteArrayElements(pixels, nullptr);
+    fn(target, level, internalformat, width, height, border, format, type, pixels_elems);
+    env->ReleaseByteArrayElements(pixels, pixels_elems, JNI_ABORT);
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D__IIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jobject pixels, jlong pixelsOffset) {
@@ -6783,7 +7127,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D__IIIII
     fn(target, level, internalformat, width, height, border, format, type, pixelsPtr);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage3D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint format, jint type, jlong pixels) {
+static void libjglios_gles_glTexImage3D(JNIEnv* env, jclass, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint format, jint type, jlong pixels) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexImage3D"));
     if (!fn) {
@@ -6837,6 +7181,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexParameterIivEX
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexParameterIivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -6848,6 +7193,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexParameterIivOE
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexParameterIivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -6859,6 +7205,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexParameterIuivE
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexParameterIuivEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -6870,6 +7217,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexParameterIuivO
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexParameterIuivOES"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -6890,6 +7238,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexParameterfv(JN
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexParameterfv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jfloat*>(params_elems));
@@ -6910,6 +7259,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexParameteriv(JN
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexParameteriv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(params, params_elems, JNI_ABORT);
         return;
     }
     fn(target, pname, reinterpret_cast<jint*>(params_elems));
@@ -7006,13 +7356,24 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexStorageMem3DMu
     fn(target, samples, internalFormat, width, height, depth, fixedSampleLocations, memory, offset);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jlong pixels) {
+static void libjglios_gles_glTexSubImage2D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jlong pixels) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexSubImage2D"));
     if (!fn) {
         return;
     }
     fn(target, level, xoffset, yoffset, width, height, format, type, pixels);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D__IIIIIIII_3B(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jbyteArray pixels) {
+    using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, void*);
+    static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexSubImage2D"));
+    if (!fn) {
+        return;
+    }
+    jbyte* pixels_elems = env->GetByteArrayElements(pixels, nullptr);
+    fn(target, level, xoffset, yoffset, width, height, format, type, pixels_elems);
+    env->ReleaseByteArrayElements(pixels, pixels_elems, JNI_ABORT);
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D__IIIIIIIILjava_nio_Buffer_2J(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jobject pixels, jlong pixelsOffset) {
@@ -7028,7 +7389,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D__II
     fn(target, level, xoffset, yoffset, width, height, format, type, pixelsPtr);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage3D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint type, jlong pixels) {
+static void libjglios_gles_glTexSubImage3D(JNIEnv* env, jclass, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint type, jlong pixels) {
     using Fn = void (*)(jint, jint, jint, jint, jint, jint, jint, jint, jint, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTexSubImage3D"));
     if (!fn) {
@@ -7172,6 +7533,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTransformFeedback
     using Fn = void (*)(jint, jint, jbyte*, jint);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTransformFeedbackVaryings"));
     if (!fn) {
+        env->ReleaseByteArrayElements(varyings, varyings_elems, JNI_ABORT);
         return;
     }
     fn(program, count, reinterpret_cast<jbyte*>(varyings_elems), bufferMode);
@@ -7183,6 +7545,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTransformPathNV(J
     using Fn = void (*)(jint, jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glTransformPathNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(transformValues, transformValues_elems, JNI_ABORT);
         return;
     }
     fn(resultPath, srcPath, transformType, reinterpret_cast<jfloat*>(transformValues_elems));
@@ -7203,6 +7566,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform1fv(JNIEnv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform1fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -7232,6 +7596,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform1i64vNV(JN
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform1i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7243,6 +7608,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform1iv(JNIEnv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform1iv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7272,6 +7638,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform1ui64vNV(J
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform1ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7283,6 +7650,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform1uiv(JNIEn
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform1uiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7303,6 +7671,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform2fv(JNIEnv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform2fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -7332,6 +7701,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform2i64vNV(JN
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform2i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7343,6 +7713,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform2iv(JNIEnv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform2iv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7372,6 +7743,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform2ui64vNV(J
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform2ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7383,6 +7755,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform2uiv(JNIEn
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform2uiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7403,6 +7776,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform3fv(JNIEnv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform3fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -7432,6 +7806,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform3i64vNV(JN
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform3i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7443,6 +7818,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform3iv(JNIEnv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform3iv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7472,6 +7848,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform3ui64vNV(J
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform3ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7483,6 +7860,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform3uiv(JNIEn
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform3uiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7503,6 +7881,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform4fv(JNIEnv
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform4fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jfloat*>(value_elems));
@@ -7532,6 +7911,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform4i64vNV(JN
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform4i64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7543,6 +7923,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform4iv(JNIEnv
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform4iv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7572,6 +7953,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform4ui64vNV(J
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform4ui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7583,6 +7965,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniform4uiv(JNIEn
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniform4uiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jint*>(value_elems));
@@ -7621,6 +8004,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformHandleui64
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformHandleui64vIMG"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7632,6 +8016,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformHandleui64
     using Fn = void (*)(jint, jint, jlong*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformHandleui64vNV"));
     if (!fn) {
+        env->ReleaseLongArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, reinterpret_cast<jlong*>(value_elems));
@@ -7643,6 +8028,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix2fv(
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix2fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7654,6 +8040,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix2x3f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix2x3fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7665,6 +8052,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix2x3f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix2x3fvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7676,6 +8064,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix2x4f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix2x4fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7687,6 +8076,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix2x4f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix2x4fvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7698,6 +8088,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix3fv(
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix3fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7709,6 +8100,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix3x2f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix3x2fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7720,6 +8112,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix3x2f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix3x2fvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7731,6 +8124,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix3x4f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix3x4fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7742,6 +8136,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix3x4f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix3x4fvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7753,6 +8148,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix4fv(
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix4fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7764,6 +8160,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix4x2f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix4x2fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7775,6 +8172,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix4x2f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix4x2fvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7786,6 +8184,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix4x3f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix4x3fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7797,6 +8196,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUniformMatrix4x3f
     using Fn = void (*)(jint, jint, jbyte, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glUniformMatrix4x3fvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(value, value_elems, JNI_ABORT);
         return;
     }
     fn(location, count, transpose, reinterpret_cast<jfloat*>(value_elems));
@@ -7873,6 +8273,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttrib1fv(J
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttrib1fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jfloat*>(v_elems));
@@ -7893,6 +8294,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttrib2fv(J
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttrib2fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jfloat*>(v_elems));
@@ -7913,6 +8315,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttrib3fv(J
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttrib3fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jfloat*>(v_elems));
@@ -7933,6 +8336,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttrib4fv(J
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttrib4fv"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jfloat*>(v_elems));
@@ -7989,6 +8393,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribI4iv(
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttribI4iv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jint*>(v_elems));
@@ -8009,6 +8414,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribI4uiv
     using Fn = void (*)(jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttribI4uiv"));
     if (!fn) {
+        env->ReleaseIntArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jint*>(v_elems));
@@ -8024,7 +8430,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribIPoin
     fn(index, size, type, stride, pointer);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribPointer(JNIEnv* env, jclass, jint index, jint size, jint type, jbyte normalized, jint stride, jlong pointer) {
+static void libjglios_gles_glVertexAttribPointer(JNIEnv* env, jclass, jint index, jint size, jint type, jbyte normalized, jint stride, jlong pointer) {
     using Fn = void (*)(jint, jint, jint, jbyte, jint, jlong);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glVertexAttribPointer"));
     if (!fn) {
@@ -8060,6 +8466,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glViewportArrayvNV(
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glViewportArrayvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(first, count, reinterpret_cast<jfloat*>(v_elems));
@@ -8071,6 +8478,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glViewportArrayvOES
     using Fn = void (*)(jint, jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glViewportArrayvOES"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(first, count, reinterpret_cast<jfloat*>(v_elems));
@@ -8100,6 +8508,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glViewportIndexedfv
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glViewportIndexedfvNV"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jfloat*>(v_elems));
@@ -8111,6 +8520,7 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glViewportIndexedfv
     using Fn = void (*)(jint, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glViewportIndexedfvOES"));
     if (!fn) {
+        env->ReleaseFloatArrayElements(v, v_elems, JNI_ABORT);
         return;
     }
     fn(index, reinterpret_cast<jfloat*>(v_elems));
@@ -8142,6 +8552,9 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glWaitSemaphoreEXT(
     using Fn = void (*)(jint, jint, jint*, jint, jint*, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glWaitSemaphoreEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(buffers, buffers_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(textures, textures_elems, JNI_ABORT);
+        env->ReleaseIntArrayElements(srcLayouts, srcLayouts_elems, JNI_ABORT);
         return;
     }
     fn(semaphore, numBufferBarriers, reinterpret_cast<jint*>(buffers_elems), numTextureBarriers, reinterpret_cast<jint*>(textures_elems), reinterpret_cast<jint*>(srcLayouts_elems));
@@ -8183,6 +8596,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glWeightPathsNV(JNI
     using Fn = void (*)(jint, jint, jint*, jfloat*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glWeightPathsNV"));
     if (!fn) {
+        env->ReleaseIntArrayElements(paths, paths_elems, JNI_ABORT);
+        env->ReleaseFloatArrayElements(weights, weights_elems, JNI_ABORT);
         return;
     }
     fn(resultPath, numPaths, reinterpret_cast<jint*>(paths_elems), reinterpret_cast<jfloat*>(weights_elems));
@@ -8195,34 +8610,35 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glWindowRectanglesE
     using Fn = void (*)(jint, jint, jint*);
     static Fn fn = reinterpret_cast<Fn>(eglGetProcAddress("glWindowRectanglesEXT"));
     if (!fn) {
+        env->ReleaseIntArrayElements(box, box_elems, JNI_ABORT);
         return;
     }
     fn(mode, count, reinterpret_cast<jint*>(box_elems));
     env->ReleaseIntArrayElements(box, box_elems, 0);
 }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferData__IJJI(JNIEnv* env, jclass clazz, jint target, jlong size, jlong data, jint usage) { Java_org_ngengine_libjglios_gles_GLES_glBufferData(env, clazz, target, size, data, usage); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferSubData__IJJJ(JNIEnv* env, jclass clazz, jint target, jlong offset, jlong size, jlong data) { Java_org_ngengine_libjglios_gles_GLES_glBufferSubData(env, clazz, target, offset, size, data); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage2D__IIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint imageSize, jlong data) { Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage2D(env, clazz, target, level, internalformat, width, height, border, imageSize, data); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage3D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint imageSize, jlong data) { Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage3D(env, clazz, target, level, internalformat, width, height, depth, border, imageSize, data); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage2D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint imageSize, jlong data) { Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage2D(env, clazz, target, level, xoffset, yoffset, width, height, format, imageSize, data); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage3D__IIIIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint imageSize, jlong data) { Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage3D(env, clazz, target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glReadPixels__IIIIIIJ(JNIEnv* env, jclass clazz, jint x, jint y, jint width, jint height, jint format, jint type, jlong pixels) { Java_org_ngengine_libjglios_gles_GLES_glReadPixels(env, clazz, x, y, width, height, format, type, pixels); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jlong pixels) { Java_org_ngengine_libjglios_gles_GLES_glTexImage2D(env, clazz, target, level, internalformat, width, height, border, format, type, pixels); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage3D__IIIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint format, jint type, jlong pixels) { Java_org_ngengine_libjglios_gles_GLES_glTexImage3D(env, clazz, target, level, internalformat, width, height, depth, border, format, type, pixels); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jlong pixels) { Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D(env, clazz, target, level, xoffset, yoffset, width, height, format, type, pixels); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage3D__IIIIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint type, jlong pixels) { Java_org_ngengine_libjglios_gles_GLES_glTexSubImage3D(env, clazz, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribPointer__IIIBIJ(JNIEnv* env, jclass clazz, jint index, jint size, jint type, jbyte normalized, jint stride, jlong pointer) { Java_org_ngengine_libjglios_gles_GLES_glVertexAttribPointer(env, clazz, index, size, type, normalized, stride, pointer); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferData__IJJI(JNIEnv* env, jclass clazz, jint target, jlong size, jlong data, jint usage) { libjglios_gles_glBufferData(env, clazz, target, size, data, usage); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBufferSubData__IJJJ(JNIEnv* env, jclass clazz, jint target, jlong offset, jlong size, jlong data) { libjglios_gles_glBufferSubData(env, clazz, target, offset, size, data); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage2D__IIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint imageSize, jlong data) { libjglios_gles_glCompressedTexImage2D(env, clazz, target, level, internalformat, width, height, border, imageSize, data); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexImage3D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint imageSize, jlong data) { libjglios_gles_glCompressedTexImage3D(env, clazz, target, level, internalformat, width, height, depth, border, imageSize, data); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage2D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint imageSize, jlong data) { libjglios_gles_glCompressedTexSubImage2D(env, clazz, target, level, xoffset, yoffset, width, height, format, imageSize, data); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glCompressedTexSubImage3D__IIIIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint imageSize, jlong data) { libjglios_gles_glCompressedTexSubImage3D(env, clazz, target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glReadPixels__IIIIIIJ(JNIEnv* env, jclass clazz, jint x, jint y, jint width, jint height, jint format, jint type, jlong pixels) { libjglios_gles_glReadPixels(env, clazz, x, y, width, height, format, type, pixels); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage2D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint border, jint format, jint type, jlong pixels) { libjglios_gles_glTexImage2D(env, clazz, target, level, internalformat, width, height, border, format, type, pixels); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexImage3D__IIIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint internalformat, jint width, jint height, jint depth, jint border, jint format, jint type, jlong pixels) { libjglios_gles_glTexImage3D(env, clazz, target, level, internalformat, width, height, depth, border, format, type, pixels); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage2D__IIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint width, jint height, jint format, jint type, jlong pixels) { libjglios_gles_glTexSubImage2D(env, clazz, target, level, xoffset, yoffset, width, height, format, type, pixels); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexSubImage3D__IIIIIIIIIIJ(JNIEnv* env, jclass clazz, jint target, jint level, jint xoffset, jint yoffset, jint zoffset, jint width, jint height, jint depth, jint format, jint type, jlong pixels) { libjglios_gles_glTexSubImage3D(env, clazz, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribPointer__IIIBIJ(JNIEnv* env, jclass clazz, jint index, jint size, jint type, jbyte normalized, jint stride, jlong pointer) { libjglios_gles_glVertexAttribPointer(env, clazz, index, size, type, normalized, stride, pointer); }
 
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteBuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray buffers) { Java_org_ngengine_libjglios_gles_GLES_glDeleteBuffers(env, clazz, n, buffers); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteFramebuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray framebuffers) { Java_org_ngengine_libjglios_gles_GLES_glDeleteFramebuffers(env, clazz, n, framebuffers); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteQueries__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray ids) { Java_org_ngengine_libjglios_gles_GLES_glDeleteQueries(env, clazz, n, ids); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteRenderbuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray renderbuffers) { Java_org_ngengine_libjglios_gles_GLES_glDeleteRenderbuffers(env, clazz, n, renderbuffers); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteTextures__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray textures) { Java_org_ngengine_libjglios_gles_GLES_glDeleteTextures(env, clazz, n, textures); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenBuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray buffers) { Java_org_ngengine_libjglios_gles_GLES_glGenBuffers(env, clazz, n, buffers); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenFramebuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray framebuffers) { Java_org_ngengine_libjglios_gles_GLES_glGenFramebuffers(env, clazz, n, framebuffers); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueries__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray ids) { Java_org_ngengine_libjglios_gles_GLES_glGenQueries(env, clazz, n, ids); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray renderbuffers) { Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers(env, clazz, n, renderbuffers); }
-JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTextures__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray textures) { Java_org_ngengine_libjglios_gles_GLES_glGenTextures(env, clazz, n, textures); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteBuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray buffers) { libjglios_gles_glDeleteBuffers(env, clazz, n, buffers); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteFramebuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray framebuffers) { libjglios_gles_glDeleteFramebuffers(env, clazz, n, framebuffers); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteQueries__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray ids) { libjglios_gles_glDeleteQueries(env, clazz, n, ids); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteRenderbuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray renderbuffers) { libjglios_gles_glDeleteRenderbuffers(env, clazz, n, renderbuffers); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteTextures__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray textures) { libjglios_gles_glDeleteTextures(env, clazz, n, textures); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenBuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray buffers) { libjglios_gles_glGenBuffers(env, clazz, n, buffers); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenFramebuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray framebuffers) { libjglios_gles_glGenFramebuffers(env, clazz, n, framebuffers); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueries__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray ids) { libjglios_gles_glGenQueries(env, clazz, n, ids); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray renderbuffers) { libjglios_gles_glGenRenderbuffers(env, clazz, n, renderbuffers); }
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTextures__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray textures) { libjglios_gles_glGenTextures(env, clazz, n, textures); }
 
 }
