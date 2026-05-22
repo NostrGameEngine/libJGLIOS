@@ -1,6 +1,7 @@
 import groovy.json.JsonSlurper
 import groovy.io.FileType
 
+import java.time.Instant
 import java.util.Locale
 
 def libJGLIOSProviderTask = { String taskName ->
@@ -353,6 +354,29 @@ def libJGLIOSSetting = { String name, String fallback ->
     return (projectValue ?: fallback).toString()
 }
 
+def libJGLIOSRequiredSetting = { String name ->
+    def extension = extensions.findByName('libJGLIOS')
+    if (extension != null && extension.hasProperty(name)) {
+        def value = extension."${name}"
+        if (value != null) {
+            def resolved = null
+            if (value.respondsTo('getOrNull')) {
+                resolved = value.getOrNull()
+            } else {
+                resolved = value
+            }
+            if (resolved != null && resolved.toString().trim()) {
+                return resolved.toString().trim()
+            }
+        }
+    }
+    def projectValue = findProperty("libJGLIOS.${name}") ?: findProperty("libjglios.${name}")
+    if (projectValue != null && projectValue.toString().trim()) {
+        return projectValue.toString().trim()
+    }
+    throw new GradleException("libJGLIOS.${name} is required.")
+}
+
 def libJGLIOSExecutableName = { String value ->
     def sanitized = value.replaceAll('[^A-Za-z0-9_.-]', '_')
     sanitized ? sanitized : 'LibJGLIOSApp'
@@ -371,10 +395,10 @@ def libJGLIOSMainClass = {
     if (rootProject.findProject(':core-ios') == null && project.hasProperty('libJGLIOSGeneratedEntrypointClass')) {
         return project.ext.libJGLIOSGeneratedEntrypointClass.toString()
     }
-    libJGLIOSSetting('mainClass', 'org.ngengine.libjglios.sample.IosGraalEntrypoints')
+    libJGLIOSRequiredSetting('mainClass')
 }
-def libJGLIOSBundleId = { libJGLIOSSetting('bundleId', 'org.ngengine.libjglios.sample') }
-def libJGLIOSAppName = { libJGLIOSSetting('appName', 'IOSGlesGears') }
+def libJGLIOSBundleId = { libJGLIOSRequiredSetting('bundleId') }
+def libJGLIOSAppName = { libJGLIOSRequiredSetting('appName') }
 def libJGLIOSMinIosVersion = { libJGLIOSSetting('minIosVersion', '15.0') }
 def libJGLIOSSimulatorDevice = { libJGLIOSSetting('simulatorDevice', 'iPhone 16') }
 def libJGLIOSOrientation = {
@@ -414,31 +438,54 @@ def libJGLIOSSimulatorExecutableName = { libJGLIOSExecutableName("${libJGLIOSApp
 def libJGLIOSDeviceExecutableName = { libJGLIOSExecutableName(libJGLIOSAppName()) }
 def libJGLIOSSimulatorTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion()}-simulator" }
 def libJGLIOSDeviceTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion()}" }
-def libJGLIOSAutoIosDeviceSigningIdentity
-def libJGLIOSAutoIosDeviceProvisioningProfile
-def libJGLIOSAutoIosDeviceEntitlements
+def libJGLIOSResolvedSigningIdentities = [:]
+def libJGLIOSResolvedProvisioningProfiles = [:]
 def libJGLIOSIosDeviceCommandTimeoutSeconds = {
     def value = findProperty('iosDeviceCommandTimeoutSeconds') ?: providers.environmentVariable('IOS_DEVICE_COMMAND_TIMEOUT_SECONDS').orNull ?: '120'
     value.toString().trim()
 }
-def libJGLIOSExplicitIosDeviceSigningIdentity = {
-    def value = findProperty('iosSigningIdentity') ?: providers.environmentVariable('IOS_SIGNING_IDENTITY').orNull
-    value?.toString()?.trim()
-}
-def libJGLIOSIosDeviceSigningIdentity = {
-    libJGLIOSExplicitIosDeviceSigningIdentity() ?: libJGLIOSAutoIosDeviceSigningIdentity() ?: '-'
-}
-def libJGLIOSIosDeviceProvisioningProfile = {
-    def value = findProperty('iosProvisioningProfile') ?: providers.environmentVariable('IOS_PROVISIONING_PROFILE').orNull
-    value?.toString()?.trim() ?: libJGLIOSAutoIosDeviceProvisioningProfile()
-}
-def libJGLIOSIosDeviceEntitlements = {
-    def value = findProperty('iosCodesignEntitlements') ?: providers.environmentVariable('IOS_CODESIGN_ENTITLEMENTS').orNull
-    value?.toString()?.trim() ?: libJGLIOSAutoIosDeviceEntitlements()
-}
 def libJGLIOSIosDeviceLaunchConsole = {
     def value = findProperty('iosDeviceLaunchConsole') ?: providers.environmentVariable('IOS_DEVICE_LAUNCH_CONSOLE').orNull ?: 'false'
     value.toString().toBoolean()
+}
+def libJGLIOSXcodeProvisioningAutoCreate = {
+    def value = findProperty('iosXcodeProvisioningAutoCreate') ?: providers.environmentVariable('IOS_XCODE_PROVISIONING_AUTO_CREATE').orNull ?: 'true'
+    value.toString().toBoolean()
+}
+def libJGLIOSBundleIdAutoCreate = {
+    def value = findProperty('iosBundleIdAutoCreate') ?: providers.environmentVariable('IOS_BUNDLE_ID_AUTO_CREATE').orNull ?: 'true'
+    value.toString().toBoolean()
+}
+def libJGLIOSTeamId = {
+    def value = findProperty('iosXcodeTeamId')
+        ?: findProperty('iosTeamId')
+        ?: providers.environmentVariable('IOS_XCODE_TEAM_ID').orNull
+        ?: providers.environmentVariable('IOS_TEAM_ID').orNull
+    value?.toString()?.trim()
+}
+def libJGLIOSSigningKind = { String signingType ->
+    signingType == 'release' ? 'Apple Distribution:' : 'Apple Development:'
+}
+def libJGLIOSProfileLabel = { String signingType ->
+    signingType == 'release' ? 'release/App Store' : 'debug/development'
+}
+def libJGLIOSExplicitSigningIdentity = { String signingType ->
+    def propertyName = signingType == 'release' ? 'iosReleaseSigningIdentity' : 'iosDebugSigningIdentity'
+    def envName = signingType == 'release' ? 'IOS_RELEASE_SIGNING_IDENTITY' : 'IOS_DEBUG_SIGNING_IDENTITY'
+    def value = findProperty(propertyName) ?: providers.environmentVariable(envName).orNull
+    value?.toString()?.trim()
+}
+def libJGLIOSExplicitProvisioningProfile = { String signingType ->
+    def propertyName = signingType == 'release' ? 'iosReleaseProvisioningProfile' : 'iosDebugProvisioningProfile'
+    def envName = signingType == 'release' ? 'IOS_RELEASE_PROVISIONING_PROFILE' : 'IOS_DEBUG_PROVISIONING_PROFILE'
+    def value = findProperty(propertyName) ?: providers.environmentVariable(envName).orNull
+    value?.toString()?.trim()
+}
+def libJGLIOSExplicitEntitlements = { String signingType ->
+    def propertyName = signingType == 'release' ? 'iosReleaseCodesignEntitlements' : 'iosDebugCodesignEntitlements'
+    def envName = signingType == 'release' ? 'IOS_RELEASE_CODESIGN_ENTITLEMENTS' : 'IOS_DEBUG_CODESIGN_ENTITLEMENTS'
+    def value = findProperty(propertyName) ?: providers.environmentVariable(envName).orNull
+    value?.toString()?.trim()
 }
 
 def graalSimulatorBuildDir = layout.buildDirectory.dir('ios-graal-simulator')
@@ -449,7 +496,12 @@ def graalDeviceBuildDir = layout.buildDirectory.dir('ios-graal-device')
 def graalDeviceAppDir = graalDeviceBuildDir.map { it.dir("${libJGLIOSDeviceExecutableName()}.app") }
 def graalDeviceExecutable = graalDeviceAppDir.map { it.file(libJGLIOSDeviceExecutableName()) }
 def graalDeviceLibDir = layout.buildDirectory.dir('libs/ios-graal-device')
-def graalDevicePackage = graalDeviceBuildDir.map { it.file("${libJGLIOSDeviceExecutableName()}-device.zip") }
+def graalDebugBuildDir = layout.buildDirectory.dir('ios-debug')
+def graalDebugAppDir = graalDebugBuildDir.map { it.dir("${libJGLIOSDeviceExecutableName()}.app") }
+def graalReleaseBuildDir = layout.buildDirectory.dir('ios-release')
+def graalReleasePayloadDir = graalReleaseBuildDir.map { it.dir('Payload') }
+def graalReleaseAppDir = graalReleasePayloadDir.map { it.dir("${libJGLIOSDeviceExecutableName()}.app") }
+def graalReleaseIpa = graalReleaseBuildDir.map { it.file("${libJGLIOSDeviceExecutableName()}.ipa") }
 def graalSimulatorInfoPlist = layout.buildDirectory.file('libjglios/ios-simulator/Info.plist')
 def graalDeviceInfoPlist = layout.buildDirectory.file('libjglios/ios-device/Info.plist')
 
@@ -499,6 +551,36 @@ Then retry the Gradle task.""")
     output.trim()
 }
 
+def streamCommand = { List<String> command, Map<String, String> environment = [:], File workingDirectory = null ->
+    def normalizedCommand = command.collect { it.toString() }
+    def processBuilder = new ProcessBuilder(normalizedCommand)
+    processBuilder.redirectErrorStream(true)
+    if (workingDirectory != null) {
+        workingDirectory.mkdirs()
+        processBuilder.directory(workingDirectory)
+    }
+    if (!environment.isEmpty()) {
+        def normalizedEnvironment = environment.collectEntries { key, value ->
+            [(key.toString()): value.toString()]
+        }
+        processBuilder.environment().putAll(normalizedEnvironment)
+    }
+    def process = processBuilder.start()
+    def output = new StringBuilder()
+    process.inputStream.withReader('UTF-8') { reader ->
+        String line
+        while ((line = reader.readLine()) != null) {
+            output.append(line).append(System.lineSeparator())
+            println line
+        }
+    }
+    def exitCode = process.waitFor()
+    if (exitCode != 0) {
+        throw new GradleException("Command failed (${normalizedCommand.join(' ')}):\n${output}")
+    }
+    output.toString().trim()
+}
+
 def runCommand = { List<String> command, Map<String, String> environment = [:], File workingDirectory = null ->
     captureCommand(command, environment, workingDirectory)
 }
@@ -507,19 +589,33 @@ def libJGLIOSXcrun = { List<String> args ->
     captureCommand(['xcrun'] + args)
 }
 
-libJGLIOSAutoIosDeviceSigningIdentity = {
+def libJGLIOSAutoSigningIdentity = { String signingType ->
     def output = ''
     try {
         output = captureCommand(['security', 'find-identity', '-v', '-p', 'codesigning'])
     } catch (GradleException ignored) {
         return null
     }
-    def line = output.readLines().find { it.contains('"Apple Development:') }
+    def wantedKind = libJGLIOSSigningKind(signingType)
+    def line = output.readLines().find { it.contains("\"${wantedKind}") }
     if (line == null) {
         return null
     }
+    def hashMatcher = line =~ /^\s*\d+\)\s+([A-Fa-f0-9]+)\s+/
+    def hash = hashMatcher.find() ? hashMatcher.group(1) : null
     def matcher = line =~ /"([^"]+)"/
-    matcher.find() ? matcher.group(1) : null
+    def name = matcher.find() ? matcher.group(1) : null
+    hash == null && name == null ? null : [sign: hash ?: name, name: name ?: hash]
+}
+
+def libJGLIOSSigningIdentity = { String signingType ->
+    if (libJGLIOSResolvedSigningIdentities.containsKey(signingType)) {
+        return libJGLIOSResolvedSigningIdentities[signingType]
+    }
+    def explicit = libJGLIOSExplicitSigningIdentity(signingType)
+    def identity = explicit ? [sign: explicit, name: explicit] : libJGLIOSAutoSigningIdentity(signingType)
+    libJGLIOSResolvedSigningIdentities[signingType] = identity
+    identity
 }
 
 def libJGLIOSProvisioningProfileDirs = {
@@ -545,8 +641,15 @@ def libJGLIOSPlistValue = { File plist, String keyPath ->
     }
 }
 
-def libJGLIOSProvisioningProfileMatchesBundle = { File profile, String bundleId ->
-    def plist = libJGLIOSProvisioningProfilePlist(profile)
+def libJGLIOSPlistRawValue = { File plist, String keyPath ->
+    try {
+        captureCommand(['plutil', '-extract', keyPath, 'raw', '-o', '-', plist.absolutePath])
+    } catch (GradleException ignored) {
+        null
+    }
+}
+
+def libJGLIOSProvisioningProfileMatchesBundle = { File plist, String bundleId ->
     def applicationIdentifier = libJGLIOSPlistValue(plist, 'Entitlements:application-identifier')
     if (!applicationIdentifier) {
         return false
@@ -556,22 +659,296 @@ def libJGLIOSProvisioningProfileMatchesBundle = { File profile, String bundleId 
     suffix == bundleId || suffix == '*'
 }
 
-libJGLIOSAutoIosDeviceProvisioningProfile = {
+def libJGLIOSProvisioningProfileMatchesType = { File plist, String signingType ->
+    def getTaskAllow = libJGLIOSPlistRawValue(plist, 'Entitlements.get-task-allow')?.toString()?.toBoolean()
+    def hasProvisionedDevices = libJGLIOSPlistValue(plist, 'ProvisionedDevices') != null
+    signingType == 'release' ? (!getTaskAllow && !hasProvisionedDevices) : getTaskAllow
+}
+
+def libJGLIOSProvisioningProfileExpiration = { File plist ->
+    def value = libJGLIOSPlistRawValue(plist, 'ExpirationDate')
+    value ? Instant.parse(value.toString()) : Instant.EPOCH
+}
+
+def libJGLIOSMatchingProvisioningProfiles = { String signingType ->
     def bundleId = libJGLIOSBundleId()
     def profiles = []
     libJGLIOSProvisioningProfileDirs().each { dir ->
         dir.eachFileMatch(~/.*\.(mobileprovision|provisionprofile)/) { profile ->
-            if (libJGLIOSProvisioningProfileMatchesBundle(profile, bundleId)) {
-                profiles.add(profile)
+            def plist = libJGLIOSProvisioningProfilePlist(profile)
+            if (libJGLIOSProvisioningProfileMatchesBundle(plist, bundleId)
+                    && libJGLIOSProvisioningProfileMatchesType(plist, signingType)) {
+                profiles.add([
+                    file: profile,
+                    name: libJGLIOSPlistRawValue(plist, 'Name') ?: profile.name,
+                    applicationIdentifier: libJGLIOSPlistValue(plist, 'Entitlements:application-identifier'),
+                    expiration: libJGLIOSProvisioningProfileExpiration(plist)
+                ])
             }
         }
     }
-    def profile = profiles.sort { -it.lastModified() }.find()
-    profile?.absolutePath
+    profiles
 }
 
-libJGLIOSAutoIosDeviceEntitlements = {
-    def provisioningProfilePath = libJGLIOSIosDeviceProvisioningProfile()
+def libJGLIOSValidLocalProvisioningProfile = { String signingType ->
+    def profiles = libJGLIOSMatchingProvisioningProfiles(signingType)
+    def validProfile = profiles
+        .findAll { it.expiration.isAfter(Instant.now()) }
+        .sort { -it.file.lastModified() }
+        .find()
+    validProfile
+}
+
+def libJGLIOSIosAppRunTarget = null
+
+def libJGLIOSXcodeConfiguredTeamId = {
+    def explicit = libJGLIOSTeamId()
+    if (explicit) {
+        return explicit
+    }
+    try {
+        def output = captureCommand(['/usr/bin/defaults', 'read', 'com.apple.dt.Xcode', 'IDEProvisioningTeamByIdentifier'])
+        def teamIds = output.readLines().collect { line ->
+            def matcher = line =~ /teamID = ([A-Z0-9]+);/
+            matcher.find() ? matcher.group(1) : null
+        }.findAll { it != null }.unique()
+        if (teamIds.size() == 1) {
+            return teamIds[0]
+        }
+    } catch (GradleException ignored) {
+        return null
+    }
+    null
+}
+
+def libJGLIOSWriteXcodeProvisioningProbe = { File projectRoot, String signingType ->
+    delete projectRoot
+    def xcodeProjectDir = new File(projectRoot, 'LibJGLIOSProvisioningProbe.xcodeproj')
+    def sharedSchemesDir = new File(xcodeProjectDir, 'xcshareddata/xcschemes')
+    xcodeProjectDir.mkdirs()
+    sharedSchemesDir.mkdirs()
+    new File(projectRoot, 'main.m').text = '''int main(int argc, char *argv[]) {
+    return 0;
+}
+'''
+    new File(projectRoot, 'Info.plist').text = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>\$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>\$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>\$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+</dict>
+</plist>
+"""
+    def teamId = libJGLIOSXcodeConfiguredTeamId()
+    def teamLine = teamId ? "                DEVELOPMENT_TEAM = ${teamId};\n" : ''
+    def codeSignIdentity = signingType == 'release' ? 'Apple Distribution' : 'Apple Development'
+    new File(xcodeProjectDir, 'project.pbxproj').text = """// !\$*UTF8*\$!
+{
+    archiveVersion = 1;
+    classes = {
+    };
+    objectVersion = 56;
+    objects = {
+        000000000000000000000001 = {
+            isa = PBXProject;
+            attributes = {
+                LastUpgradeCheck = 1640;
+                TargetAttributes = {
+                    000000000000000000000002 = {
+                        CreatedOnToolsVersion = 16.4;
+                        ProvisioningStyle = Automatic;
+                    };
+                };
+            };
+            buildConfigurationList = 000000000000000000000003;
+            compatibilityVersion = "Xcode 14.0";
+            developmentRegion = en;
+            hasScannedForEncodings = 0;
+            knownRegions = (en, Base);
+            mainGroup = 000000000000000000000004;
+            productRefGroup = 000000000000000000000005;
+            projectDirPath = "";
+            projectRoot = "";
+            targets = (000000000000000000000002);
+        };
+        000000000000000000000004 = {
+            isa = PBXGroup;
+            children = (
+                000000000000000000000006,
+                000000000000000000000007,
+                000000000000000000000005,
+            );
+            sourceTree = "<group>";
+        };
+        000000000000000000000005 = {
+            isa = PBXGroup;
+            children = (000000000000000000000008);
+            name = Products;
+            sourceTree = "<group>";
+        };
+        000000000000000000000006 = { isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+        000000000000000000000007 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+        000000000000000000000008 = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LibJGLIOSProvisioningProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+        000000000000000000000009 = { isa = PBXBuildFile; fileRef = 000000000000000000000006; };
+        00000000000000000000000A = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (000000000000000000000009);
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        00000000000000000000000B = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        00000000000000000000000C = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        000000000000000000000002 = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 00000000000000000000000D;
+            buildPhases = (00000000000000000000000A, 00000000000000000000000B, 00000000000000000000000C);
+            buildRules = ();
+            dependencies = ();
+            name = LibJGLIOSProvisioningProbe;
+            productName = LibJGLIOSProvisioningProbe;
+            productReference = 000000000000000000000008;
+            productType = "com.apple.product-type.application";
+        };
+        000000000000000000000003 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (00000000000000000000000E, 00000000000000000000000F);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        00000000000000000000000D = {
+            isa = XCConfigurationList;
+            buildConfigurations = (000000000000000000000010, 000000000000000000000011);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        00000000000000000000000E = { isa = XCBuildConfiguration; name = Debug; buildSettings = { SDKROOT = iphoneos; }; };
+        00000000000000000000000F = { isa = XCBuildConfiguration; name = Release; buildSettings = { SDKROOT = iphoneos; }; };
+        000000000000000000000010 = {
+            isa = XCBuildConfiguration;
+            name = Debug;
+            buildSettings = {
+                CODE_SIGN_IDENTITY = "${codeSignIdentity}";
+                CODE_SIGN_STYLE = Automatic;
+${teamLine}                INFOPLIST_FILE = Info.plist;
+                IPHONEOS_DEPLOYMENT_TARGET = ${libJGLIOSMinIosVersion()};
+                PRODUCT_BUNDLE_IDENTIFIER = ${libJGLIOSBundleId()};
+                PRODUCT_NAME = LibJGLIOSProvisioningProbe;
+                PROVISIONING_PROFILE_SPECIFIER = "";
+                TARGETED_DEVICE_FAMILY = "1,2";
+            };
+        };
+        000000000000000000000011 = {
+            isa = XCBuildConfiguration;
+            name = Release;
+            buildSettings = {
+                CODE_SIGN_IDENTITY = "${codeSignIdentity}";
+                CODE_SIGN_STYLE = Automatic;
+${teamLine}                INFOPLIST_FILE = Info.plist;
+                IPHONEOS_DEPLOYMENT_TARGET = ${libJGLIOSMinIosVersion()};
+                PRODUCT_BUNDLE_IDENTIFIER = ${libJGLIOSBundleId()};
+                PRODUCT_NAME = LibJGLIOSProvisioningProbe;
+                PROVISIONING_PROFILE_SPECIFIER = "";
+                TARGETED_DEVICE_FAMILY = "1,2";
+            };
+        };
+    };
+    rootObject = 000000000000000000000001;
+}
+"""
+    new File(sharedSchemesDir, 'LibJGLIOSProvisioningProbe.xcscheme').text = '''<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion="1640" version="1.7">
+   <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
+      <BuildActionEntries>
+         <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="000000000000000000000002" BuildableName="LibJGLIOSProvisioningProbe.app" BlueprintName="LibJGLIOSProvisioningProbe" ReferencedContainer="container:LibJGLIOSProvisioningProbe.xcodeproj"></BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+</Scheme>
+'''
+    xcodeProjectDir
+}
+
+def libJGLIOSXcodeAutomaticProvisioningProfile = { String signingType ->
+    if (!libJGLIOSXcodeProvisioningAutoCreate() || !libJGLIOSBundleIdAutoCreate()) {
+        return null
+    }
+    def projectRoot = layout.buildDirectory.dir("libjglios/xcode-provisioning/${signingType}").get().asFile
+    def xcodeProjectDir = libJGLIOSWriteXcodeProvisioningProbe(projectRoot, signingType)
+    def configuration = signingType == 'release' ? 'Release' : 'Debug'
+    def args = [
+        'xcodebuild',
+        '-project', xcodeProjectDir.absolutePath,
+        '-scheme', 'LibJGLIOSProvisioningProbe',
+        '-configuration', configuration,
+        '-sdk', 'iphoneos',
+        '-derivedDataPath', new File(projectRoot, 'DerivedData').absolutePath,
+        '-allowProvisioningUpdates'
+    ]
+    if (signingType == 'debug') {
+        args.add('-allowProvisioningDeviceRegistration')
+        def target = libJGLIOSIosAppRunTarget()
+        if (target.kind == 'device') {
+            args.addAll(['-destination', "id=${target.identifier}"])
+        } else {
+            args.addAll(['-destination', 'generic/platform=iOS'])
+        }
+    } else {
+        args.addAll(['-destination', 'generic/platform=iOS'])
+    }
+    args.add('build')
+    logger.lifecycle("Resolving ${libJGLIOSProfileLabel(signingType)} provisioning with Xcode automatic signing.")
+    try {
+        runCommand(args)
+    } catch (GradleException failure) {
+        logger.lifecycle("""Xcode automatic provisioning did not resolve a ${libJGLIOSProfileLabel(signingType)} profile.
+${failure.message}""")
+        return null
+    }
+    libJGLIOSResolvedSigningIdentities.remove(signingType)
+    libJGLIOSValidLocalProvisioningProfile(signingType)?.file?.absolutePath
+}
+
+def libJGLIOSProvisioningProfile = { String signingType ->
+    if (libJGLIOSResolvedProvisioningProfiles.containsKey(signingType)) {
+        return libJGLIOSResolvedProvisioningProfiles[signingType]
+    }
+    def explicit = libJGLIOSExplicitProvisioningProfile(signingType)
+    if (explicit) {
+        libJGLIOSResolvedProvisioningProfiles[signingType] = explicit
+        return explicit
+    }
+
+    def validProfile = libJGLIOSValidLocalProvisioningProfile(signingType)
+    def resolved = validProfile?.file?.absolutePath
+        ?: libJGLIOSXcodeAutomaticProvisioningProfile(signingType)
+    libJGLIOSResolvedProvisioningProfiles[signingType] = resolved
+    resolved
+}
+
+def libJGLIOSEntitlements = { String signingType ->
+    def explicit = libJGLIOSExplicitEntitlements(signingType)
+    if (explicit) {
+        return explicit
+    }
+    def provisioningProfilePath = libJGLIOSProvisioningProfile(signingType)
     if (!provisioningProfilePath) {
         return null
     }
@@ -580,10 +957,56 @@ libJGLIOSAutoIosDeviceEntitlements = {
         return null
     }
     def plist = libJGLIOSProvisioningProfilePlist(profile)
-    def entitlements = layout.buildDirectory.file('libjglios/ios-device/Entitlements.plist').get().asFile
+    def entitlements = layout.buildDirectory.file("libjglios/ios-${signingType}/Entitlements.plist").get().asFile
     entitlements.parentFile.mkdirs()
     entitlements.text = captureCommand(['/usr/libexec/PlistBuddy', '-x', '-c', 'Print:Entitlements', plist.absolutePath]) + System.lineSeparator()
     entitlements.absolutePath
+}
+
+def libJGLIOSValidateSigning = { String signingType ->
+    def bundleId = libJGLIOSBundleId()
+    def provisioningProfilePath = libJGLIOSProvisioningProfile(signingType)
+    if (!provisioningProfilePath) {
+        def expiredProfiles = libJGLIOSMatchingProvisioningProfiles(signingType)
+            .findAll { !it.expiration.isAfter(Instant.now()) }
+            .sort { -it.file.lastModified() }
+        def expiredMessage = expiredProfiles.isEmpty()
+            ? ''
+            : "\nExpired matching profiles:\n" + expiredProfiles.collect {
+                "  ${it.name} (${it.applicationIdentifier}) expired ${it.expiration}: ${it.file.absolutePath}"
+            }.join('\n')
+        def simulatorHint = signingType == 'debug' ? '\nUse -PiosAppTarget=simulator to run without device signing.' : ''
+        throw new GradleException("""No valid ${libJGLIOSProfileLabel(signingType)} iOS provisioning profile was found for ${bundleId}.${expiredMessage}
+Add your Apple ID in Xcode Settings > Accounts so libJGLIOS can use Xcode automatic signing, or pass -Pios${signingType == 'release' ? 'Release' : 'Debug'}ProvisioningProfile=/path/to/profile.mobileprovision.${simulatorHint}""")
+    }
+
+    def identity = libJGLIOSSigningIdentity(signingType)
+    if (identity == null || !identity.sign) {
+        def simulatorHint = signingType == 'debug' ? '\nUse -PiosAppTarget=simulator to run without device signing.' : ''
+        throw new GradleException("""No ${libJGLIOSSigningKind(signingType)} signing identity was found for ${libJGLIOSProfileLabel(signingType)} iOS builds.
+Open Xcode once and sign in with your Apple developer account, or pass -Pios${signingType == 'release' ? 'Release' : 'Debug'}SigningIdentity='<identity>'.${simulatorHint}""")
+    }
+
+    def provisioningProfile = file(provisioningProfilePath)
+    if (!provisioningProfile.isFile()) {
+        throw new GradleException("Configured iOS provisioning profile does not exist: ${provisioningProfile}")
+    }
+    def plist = libJGLIOSProvisioningProfilePlist(provisioningProfile)
+    if (!libJGLIOSProvisioningProfileMatchesBundle(plist, bundleId)) {
+        throw new GradleException("Configured iOS provisioning profile does not match bundle id ${bundleId}: ${provisioningProfile}")
+    }
+    if (!libJGLIOSProvisioningProfileMatchesType(plist, signingType)) {
+        throw new GradleException("Configured iOS provisioning profile is not a ${libJGLIOSProfileLabel(signingType)} profile: ${provisioningProfile}")
+    }
+    def expiration = libJGLIOSProvisioningProfileExpiration(plist)
+    if (!expiration.isAfter(Instant.now())) {
+        def name = libJGLIOSPlistRawValue(plist, 'Name') ?: provisioningProfile.name
+        def simulatorHint = signingType == 'debug' ? '\nUse -PiosAppTarget=simulator to run without device signing.' : ''
+        throw new GradleException("""Configured iOS provisioning profile is expired: ${name}
+Expired: ${expiration}
+Path: ${provisioningProfile}
+Add your Apple ID in Xcode Settings > Accounts so libJGLIOS can use Xcode automatic signing, or pass -Pios${signingType == 'release' ? 'Release' : 'Debug'}ProvisioningProfile=/path/to/profile.mobileprovision.${simulatorHint}""")
+    }
 }
 
 def libJGLIOSGenerateWeakJniStubs = { File archiveFile, File outputFile ->
@@ -820,17 +1243,13 @@ def libJGLIOSRunCommandIgnoringFailure = { List<String> command ->
 }
 
 def libJGLIOSDetectedAppTarget = null
-def libJGLIOSIosAppRunTarget = {
+libJGLIOSIosAppRunTarget = {
     if (libJGLIOSDetectedAppTarget != null) {
         return libJGLIOSDetectedAppTarget
     }
 
     def requestedTarget = (findProperty('iosAppTarget')
-        ?: findProperty('iosExamplesTarget')
-        ?: findProperty('iosRunTarget')
         ?: providers.environmentVariable('IOS_APP_TARGET').orNull
-        ?: providers.environmentVariable('IOS_EXAMPLES_TARGET').orNull
-        ?: providers.environmentVariable('IOS_RUN_TARGET').orNull
         ?: 'auto').toString().trim().toLowerCase(Locale.ROOT)
     if (!['auto', 'device', 'simulator'].contains(requestedTarget)) {
         throw new GradleException("Unsupported iOS app target '${requestedTarget}'. Expected auto, device, or simulator.")
@@ -909,7 +1328,7 @@ def libJGLIOSRunIosAppOnSimulator = {
 
 def libJGLIOSRunIosAppOnDevice = { Map target ->
     def bundleId = libJGLIOSBundleId()
-    def deviceApp = graalDeviceAppDir.get().asFile
+    def deviceApp = graalDebugAppDir.get().asFile
     logger.lifecycle("Running iOS app on device ${target.name}")
     runCommand([
         'xcrun',
@@ -921,21 +1340,28 @@ def libJGLIOSRunIosAppOnDevice = { Map target ->
         '--device', target.identifier,
         deviceApp.absolutePath
     ])
-    def launchArgs = [
-        'xcrun',
-        'devicectl',
-        '--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds(),
+    def launchWithConsole = libJGLIOSIosDeviceLaunchConsole()
+    def launchArgs = ['xcrun', 'devicectl']
+    if (!launchWithConsole) {
+        launchArgs.addAll(['--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds()])
+    }
+    launchArgs.addAll([
         'device',
         'process',
         'launch',
         '--terminate-existing',
         '--device', target.identifier
-    ]
-    if (libJGLIOSIosDeviceLaunchConsole()) {
+    ])
+    if (launchWithConsole) {
         launchArgs.add('--console')
     }
     launchArgs.add(bundleId)
-    runCommand(launchArgs)
+    if (launchWithConsole) {
+        logger.lifecycle('Streaming iOS device console. Stop the Gradle task to detach while the app keeps running.')
+        streamCommand(launchArgs)
+    } else {
+        runCommand(launchArgs)
+    }
 }
 
 tasks.register('printIosGraalVmInfo') {
@@ -1193,6 +1619,22 @@ tasks.register('prepareLibJGLIOSArtifacts') {
         libJGLIOSProviderTask('prepareGraalIosJdk')
 }
 
+tasks.register('verifyIosDebugSigning') {
+    group = 'verification'
+    description = 'Verifies or creates debug signing assets for iOS device builds.'
+    doLast {
+        libJGLIOSValidateSigning('debug')
+    }
+}
+
+tasks.register('verifyIosReleaseSigning') {
+    group = 'verification'
+    description = 'Verifies or creates release signing assets for iOS App Store builds.'
+    doLast {
+        libJGLIOSValidateSigning('release')
+    }
+}
+
 tasks.register('buildUsercode') {
     group = 'build'
     description = 'Builds the relocatable Graal iOS app usercode image using BellSoft Liberica NIK.'
@@ -1365,74 +1807,111 @@ tasks.register('linkApp', Exec) {
 
 }
 
-tasks.register('buildIosApp') {
-    group = 'build'
-    description = 'Builds and signs the iOS app for real devices.'
-    dependsOn 'linkApp'
-    inputs.dir(graalDeviceAppDir)
-    inputs.property('iosSigningIdentity', providers.provider { libJGLIOSIosDeviceSigningIdentity() })
-    inputs.property('iosProvisioningProfile', providers.provider { libJGLIOSIosDeviceProvisioningProfile() ?: '' })
-    inputs.property('iosCodesignEntitlements', providers.provider { libJGLIOSIosDeviceEntitlements() ?: '' })
+tasks.named('linkApp') {
+    mustRunAfter 'verifyIosDebugSigning', 'verifyIosReleaseSigning'
+}
 
-    doLast {
-        def appDir = graalDeviceAppDir.get().asFile
-        def provisioningProfilePath = libJGLIOSIosDeviceProvisioningProfile()
-        if (provisioningProfilePath) {
-            def provisioningProfile = file(provisioningProfilePath)
-            if (!provisioningProfile.isFile()) {
-                throw new GradleException("Configured iOS provisioning profile does not exist: ${provisioningProfile}")
-            }
-            copy {
-                from provisioningProfile
-                into appDir
-                rename { 'embedded.mobileprovision' }
-            }
-        }
-        def signingIdentity = libJGLIOSIosDeviceSigningIdentity()
-        def nestedCodeItems = []
-        appDir.eachFileRecurse(FileType.DIRECTORIES) { item ->
-            if (item.name.endsWith('.framework') || item.name.endsWith('.appex')) {
-                nestedCodeItems.add(item)
-            }
-        }
-        appDir.eachFileRecurse(FileType.FILES) { item ->
-            if (item.name.endsWith('.dylib')) {
-                nestedCodeItems.add(item)
-            }
-        }
-        nestedCodeItems.sort { -it.absolutePath.count(File.separator) }.each { signedItem ->
-            runCommand(['codesign', '--force', '--sign', signingIdentity, '--timestamp=none', signedItem.absolutePath])
-        }
-
-        def codesignArgs = ['codesign', '--force', '--sign', signingIdentity, '--timestamp=none', '--generate-entitlement-der']
-        def entitlementsPath = libJGLIOSIosDeviceEntitlements()
-        if (entitlementsPath) {
-            def entitlements = file(entitlementsPath)
-            if (!entitlements.isFile()) {
-                throw new GradleException("Configured iOS codesign entitlements file does not exist: ${entitlements}")
-            }
-            codesignArgs.addAll(['--entitlements', entitlements.absolutePath])
-        }
-        codesignArgs.add(appDir.absolutePath)
-        runCommand(codesignArgs)
-
+def libJGLIOSCopyLinkedDeviceApp = { File destinationAppDir ->
+    delete destinationAppDir
+    destinationAppDir.parentFile.mkdirs()
+    copy {
+        from graalDeviceAppDir.get().asFile
+        into destinationAppDir
     }
 }
 
-tasks.register('packageApp', Zip) {
-    group = 'build'
-    description = 'Packages the iOS app as a zip.'
-    dependsOn 'buildIosApp'
-    archiveFileName = graalDevicePackage.get().asFile.name
-    destinationDirectory = graalDevicePackage.get().asFile.parentFile
-    from(graalDeviceAppDir)
+def libJGLIOSSignAppBundle = { File appDir, String signingType ->
+    def provisioningProfilePath = libJGLIOSProvisioningProfile(signingType)
+    if (provisioningProfilePath) {
+        def provisioningProfile = file(provisioningProfilePath)
+        if (!provisioningProfile.isFile()) {
+            throw new GradleException("Configured iOS provisioning profile does not exist: ${provisioningProfile}")
+        }
+        copy {
+            from provisioningProfile
+            into appDir
+            rename { 'embedded.mobileprovision' }
+        }
+    }
+    def identity = libJGLIOSSigningIdentity(signingType)
+    def signingIdentity = identity?.sign ?: '-'
+    def nestedCodeItems = []
+    appDir.eachFileRecurse(FileType.DIRECTORIES) { item ->
+        if (item.name.endsWith('.framework') || item.name.endsWith('.appex')) {
+            nestedCodeItems.add(item)
+        }
+    }
+    appDir.eachFileRecurse(FileType.FILES) { item ->
+        if (item.name.endsWith('.dylib')) {
+            nestedCodeItems.add(item)
+        }
+    }
+    nestedCodeItems.sort { -it.absolutePath.count(File.separator) }.each { signedItem ->
+        runCommand(['codesign', '--force', '--sign', signingIdentity, '--timestamp=none', signedItem.absolutePath])
+    }
+
+    def codesignArgs = ['codesign', '--force', '--sign', signingIdentity, '--timestamp=none', '--generate-entitlement-der']
+    def entitlementsPath = libJGLIOSEntitlements(signingType)
+    if (entitlementsPath) {
+        def entitlements = file(entitlementsPath)
+        if (!entitlements.isFile()) {
+            throw new GradleException("Configured iOS codesign entitlements file does not exist: ${entitlements}")
+        }
+        codesignArgs.addAll(['--entitlements', entitlements.absolutePath])
+    }
+    codesignArgs.add(appDir.absolutePath)
+    runCommand(codesignArgs)
 }
 
-tasks.register('runIosApp') {
+tasks.register('buildIosDebugApp') {
+    group = 'build'
+    description = 'Builds and signs a debug iOS .app for real devices.'
+    dependsOn 'verifyIosDebugSigning', 'linkApp'
+    inputs.dir(graalDeviceAppDir)
+    inputs.property('iosDebugSigningIdentity', providers.provider { libJGLIOSSigningIdentity('debug')?.sign ?: '' })
+    inputs.property('iosDebugProvisioningProfile', providers.provider { libJGLIOSProvisioningProfile('debug') ?: '' })
+    inputs.property('iosDebugCodesignEntitlements', providers.provider { libJGLIOSEntitlements('debug') ?: '' })
+    outputs.dir(graalDebugAppDir)
+
+    doLast {
+        def appDir = graalDebugAppDir.get().asFile
+        libJGLIOSCopyLinkedDeviceApp(appDir)
+        libJGLIOSSignAppBundle(appDir, 'debug')
+    }
+}
+
+tasks.register('buildIosApp') {
+    group = 'build'
+    description = 'Builds a release iOS IPA for App Store upload.'
+    dependsOn 'verifyIosReleaseSigning', 'linkApp'
+    inputs.dir(graalDeviceAppDir)
+    inputs.property('iosReleaseSigningIdentity', providers.provider { libJGLIOSSigningIdentity('release')?.sign ?: '' })
+    inputs.property('iosReleaseProvisioningProfile', providers.provider { libJGLIOSProvisioningProfile('release') ?: '' })
+    inputs.property('iosReleaseCodesignEntitlements', providers.provider { libJGLIOSEntitlements('release') ?: '' })
+    outputs.file(graalReleaseIpa)
+
+    doLast {
+        def payloadDir = graalReleasePayloadDir.get().asFile
+        def appDir = graalReleaseAppDir.get().asFile
+        def ipa = graalReleaseIpa.get().asFile
+        delete graalReleaseBuildDir.get().asFile
+        payloadDir.mkdirs()
+        libJGLIOSCopyLinkedDeviceApp(appDir)
+        libJGLIOSSignAppBundle(appDir, 'release')
+        delete ipa
+        runCommand(['/usr/bin/zip', '-qry', ipa.absolutePath, 'Payload'], [:], graalReleaseBuildDir.get().asFile)
+        if (!ipa.isFile()) {
+            throw new GradleException("iOS IPA was not created: ${ipa}")
+        }
+        println "Built iOS release IPA: ${ipa.absolutePath}"
+    }
+}
+
+tasks.register('runIosDebugApp') {
     group = 'verification'
-    description = 'Builds, installs, and launches the iOS app. Uses a connected real device when available; otherwise opens the simulator.'
+    description = 'Builds, installs, and launches the debug iOS app. Uses a connected real device when available; otherwise opens the simulator.'
     dependsOn {
-        libJGLIOSIosAppRunTarget().kind == 'device' ? 'buildIosApp' : 'buildIosSimulatorApp'
+        libJGLIOSIosAppRunTarget().kind == 'device' ? 'buildIosDebugApp' : 'buildIosSimulatorApp'
     }
 
     doLast {

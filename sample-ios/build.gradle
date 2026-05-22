@@ -12,4 +12,8 @@ dependencies {
     implementation project(':openal-ios')
 }
 
+ext.set('libJGLIOS.mainClass', 'org.ngengine.libjglios.sample.IosGraalEntrypoints')
+ext.set('libJGLIOS.bundleId', 'org.ngengine.libjglios.sample')
+ext.set('libJGLIOS.appName', 'IOSGlesGears')
+
 apply from: rootProject.file('libjglios-gradle-plugin/src/main/resources/org/ngengine/libjglios/gradle/ios-tasks.gradle')

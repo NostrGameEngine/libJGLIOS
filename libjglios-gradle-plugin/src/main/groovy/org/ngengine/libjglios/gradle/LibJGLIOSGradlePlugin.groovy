@@ -16,8 +16,6 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.buildType = project.objects.property(String)
         extension.orientation = project.objects.property(String)
 
-        extension.bundleId.convention(settingProvider(project, 'bundleId', 'org.ngengine.libjglios.app'))
-        extension.appName.convention(settingProvider(project, 'appName', project.name))
         extension.minIosVersion.convention(settingProvider(project, 'minIosVersion', '15.0'))
         extension.simulatorDevice.convention(settingProvider(project, 'simulatorDevice', 'iPhone 16'))
         extension.buildType.convention(settingProvider(project, 'buildType', 'release'))
@@ -57,9 +55,9 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
             group = 'libJGLIOS'
             description = 'Generates Graal CEntryPoint glue for a libJGLIOS application main class.'
             outputs.file(generatedFile)
-            inputs.property('mainClass', extension.mainClass)
+            inputs.property('mainClass', extension.mainClass.orElse(''))
             doLast {
-                def mainClass = extension.mainClass.orNull
+                def mainClass = extension.mainClass.orNull?.trim()
                 if (!mainClass) {
                     throw new org.gradle.api.GradleException(
                         'libJGLIOS.mainClass must name the application class to launch.'
