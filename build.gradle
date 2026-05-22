@@ -25,12 +25,14 @@ subprojects { sub ->
     def javaComponentPublicationProject = publishableProject && !pluginProject
 
     apply plugin: 'java-library'
-    apply plugin: 'maven-publish'
-    apply plugin: 'signing'
+    if (publishableProject) {
+        apply plugin: 'maven-publish'
+        apply plugin: 'signing'
+    }
 
     java {
-        withSourcesJar()
         if (publishableProject) {
+            withSourcesJar()
             withJavadocJar()
         }
     }

@@ -6,13 +6,11 @@ SDL3, OpenAL, ANGLE/Metal, OpenGL ES, and GraalVM Native Image.
 
 ## What It Provides
 
-- `:sdl3-ios`: Java/JNI bindings for the SDL3 APIs used on iOS.
-- `:gles-ios`: Java/JNI bindings for OpenGL ES calls used by the renderer.
-- `:openal-ios`: Java/JNI OpenAL bindings backed by iOS OpenAL.
-- `:core-ios`: ObjC++/JNI bridge for SDL lifecycle, ANGLE/EGL setup, framebuffer queries, and input events.
-- `:libjglios-gradle-plugin`: `org.ngengine.libjglios`, a Gradle plugin for consumer iOS app builds.
-- `:sample-ios`: the single iOS sample project, rendering the gears scene through GLES over ANGLE/Metal.
-
+- `:sdl3-ios`: bindings for the SDL3
+- `:gles-ios`: bindings for OpenGL ES
+- `:openal-ios`: bindings for OpenAL
+- `:core-ios`: bridge for lifecycle, runble and setup
+- `:libjglios-gradle-plugin`: `org.ngengine.libjglios`, a Gradle plugin to build iOS apps
 
 ## Usage
 
@@ -35,10 +33,10 @@ libJGLIOS {
     mainClass = 'com.example.Main'
     bundleId = 'com.example.game'
     appName = 'ExampleGame'
-    minIosVersion = '15.0'
-    simulatorDevice = 'iPhone 16'
-    buildType = 'release'
-    orientation = 'landscape'
+    // minIosVersion = '15.0'
+    // simulatorDevice = 'iPhone 16'
+    // buildType = 'release'
+    // orientation = 'landscape'
 }
 ```
 
