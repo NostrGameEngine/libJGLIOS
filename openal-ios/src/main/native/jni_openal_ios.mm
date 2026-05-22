@@ -11,8 +11,15 @@ static ALCcontext* g_context = nullptr;
 static bool g_created = false;
 
 template <typename T>
-T* directBuffer(JNIEnv* env, jobject buffer) {
-    return buffer == nullptr ? nullptr : static_cast<T*>(env->GetDirectBufferAddress(buffer));
+T* directBuffer(JNIEnv* env, jobject buffer, jlong byteOffset = 0) {
+    if (buffer == nullptr) {
+        return nullptr;
+    }
+    void* address = env->GetDirectBufferAddress(buffer);
+    if (address == nullptr) {
+        return nullptr;
+    }
+    return reinterpret_cast<T*>(static_cast<unsigned char*>(address) + byteOffset);
 }
 
 const char* stringChars(JNIEnv* env, jstring value) {
@@ -67,18 +74,18 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alGetError
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alDeleteSources
-(JNIEnv* env, jobject, jint numSources, jobject sources) {
-    alDeleteSources(static_cast<ALsizei>(numSources), directBuffer<ALuint>(env, sources));
+(JNIEnv* env, jobject, jint numSources, jobject sources, jlong sourcesOffset) {
+    alDeleteSources(static_cast<ALsizei>(numSources), directBuffer<ALuint>(env, sources, sourcesOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alGenBuffers
-(JNIEnv* env, jobject, jint numBuffers, jobject buffers) {
-    alGenBuffers(static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers));
+(JNIEnv* env, jobject, jint numBuffers, jobject buffers, jlong buffersOffset) {
+    alGenBuffers(static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alDeleteBuffers
-(JNIEnv* env, jobject, jint numBuffers, jobject buffers) {
-    alDeleteBuffers(static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers));
+(JNIEnv* env, jobject, jint numBuffers, jobject buffers, jlong buffersOffset) {
+    alDeleteBuffers(static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alSourceStop
@@ -92,8 +99,8 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alSourcei
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alBufferData
-(JNIEnv* env, jobject, jint buffer, jint format, jobject data, jint size, jint frequency) {
-    alBufferData(static_cast<ALuint>(buffer), static_cast<ALenum>(format), directBuffer<void>(env, data),
+(JNIEnv* env, jobject, jint buffer, jint format, jobject data, jlong dataOffset, jint size, jint frequency) {
+    alBufferData(static_cast<ALuint>(buffer), static_cast<ALenum>(format), directBuffer<void>(env, data, dataOffset),
                  static_cast<ALsizei>(size), static_cast<ALsizei>(frequency));
 }
 
@@ -125,18 +132,18 @@ JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alGetSourcei
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alSourceUnqueueBuffers
-(JNIEnv* env, jobject, jint source, jint numBuffers, jobject buffers) {
-    alSourceUnqueueBuffers(static_cast<ALuint>(source), static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers));
+(JNIEnv* env, jobject, jint source, jint numBuffers, jobject buffers, jlong buffersOffset) {
+    alSourceUnqueueBuffers(static_cast<ALuint>(source), static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alSourceQueueBuffers
-(JNIEnv* env, jobject, jint source, jint numBuffers, jobject buffers) {
-    alSourceQueueBuffers(static_cast<ALuint>(source), static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers));
+(JNIEnv* env, jobject, jint source, jint numBuffers, jobject buffers, jlong buffersOffset) {
+    alSourceQueueBuffers(static_cast<ALuint>(source), static_cast<ALsizei>(numBuffers), directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alListener
-(JNIEnv* env, jobject, jint param, jobject data) {
-    alListenerfv(static_cast<ALenum>(param), directBuffer<ALfloat>(env, data));
+(JNIEnv* env, jobject, jint param, jobject data, jlong dataOffset) {
+    alListenerfv(static_cast<ALenum>(param), directBuffer<ALfloat>(env, data, dataOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosAL_alListenerf
@@ -216,8 +223,8 @@ JNIEXPORT jboolean JNICALL Java_org_ngengine_libjglios_openal_ios_IosALC_alcIsEx
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosALC_alcGetInteger
-(JNIEnv* env, jobject, jint param, jobject buffer, jint size) {
-    alcGetIntegerv(g_device, static_cast<ALCenum>(param), static_cast<ALCsizei>(size), directBuffer<ALCint>(env, buffer));
+(JNIEnv* env, jobject, jint param, jobject buffer, jlong bufferOffset, jint size) {
+    alcGetIntegerv(g_device, static_cast<ALCenum>(param), static_cast<ALCsizei>(size), directBuffer<ALCint>(env, buffer, bufferOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosALC_alcDevicePauseSOFT
@@ -237,15 +244,15 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosALC_alcDeviceRe
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alGenAuxiliaryEffectSlots
-(JNIEnv* env, jobject, jint n, jobject buffers) {
+(JNIEnv* env, jobject, jint n, jobject buffers, jlong buffersOffset) {
     auto fn = openalSymbol<alGenAuxiliaryEffectSlotsFn>("alGenAuxiliaryEffectSlots");
-    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers));
+    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alGenEffects
-(JNIEnv* env, jobject, jint n, jobject buffers) {
+(JNIEnv* env, jobject, jint n, jobject buffers, jlong buffersOffset) {
     auto fn = openalSymbol<alGenEffectsFn>("alGenEffects");
-    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers));
+    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alEffecti
@@ -261,21 +268,21 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alAuxiliary
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alDeleteEffects
-(JNIEnv* env, jobject, jint n, jobject buffers) {
+(JNIEnv* env, jobject, jint n, jobject buffers, jlong buffersOffset) {
     auto fn = openalSymbol<alDeleteEffectsFn>("alDeleteEffects");
-    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers));
+    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alDeleteAuxiliaryEffectSlots
-(JNIEnv* env, jobject, jint n, jobject buffers) {
+(JNIEnv* env, jobject, jint n, jobject buffers, jlong buffersOffset) {
     auto fn = openalSymbol<alDeleteAuxiliaryEffectSlotsFn>("alDeleteAuxiliaryEffectSlots");
-    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers));
+    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alGenFilters
-(JNIEnv* env, jobject, jint n, jobject buffers) {
+(JNIEnv* env, jobject, jint n, jobject buffers, jlong buffersOffset) {
     auto fn = openalSymbol<alGenFiltersFn>("alGenFilters");
-    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers));
+    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alFilteri
@@ -291,9 +298,9 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alFilterf
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alDeleteFilters
-(JNIEnv* env, jobject, jint n, jobject buffers) {
+(JNIEnv* env, jobject, jint n, jobject buffers, jlong buffersOffset) {
     auto fn = openalSymbol<alDeleteFiltersFn>("alDeleteFilters");
-    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers));
+    if (fn != nullptr) fn(n, directBuffer<ALuint>(env, buffers, buffersOffset));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_openal_ios_IosEFX_alEffectf

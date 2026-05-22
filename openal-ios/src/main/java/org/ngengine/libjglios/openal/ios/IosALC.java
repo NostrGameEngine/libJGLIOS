@@ -11,7 +11,7 @@ public final class IosALC {
     public static native boolean isCreated();
     public static native String alcGetString(int parameter);
     public static native boolean alcIsExtensionPresent(String extension);
-    public static native void alcGetInteger(int param, IntBuffer buffer, int size);
+    public static native void alcGetInteger(int param, IntBuffer buffer, long bufferOffset, int size);
     public static native void alcDevicePauseSOFT();
     public static native void alcDeviceResumeSOFT();
 }
