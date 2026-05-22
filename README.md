@@ -41,13 +41,44 @@ libJGLIOS {
     orientation = 'landscape'
 }
 ```
- 
+
+`mainClass`, `bundleId`, and `appName` are required.
+
 Useful app tasks:
 
-- `runIosApp` - builds and runs the app on a connected iOS device, or on the simulator when no device is selected.
+- `runIosDebugApp` - builds and runs the debug app on a connected iOS device, or on the simulator when no device is selected.
 - `buildIosSimulatorApp` - builds a runnable simulator app.
-- `buildIosApp` - builds and signs the app for a real iOS device.
-- `packageApp` - packages the device app as a zip.
+- `buildIosDebugApp` - builds a development-signed `.app` for a real iOS device.
+- `buildIosApp` - builds a release-signed `.ipa` for App Store upload.
+
+Device signing uses Xcode automatic signing by default. Before running on a
+real device, make sure your Apple ID is added in Xcode Settings > Accounts.
+For release IPAs, make sure that account has the Apple signing assets needed
+for distribution.
+
+```bash
+./gradlew runIosDebugApp
+```
+
+If iOS refuses to launch a newly-installed debug app, trust the developer
+profile on the device in Settings > General > VPN & Device Management.
+
+Signing and device overrides:
+
+| CLI property | Environment variable | Use |
+| --- | --- | --- |
+| `-PiosTeamId=ABCDE12345` | `IOS_TEAM_ID` | Select the Apple Developer team when Xcode cannot choose one automatically. |
+| `-PiosXcodeTeamId=ABCDE12345` | `IOS_XCODE_TEAM_ID` | Same as `iosTeamId`; kept for explicit Xcode naming. |
+| `-PiosXcodeProvisioningAutoCreate=false` | `IOS_XCODE_PROVISIONING_AUTO_CREATE` | Disable Xcode automatic signing/provisioning. |
+| `-PiosBundleIdAutoCreate=false` | `IOS_BUNDLE_ID_AUTO_CREATE` | Do not let Xcode create the configured bundle ID. |
+| `-PiosDebugSigningIdentity=<identity-or-sha1>` | `IOS_DEBUG_SIGNING_IDENTITY` | Force the debug signing certificate. |
+| `-PiosDebugProvisioningProfile=/path/profile.mobileprovision` | `IOS_DEBUG_PROVISIONING_PROFILE` | Force the debug provisioning profile. |
+| `-PiosDebugCodesignEntitlements=/path/Entitlements.plist` | `IOS_DEBUG_CODESIGN_ENTITLEMENTS` | Force debug entitlements. |
+| `-PiosReleaseSigningIdentity=<identity-or-sha1>` | `IOS_RELEASE_SIGNING_IDENTITY` | Force the release signing certificate. |
+| `-PiosReleaseProvisioningProfile=/path/profile.mobileprovision` | `IOS_RELEASE_PROVISIONING_PROFILE` | Force the release provisioning profile. |
+| `-PiosReleaseCodesignEntitlements=/path/Entitlements.plist` | `IOS_RELEASE_CODESIGN_ENTITLEMENTS` | Force release entitlements. |
+| `-PiosAppTarget=device` | `IOS_APP_TARGET` | Choose `device` or `simulator`. |
+| `-PiosDevice=<udid-or-name>` | `IOS_DEVICE` | Select a specific connected device. |
 
 If the project has a `generateNativeImageMetadata` task, libJGLIOS runs it
 before the iOS native-image build. This lets apps or engine plugins generate
@@ -119,7 +150,7 @@ tasks.named('processResources') {
 Then build or run the app normally:
 
 ```bash
-./gradlew runIosApp -PiosAppTarget=simulator
+./gradlew runIosDebugApp -PiosAppTarget=simulator
 ./gradlew buildIosSimulatorApp
 ./gradlew buildIosApp
 ```
