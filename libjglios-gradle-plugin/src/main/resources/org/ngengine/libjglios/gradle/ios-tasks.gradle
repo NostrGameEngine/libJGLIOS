@@ -8,10 +8,6 @@ def libJGLIOSProviderTask = { String taskName ->
     rootProject.findProject(':libjglios-gradle-plugin') == null ? taskName : ":libjglios-gradle-plugin:${taskName}"
 }
 
-def libJGLIOSDependency = { String projectPath, String module ->
-    rootProject.findProject(projectPath) == null ? module : project(projectPath)
-}
-
 def libJGLIOSUseBundledNativeSources = rootProject.findProject(':core-ios') == null
 def libJGLIOSMaterializedNativeDir = layout.buildDirectory.dir('libjglios/native')
 def libJGLIOSNativeResourcePrefix = 'org/ngengine/libjglios/gradle/native'
@@ -1123,9 +1119,6 @@ def graalSdkJars = files({
 })
 
 dependencies {
-    implementation libJGLIOSDependency(':core-ios', 'org.ngengine:libjglios-core-ios:0.1.0-SNAPSHOT')
-    implementation libJGLIOSDependency(':gles-ios', 'org.ngengine:libjglios-gles-ios:0.1.0-SNAPSHOT')
-    implementation libJGLIOSDependency(':sdl3-ios', 'org.ngengine:libjglios-sdl3-ios:0.1.0-SNAPSHOT')
     compileOnly graalSdkJars
 }
 
