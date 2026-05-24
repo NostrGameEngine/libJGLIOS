@@ -35,6 +35,9 @@ static EGLContext g_context = EGL_NO_CONTEXT;
 static EGLConfig g_config = nullptr;
 static std::atomic_int g_framebufferWidth(0);
 static std::atomic_int g_framebufferHeight(0);
+static std::atomic_int g_windowWidth(0);
+static std::atomic_int g_windowHeight(0);
+static std::atomic_int g_displayScaleMillis(1000);
 static std::atomic_bool g_quitRequested(false);
 static SDL_Window* g_window = nullptr;
 
@@ -232,6 +235,19 @@ void libjglios_egl_set_framebuffer_size(int width, int height) {
     }
 }
 
+void libjglios_egl_set_display_metrics(int framebufferWidth, int framebufferHeight, int windowWidth, int windowHeight, float displayScale) {
+    libjglios_egl_set_framebuffer_size(framebufferWidth, framebufferHeight);
+    if (windowWidth > 0) {
+        g_windowWidth.store(windowWidth);
+    }
+    if (windowHeight > 0) {
+        g_windowHeight.store(windowHeight);
+    }
+    if (std::isfinite(displayScale) && displayScale > 0.0f) {
+        g_displayScaleMillis.store(static_cast<int>(displayScale * 1000.0f + 0.5f));
+    }
+}
+
 bool libjglios_egl_make_current(void) {
     if (g_display == EGL_NO_DISPLAY || g_surface == EGL_NO_SURFACE || g_context == EGL_NO_CONTEXT) {
         g_lastError = "eglMakeCurrent failed: EGL is not initialized";
@@ -275,6 +291,39 @@ int libjglios_egl_framebuffer_height(void) {
     return height;
 }
 
+int libjglios_egl_window_width(void) {
+    int overriddenWidth = g_windowWidth.load();
+    if (overriddenWidth > 0) {
+        return overriddenWidth;
+    }
+    if (g_window == nullptr) {
+        return 0;
+    }
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(g_window, &width, &height);
+    return width > 0 ? width : 0;
+}
+
+int libjglios_egl_window_height(void) {
+    int overriddenHeight = g_windowHeight.load();
+    if (overriddenHeight > 0) {
+        return overriddenHeight;
+    }
+    if (g_window == nullptr) {
+        return 0;
+    }
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(g_window, &width, &height);
+    return height > 0 ? height : 0;
+}
+
+float libjglios_egl_display_scale(void) {
+    int scaleMillis = g_displayScaleMillis.load();
+    return scaleMillis > 0 ? static_cast<float>(scaleMillis) / 1000.0f : 1.0f;
+}
+
 const char* libjglios_egl_last_error(void) {
     return g_lastError.c_str();
 }
@@ -297,6 +346,9 @@ void libjglios_egl_shutdown(void) {
     g_metalLayer = nullptr;
     g_framebufferWidth.store(0);
     g_framebufferHeight.store(0);
+    g_windowWidth.store(0);
+    g_windowHeight.store(0);
+    g_displayScaleMillis.store(1000);
 }
 
 static void push_input_event(const LibJGLIOSQueuedInputEvent& queued) {

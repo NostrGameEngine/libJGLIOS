@@ -94,6 +94,21 @@ Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_framebufferHeight(JNIEnv*, j
     return libjglios_egl_framebuffer_height();
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_windowWidth(JNIEnv*, jclass) {
+    return libjglios_egl_window_width();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_windowHeight(JNIEnv*, jclass) {
+    return libjglios_egl_window_height();
+}
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_displayScale(JNIEnv*, jclass) {
+    return libjglios_egl_display_scale();
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_lastError(JNIEnv* env, jclass) {
     return env->NewStringUTF(libjglios_egl_last_error());

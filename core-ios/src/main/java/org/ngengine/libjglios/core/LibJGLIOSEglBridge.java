@@ -14,6 +14,12 @@ public final class LibJGLIOSEglBridge {
 
     public static native int framebufferHeight();
 
+    public static native int windowWidth();
+
+    public static native int windowHeight();
+
+    public static native float displayScale();
+
     public static native String lastError();
 
     public static native void shutdown();

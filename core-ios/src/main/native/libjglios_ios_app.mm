@@ -52,14 +52,24 @@ static int positive_rounded(CGFloat value) {
     return value > 0 ? static_cast<int>(value + 0.5f) : 0;
 }
 
+static CGFloat positive_display_scale(UIScreen* screen, CAMetalLayer* metalLayer) {
+    CGFloat scale = metalLayer != nullptr && metalLayer.contentsScale > 0 ? metalLayer.contentsScale : 0;
+    if (scale <= 0 && screen != nullptr && screen.nativeScale > 0) {
+        scale = screen.nativeScale;
+    }
+    if (scale <= 0 && screen != nullptr && screen.scale > 0) {
+        scale = screen.scale;
+    }
+    return scale > 0 ? scale : 1;
+}
+
 static void update_framebuffer_size(SDL_Window* window, CAMetalLayer* metalLayer, UIScreen* screen, int fallbackWidth, int fallbackHeight) {
-    int width = 0;
-    int height = 0;
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    int windowWidth = 0;
+    int windowHeight = 0;
+    CGFloat scale = positive_display_scale(screen, metalLayer);
     if (metalLayer != nullptr) {
-        CGFloat scale = metalLayer.contentsScale > 0 ? metalLayer.contentsScale : 0;
-        if (scale <= 0) {
-            scale = 1;
-        }
         if ([metalLayer.delegate isKindOfClass:[UIView class]]) {
             UIView* metalUIView = (UIView*)metalLayer.delegate;
             CGRect bounds = metalUIView.window != nullptr ? metalUIView.window.bounds : metalUIView.bounds;
@@ -67,6 +77,8 @@ static void update_framebuffer_size(SDL_Window* window, CAMetalLayer* metalLayer
                 bounds = screen != nullptr ? screen.bounds : CGRectZero;
             }
             if (bounds.size.width > 0 && bounds.size.height > 0) {
+                windowWidth = positive_rounded(bounds.size.width);
+                windowHeight = positive_rounded(bounds.size.height);
                 metalUIView.frame = bounds;
                 metalUIView.bounds = CGRectMake(0, 0, bounds.size.width, bounds.size.height);
                 metalLayer.frame = metalUIView.bounds;
@@ -76,31 +88,37 @@ static void update_framebuffer_size(SDL_Window* window, CAMetalLayer* metalLayer
             }
         }
         CGSize drawableSize = metalLayer.drawableSize;
-        width = positive_rounded(drawableSize.width);
-        height = positive_rounded(drawableSize.height);
+        framebufferWidth = positive_rounded(drawableSize.width);
+        framebufferHeight = positive_rounded(drawableSize.height);
     }
-    if ((width <= 0 || height <= 0) && window != nullptr) {
-        SDL_GetWindowSizeInPixels(window, &width, &height);
+    if ((windowWidth <= 0 || windowHeight <= 0) && window != nullptr) {
+        SDL_GetWindowSize(window, &windowWidth, &windowHeight);
     }
-    if ((width <= 0 || height <= 0) && screen != nullptr) {
-        CGFloat scale = 1;
+    if ((framebufferWidth <= 0 || framebufferHeight <= 0) && window != nullptr) {
+        SDL_GetWindowSizeInPixels(window, &framebufferWidth, &framebufferHeight);
+    }
+    if ((windowWidth <= 0 || windowHeight <= 0) && screen != nullptr) {
         CGRect bounds = screen.bounds;
         if (bounds.size.width > 0 && bounds.size.height > 0) {
-            width = positive_rounded(bounds.size.width * scale);
-            height = positive_rounded(bounds.size.height * scale);
-        } else {
-            width = positive_rounded(fallbackWidth * scale);
-            height = positive_rounded(fallbackHeight * scale);
+            windowWidth = positive_rounded(bounds.size.width);
+            windowHeight = positive_rounded(bounds.size.height);
         }
     }
-    if (width <= 0) {
-        width = fallbackWidth;
+    if (windowWidth <= 0) {
+        windowWidth = fallbackWidth > 0 ? fallbackWidth : positive_rounded(framebufferWidth / scale);
     }
-    if (height <= 0) {
-        height = fallbackHeight;
+    if (windowHeight <= 0) {
+        windowHeight = fallbackHeight > 0 ? fallbackHeight : positive_rounded(framebufferHeight / scale);
     }
-    libjglios_egl_set_framebuffer_size(width, height);
-    SDL_Log("libJGLIOS_FRAMEBUFFER_SIZE width=%d height=%d", width, height);
+    if (framebufferWidth <= 0) {
+        framebufferWidth = positive_rounded(windowWidth * scale);
+    }
+    if (framebufferHeight <= 0) {
+        framebufferHeight = positive_rounded(windowHeight * scale);
+    }
+    libjglios_egl_set_display_metrics(framebufferWidth, framebufferHeight, windowWidth, windowHeight, static_cast<float>(scale));
+    SDL_Log("libJGLIOS_DISPLAY_METRICS framebuffer=%dx%d window=%dx%d scale=%.3f",
+        framebufferWidth, framebufferHeight, windowWidth, windowHeight, static_cast<double>(scale));
 }
 
 static void destroy_windowing(LibJGLIOSAppState* state) {
@@ -171,7 +189,7 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
         return fail_app_init("SDL_Metal_GetLayer");
     }
     CAMetalLayer* metalLayerObject = (__bridge CAMetalLayer*)metalLayer;
-    CGFloat screenScale = 1;
+    CGFloat screenScale = positive_display_scale(screen, nil);
     if ([metalLayerObject.delegate isKindOfClass:[UIView class]]) {
         UIView* metalUIView = (UIView*)metalLayerObject.delegate;
         CGRect appFrame = CGRectMake(0, 0, windowWidth, windowHeight);
@@ -181,7 +199,7 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
     metalLayerObject.frame = CGRectMake(0, 0, windowWidth, windowHeight);
     metalLayerObject.bounds = CGRectMake(0, 0, windowWidth, windowHeight);
     metalLayerObject.contentsScale = screenScale;
-    metalLayerObject.drawableSize = CGSizeMake(windowWidth, windowHeight);
+    metalLayerObject.drawableSize = CGSizeMake(windowWidth * screenScale, windowHeight * screenScale);
     update_framebuffer_size(state->window, metalLayerObject, screen, windowWidth, windowHeight);
 
     int eglResult = libjglios_egl_init_with_metal_layer(metalLayer);
@@ -264,9 +282,6 @@ extern "C" SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         if (state != nullptr && state->metalView != nullptr) {
             void* metalLayer = SDL_Metal_GetLayer(state->metalView);
             CAMetalLayer* metalLayerObject = (__bridge CAMetalLayer*)metalLayer;
-            if (metalLayerObject != nullptr && width > 0 && height > 0) {
-                metalLayerObject.drawableSize = CGSizeMake(width, height);
-            }
             update_framebuffer_size(window, metalLayerObject, [UIScreen mainScreen], width, height);
         } else {
             libjglios_egl_set_framebuffer_size(width, height);
