@@ -1,5 +1,7 @@
 package org.ngengine.libjglios.gradle
 
+import groovy.lang.Closure
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.Property
 
 class LibJGLIOSExtension {
@@ -11,4 +13,15 @@ class LibJGLIOSExtension {
     Property<String> buildType
     Property<String> orientation
     Property<Object> appIcon
+    ConfigurableFileCollection assets
+
+    void assets(Object... paths) {
+        assets.from(paths)
+    }
+
+    void assets(Closure<?> configureClosure) {
+        configureClosure.delegate = assets
+        configureClosure.resolveStrategy = Closure.DELEGATE_FIRST
+        configureClosure.call()
+    }
 }

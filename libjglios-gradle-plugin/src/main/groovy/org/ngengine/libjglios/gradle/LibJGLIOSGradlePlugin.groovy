@@ -7,7 +7,8 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
     void apply(Project project) {
         project.pluginManager.apply('java-library')
 
-        def extension = project.extensions.create('libJGLIOS', LibJGLIOSExtension)
+        def extension = project.extensions.create('iOS', LibJGLIOSExtension)
+        project.extensions.add('libJGLIOS', extension)
         extension.mainClass = project.objects.property(String)
         extension.bundleId = project.objects.property(String)
         extension.appName = project.objects.property(String)
@@ -16,6 +17,7 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.buildType = project.objects.property(String)
         extension.orientation = project.objects.property(String)
         extension.appIcon = project.objects.property(Object)
+        extension.assets = project.objects.fileCollection()
 
         extension.minIosVersion.convention(settingProvider(project, 'minIosVersion', '15.0'))
         extension.simulatorDevice.convention(settingProvider(project, 'simulatorDevice', 'iPhone 16'))
@@ -39,7 +41,9 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
     }
 
     private static org.gradle.api.provider.Provider<String> settingProvider(Project project, String name, String fallback) {
-        project.providers.gradleProperty("libJGLIOS.${name}")
+        project.providers.gradleProperty("iOS.${name}")
+            .orElse(project.providers.gradleProperty("ios.${name}"))
+            .orElse(project.providers.gradleProperty("libJGLIOS.${name}"))
             .orElse(project.providers.gradleProperty("libjglios.${name}"))
             .orElse(fallback)
     }
@@ -53,15 +57,15 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         project.ext.libJGLIOSGeneratedEntrypointClass = 'org.ngengine.libjglios.generated.LibJGLIOSGeneratedEntrypoints'
 
         def generateTask = project.tasks.register('generateLibJGLIOSEntrypoints') {
-            group = 'libJGLIOS'
-            description = 'Generates Graal CEntryPoint glue for a libJGLIOS application main class.'
+            group = 'iOS'
+            description = 'Generates Graal CEntryPoint glue for an iOS application main class.'
             outputs.file(generatedFile)
             inputs.property('mainClass', extension.mainClass.orElse(''))
             doLast {
                 def mainClass = extension.mainClass.orNull?.trim()
                 if (!mainClass) {
                     throw new org.gradle.api.GradleException(
-                        'libJGLIOS.mainClass must name the application class to launch.'
+                        'iOS.mainClass must name the application class to launch.'
                     )
                 }
 
@@ -280,7 +284,7 @@ final class Target_com_sun_management_internal_OperatingSystemImpl {
         ]
         def outputDir = project.layout.buildDirectory.dir('libjglios/native')
         project.tasks.register('materializeLibJGLIOSNativeSources') {
-            group = 'libJGLIOS'
+            group = 'iOS'
             description = 'Extracts bundled libJGLIOS native launcher/JNI sources from the Gradle plugin.'
             outputs.dir(outputDir)
             outputs.upToDateWhen { false }

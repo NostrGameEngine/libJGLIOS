@@ -47,7 +47,7 @@ def libJGLIOSResource = { String path ->
 
 if (!tasks.names.contains('materializeLibJGLIOSNativeSources')) {
     tasks.register('materializeLibJGLIOSNativeSources') {
-        group = 'libJGLIOS'
+        group = 'iOS'
         description = 'Extracts bundled libJGLIOS native launcher/JNI sources from the Gradle plugin.'
         outputs.dir(libJGLIOSMaterializedNativeDir)
         outputs.upToDateWhen { false }
@@ -336,8 +336,19 @@ def libJGLIOSFrameworkLinkArgs = { Map resolution ->
     args
 }
 
+def libJGLIOSExtension = {
+    extensions.findByName('iOS') ?: extensions.findByName('libJGLIOS')
+}
+
+def libJGLIOSProjectProperty = { String name ->
+    findProperty("iOS.${name}")
+        ?: findProperty("ios.${name}")
+        ?: findProperty("libJGLIOS.${name}")
+        ?: findProperty("libjglios.${name}")
+}
+
 def libJGLIOSSetting = { String name, String fallback ->
-    def extension = extensions.findByName('libJGLIOS')
+    def extension = libJGLIOSExtension()
     if (extension != null && extension.hasProperty(name)) {
         def value = extension."${name}"
         if (value != null && value.respondsTo('getOrElse', Object)) {
@@ -347,12 +358,12 @@ def libJGLIOSSetting = { String name, String fallback ->
             return value.toString()
         }
     }
-    def projectValue = findProperty("libJGLIOS.${name}") ?: findProperty("libjglios.${name}")
+    def projectValue = libJGLIOSProjectProperty(name)
     return (projectValue ?: fallback).toString()
 }
 
 def libJGLIOSRequiredSetting = { String name ->
-    def extension = extensions.findByName('libJGLIOS')
+    def extension = libJGLIOSExtension()
     if (extension != null && extension.hasProperty(name)) {
         def value = extension."${name}"
         if (value != null) {
@@ -367,15 +378,15 @@ def libJGLIOSRequiredSetting = { String name ->
             }
         }
     }
-    def projectValue = findProperty("libJGLIOS.${name}") ?: findProperty("libjglios.${name}")
+    def projectValue = libJGLIOSProjectProperty(name)
     if (projectValue != null && projectValue.toString().trim()) {
         return projectValue.toString().trim()
     }
-    throw new GradleException("libJGLIOS.${name} is required.")
+    throw new GradleException("iOS.${name} is required.")
 }
 
 def libJGLIOSOptionalSetting = { String name ->
-    def extension = extensions.findByName('libJGLIOS')
+    def extension = libJGLIOSExtension()
     if (extension != null && extension.hasProperty(name)) {
         def value = extension."${name}"
         if (value != null) {
@@ -390,7 +401,7 @@ def libJGLIOSOptionalSetting = { String name ->
             }
         }
     }
-    def projectValue = findProperty("libJGLIOS.${name}") ?: findProperty("libjglios.${name}")
+    def projectValue = libJGLIOSProjectProperty(name)
     if (projectValue != null && projectValue.toString().trim()) {
         return projectValue
     }
@@ -705,6 +716,116 @@ def libJGLIOSCompileAppIcon = { File appDir, String platform, File infoPlist ->
     }
     runCommand(['/usr/libexec/PlistBuddy', '-c', "Merge ${partialInfoPlist.absolutePath}", infoPlist.absolutePath])
     println "Compiled iOS app icon from ${source.file.absolutePath}"
+}
+
+def libJGLIOSAssetsInputFiles = {
+    def assetFiles = files()
+    def extension = libJGLIOSExtension()
+    if (extension != null && extension.hasProperty('assets')) {
+        def assets = extension.assets
+        if (assets != null) {
+            assetFiles.from(assets)
+        }
+    }
+    def projectAssets = libJGLIOSProjectProperty('assets')
+    if (projectAssets != null && projectAssets.toString().trim()) {
+        projectAssets.toString()
+            .split(',')
+            .collect { it.trim() }
+            .findAll { it }
+            .each { assetFiles.from(file(it)) }
+    }
+    assetFiles
+}
+def libJGLIOSAssetManifestFile = { File appDir ->
+    def manifestDir = layout.buildDirectory.dir('libjglios/asset-manifests').get().asFile
+    new File(manifestDir, appDir.name.replaceAll('[^A-Za-z0-9_.-]', '_') + '.txt')
+}
+def libJGLIOSReservedBundleAssetNames = {
+    def names = [
+        'Info.plist',
+        'PkgInfo',
+        'Frameworks',
+        'PlugIns',
+        'Watch',
+        '_CodeSignature',
+        'SC_Info',
+        'Assets.car',
+        'embedded.mobileprovision'
+    ] as LinkedHashSet<String>
+    try {
+        names << libJGLIOSExecutableName(libJGLIOSAppName())
+    } catch (Throwable ignored) {
+    }
+    names
+}
+def libJGLIOSCopyAssets = { File appDir ->
+    def assets = libJGLIOSAssetsInputFiles()
+    def manifest = libJGLIOSAssetManifestFile(appDir)
+    def previousAssetNames = manifest.isFile()
+        ? manifest.readLines('UTF-8').collect { it.trim() }.findAll { it } as LinkedHashSet<String>
+        : [] as LinkedHashSet<String>
+    def assetPaths = assets.files
+    def currentAssetNames = [] as LinkedHashSet<String>
+    assetPaths.each { assetPath ->
+        if (!assetPath.exists()) {
+            throw new GradleException("Configured iOS asset path does not exist: ${assetPath}")
+        }
+        if (assetPath.isDirectory()) {
+            assetPath.listFiles()?.sort { it.name }?.each { child ->
+                currentAssetNames << child.name
+            }
+        } else if (assetPath.isFile()) {
+            currentAssetNames << assetPath.name
+        }
+    }
+
+    def reservedNames = libJGLIOSReservedBundleAssetNames()
+    def reservedCollisions = currentAssetNames.findAll { reservedNames.contains(it) }.sort()
+    if (!reservedCollisions.isEmpty()) {
+        throw new GradleException("Configured iOS assets conflict with generated app bundle item(s): ${reservedCollisions.join(', ')}")
+    }
+
+    (previousAssetNames + currentAssetNames).each { assetName ->
+        delete new File(appDir, assetName)
+    }
+    if (assetPaths.isEmpty()) {
+        delete manifest
+        return
+    }
+    assetPaths.each { assetPath ->
+        copy {
+            from assetPath
+            into appDir
+        }
+    }
+    manifest.parentFile.mkdirs()
+    manifest.text = currentAssetNames.sort().join(System.lineSeparator()) + System.lineSeparator()
+    println "Copied ${assetPaths.size()} iOS asset path(s) into ${appDir.absolutePath}"
+}
+def libJGLIOSAssetExcludeResourcesPattern = {
+    def assets = libJGLIOSAssetsInputFiles()
+    if (assets.isEmpty()) {
+        return null
+    }
+    def excludes = [] as LinkedHashSet<String>
+    assets.files.each { assetPath ->
+        if (!assetPath.exists()) {
+            return
+        }
+        if (assetPath.isDirectory()) {
+            assetPath.eachFileRecurse(FileType.FILES) { assetFile ->
+                def relativePath = assetPath.toPath().relativize(assetFile.toPath()).toString()
+                    .replace(File.separatorChar, '/' as char)
+                if (relativePath) {
+                    excludes << java.util.regex.Pattern.quote(relativePath)
+                }
+            }
+        } else if (assetPath.isFile()) {
+            excludes << java.util.regex.Pattern.quote(assetPath.name)
+        }
+    }
+    excludes.isEmpty() ? null : excludes.join('|')
 }
 
 def libJGLIOSXcrun = { List<String> args ->
@@ -1322,8 +1443,8 @@ ${supportedOrientations}
 }
 
 tasks.register('generateLibJGLIOSSimulatorInfoPlist') {
-    group = 'libJGLIOS'
-    description = 'Generates the iOS Simulator app Info.plist from the libJGLIOS extension.'
+    group = 'iOS'
+    description = 'Generates the iOS Simulator app Info.plist from the iOS extension.'
     outputs.file(graalSimulatorInfoPlist)
     inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
@@ -1338,8 +1459,8 @@ tasks.register('generateLibJGLIOSSimulatorInfoPlist') {
 }
 
 tasks.register('generateLibJGLIOSInfoPlist') {
-    group = 'libJGLIOS'
-    description = 'Generates the iOS app Info.plist from the libJGLIOS extension.'
+    group = 'iOS'
+    description = 'Generates the iOS app Info.plist from the iOS extension.'
     outputs.file(graalDeviceInfoPlist)
     inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
@@ -1552,7 +1673,7 @@ tasks.register('buildIosSimulatorUsercode') {
         libJGLIOSNativeImageMetadataTasks,
         libJGLIOSProviderTask('prepareGraalHostNik'),
         libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
-    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir)
+    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir, { libJGLIOSAssetsInputFiles() })
     outputs.dir(graalSimulatorLibDir)
 
     doLast {
@@ -1588,6 +1709,7 @@ tasks.register('buildIosSimulatorUsercode') {
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
             ?: '(?i).*[.](cfg|properties|fnt|png|jpg|jpeg|bmp|gif|tga|hdr|pfm|dds|ktx|j3m|j3md|j3sn|j3o|j3f|j3odata|vert|frag|geom|tsctrl|tseval|glsl|glsllib|comp|obj|mtl|meshxml|skeletonxml|scene|material|gltf|glb|bin|ogg|wav|xml|txt|cl|clh)$').toString().trim()
+        def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
 
         def args = [
             resolved.nativeImage.absolutePath,
@@ -1625,6 +1747,9 @@ tasks.register('buildIosSimulatorUsercode') {
         }
         if (includeResources) {
             args.add(args.size() - 1, "-H:IncludeResources=${includeResources}")
+        }
+        if (excludeResources) {
+            args.add(args.size() - 1, "-H:ExcludeResources=${excludeResources}")
         }
 
         def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
@@ -1682,6 +1807,7 @@ tasks.register('buildIosSimulatorApp', Exec) {
     inputs.files(
         graalSimulatorInfoPlist,
         { libJGLIOSAppIconInputFiles() },
+        { libJGLIOSAssetsInputFiles() },
         sourceSets.main.runtimeClasspath,
         graalSimulatorLibDir,
         graalSimulatorRuntimeDir
@@ -1695,6 +1821,7 @@ tasks.register('buildIosSimulatorApp', Exec) {
             into appDir
         }
         libJGLIOSCompileAppIcon(appDir, 'iphonesimulator', new File(appDir, 'Info.plist'))
+        libJGLIOSCopyAssets(appDir)
     }
 
     def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path']) }
@@ -1734,7 +1861,7 @@ tasks.register('buildIosSimulatorApp', Exec) {
 }
 
 tasks.register('prepareLibJGLIOSArtifacts') {
-    group = 'libJGLIOS'
+    group = 'iOS'
     description = 'Prepares third-party artifacts required by the iOS sample.'
     dependsOn libJGLIOSProviderTask('prepareGraalHostNik'),
         libJGLIOSProviderTask('prepareGraalIosJdk')
@@ -1763,7 +1890,7 @@ tasks.register('buildUsercode') {
         libJGLIOSNativeImageMetadataTasks,
         libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64'),
         libJGLIOSProviderTask('prepareGraalHostNik')
-    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir)
+    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir, { libJGLIOSAssetsInputFiles() })
     outputs.dir(graalDeviceLibDir)
 
     doLast {
@@ -1795,6 +1922,7 @@ tasks.register('buildUsercode') {
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
             ?: '(?i).*[.](cfg|properties|fnt|png|jpg|jpeg|bmp|gif|tga|hdr|pfm|dds|ktx|j3m|j3md|j3sn|j3o|j3f|j3odata|vert|frag|geom|tsctrl|tseval|glsl|glsllib|comp|obj|mtl|meshxml|skeletonxml|scene|material|gltf|glb|bin|ogg|wav|xml|txt|cl|clh)$').toString().trim()
+        def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
 
         def args = [
             resolved.nativeImage.absolutePath,
@@ -1832,6 +1960,9 @@ tasks.register('buildUsercode') {
         }
         if (includeResources) {
             args.add(args.size() - 1, "-H:IncludeResources=${includeResources}")
+        }
+        if (excludeResources) {
+            args.add(args.size() - 1, "-H:ExcludeResources=${excludeResources}")
         }
 
         def argsWithCap = new ArrayList<String>(args)
@@ -1883,6 +2014,7 @@ tasks.register('linkApp', Exec) {
     inputs.files(
         graalDeviceInfoPlist,
         { libJGLIOSAppIconInputFiles() },
+        { libJGLIOSAssetsInputFiles() },
         sourceSets.main.runtimeClasspath,
         graalDeviceLibDir,
         graalDeviceRuntimeDir
@@ -1896,6 +2028,7 @@ tasks.register('linkApp', Exec) {
             into appDir
         }
         libJGLIOSCompileAppIcon(appDir, 'iphoneos', new File(appDir, 'Info.plist'))
+        libJGLIOSCopyAssets(appDir)
     }
 
     def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphoneos', '--show-sdk-path']) }

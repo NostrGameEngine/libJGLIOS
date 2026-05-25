@@ -119,6 +119,15 @@ Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_shutdown(JNIEnv*, jclass) {
     libjglios_egl_shutdown();
 }
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSBundleBridge_resourcePath(JNIEnv* env, jclass) {
+    NSString* resourcePath = [[NSBundle mainBundle] resourcePath];
+    if (resourcePath.length == 0) {
+        return nullptr;
+    }
+    return env->NewStringUTF(resourcePath.fileSystemRepresentation);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSLifecycleBridge_requestQuit(JNIEnv*, jclass) {
     libjglios_app_request_quit();

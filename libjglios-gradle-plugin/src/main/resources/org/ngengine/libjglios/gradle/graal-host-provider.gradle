@@ -69,7 +69,7 @@ static File resolveNativeImageBinary(File graalHome) {
 }
 
 tasks.register('downloadGraalHostNik') {
-    group = 'libJGLIOS setup'
+    group = 'iOS setup'
     description = 'Downloads the BellSoft Liberica Native Image Kit host archive.'
     outputs.file(zipProvider)
     onlyIf { !iosGraalHostHome }
@@ -117,7 +117,7 @@ tasks.register('verifyGraalHostNik') {
 }
 
 tasks.register('extractGraalHostNik', Copy) {
-    group = 'libJGLIOS setup'
+    group = 'iOS setup'
     description = 'Extracts the BellSoft Liberica NIK archive.'
     dependsOn 'verifyGraalHostNik'
     onlyIf { !iosGraalHostHome }
@@ -129,7 +129,7 @@ tasks.register('extractGraalHostNik', Copy) {
 }
 
 tasks.register('prepareGraalHostNik') {
-    group = 'libJGLIOS setup'
+    group = 'iOS setup'
     description = 'Normalizes the host Liberica NIK layout under build/libjglios/third_party/graalvm-host.'
     dependsOn 'extractGraalHostNik'
     outputs.dir(hostRoot)

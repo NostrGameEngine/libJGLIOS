@@ -47,7 +47,7 @@ graalTargets.each { target ->
     def normalizedDirProvider = vendorRoot.dir(target.name)
 
     tasks.register("downloadGraalJdk${capitalized}") {
-        group = 'libJGLIOS setup'
+        group = 'iOS setup'
         description = "Downloads ios-graal-jdk-21 ${target.name} zip."
         outputs.file(zipProvider)
         doLast {
@@ -66,7 +66,7 @@ graalTargets.each { target ->
     }
 
     tasks.register("verifyGraalJdk${capitalized}") {
-        group = 'libJGLIOS setup'
+        group = 'iOS setup'
         description = "Verifies ios-graal-jdk-21 ${target.name} zip checksum if configured."
         dependsOn "downloadGraalJdk${capitalized}"
         inputs.file(zipProvider)
@@ -84,7 +84,7 @@ graalTargets.each { target ->
     }
 
     tasks.register("extractGraalJdk${capitalized}", Copy) {
-        group = 'libJGLIOS setup'
+        group = 'iOS setup'
         description = "Extracts ios-graal-jdk-21 ${target.name} zip."
         dependsOn "verifyGraalJdk${capitalized}"
         doFirst {
@@ -95,7 +95,7 @@ graalTargets.each { target ->
     }
 
     tasks.register("prepareGraalJdk${capitalized}") {
-        group = 'libJGLIOS setup'
+        group = 'iOS setup'
         description = "Normalizes ios-graal-jdk-21 ${target.name} runtime under build/libjglios/third_party/graalvm/${target.name}."
         dependsOn "extractGraalJdk${capitalized}"
         outputs.dir(normalizedDirProvider)
@@ -164,7 +164,7 @@ capFiles=${capFiles.collect { it.name }.join(',')}
 }
 
 tasks.register('prepareGraalIosJdk') {
-    group = 'libJGLIOS setup'
+    group = 'iOS setup'
     description = 'Downloads and prepares both iPhoneOS and iOS Simulator Graal runtime artifacts.'
     dependsOn 'prepareGraalJdkIphoneosArm64', 'prepareGraalJdkIphonesimulatorArm64'
 }

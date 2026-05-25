@@ -29,12 +29,13 @@ dependencies {
     implementation 'org.ngengine:libjglios-openal-ios:<version>'
 }
 
-libJGLIOS {
+iOS {
     mainClass = 'com.example.Main'
     bundleId = 'com.example.game'
     appName = 'ExampleGame'
     // appIcon = file('src/ios/app-icon.png')
     // appIcon = file('src/ios/Assets.xcassets')
+    // assets.from('src/assets', 'src/ios/assets')
     // minIosVersion = '15.0'
     // simulatorDevice = 'iPhone 16'
     // buildType = 'release'
@@ -46,6 +47,9 @@ libJGLIOS {
 `appIcon` is optional. It accepts either a single PNG file, which the plugin
 converts into an iOS `AppIcon.appiconset`, or an existing `Assets.xcassets`
 directory containing an `AppIcon` asset catalog.
+`assets` is optional. Paths added with `assets.from(...)` are copied into the
+iOS `.app` bundle as files and are not added to GraalVM native-image resources
+by the plugin.
 
 Useful app tasks:
 
