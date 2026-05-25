@@ -10,4 +10,5 @@ class LibJGLIOSExtension {
     Property<String> simulatorDevice
     Property<String> buildType
     Property<String> orientation
+    Property<Object> appIcon
 }

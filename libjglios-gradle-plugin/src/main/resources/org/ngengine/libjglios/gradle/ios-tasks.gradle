@@ -1,3 +1,4 @@
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.io.FileType
 
@@ -373,6 +374,29 @@ def libJGLIOSRequiredSetting = { String name ->
     throw new GradleException("libJGLIOS.${name} is required.")
 }
 
+def libJGLIOSOptionalSetting = { String name ->
+    def extension = extensions.findByName('libJGLIOS')
+    if (extension != null && extension.hasProperty(name)) {
+        def value = extension."${name}"
+        if (value != null) {
+            def resolved = null
+            if (value.respondsTo('getOrNull')) {
+                resolved = value.getOrNull()
+            } else {
+                resolved = value
+            }
+            if (resolved != null && resolved.toString().trim()) {
+                return resolved
+            }
+        }
+    }
+    def projectValue = findProperty("libJGLIOS.${name}") ?: findProperty("libjglios.${name}")
+    if (projectValue != null && projectValue.toString().trim()) {
+        return projectValue
+    }
+    null
+}
+
 def libJGLIOSExecutableName = { String value ->
     def sanitized = value.replaceAll('[^A-Za-z0-9_.-]', '_')
     sanitized ? sanitized : 'LibJGLIOSApp'
@@ -430,6 +454,7 @@ def libJGLIOSInterfaceOrientations = {
             ]
     }
 }
+def graalAppIconBuildDir = layout.buildDirectory.dir('libjglios/app-icon')
 def libJGLIOSSimulatorExecutableName = { libJGLIOSExecutableName("${libJGLIOSAppName()}Sim") }
 def libJGLIOSDeviceExecutableName = { libJGLIOSExecutableName(libJGLIOSAppName()) }
 def libJGLIOSSimulatorTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion()}-simulator" }
@@ -579,6 +604,107 @@ def streamCommand = { List<String> command, Map<String, String> environment = [:
 
 def runCommand = { List<String> command, Map<String, String> environment = [:], File workingDirectory = null ->
     captureCommand(command, environment, workingDirectory)
+}
+
+def libJGLIOSAppIconImages = [
+    [idiom: 'iphone', size: '20x20', scale: '2x', pixels: 40],
+    [idiom: 'iphone', size: '20x20', scale: '3x', pixels: 60],
+    [idiom: 'iphone', size: '29x29', scale: '2x', pixels: 58],
+    [idiom: 'iphone', size: '29x29', scale: '3x', pixels: 87],
+    [idiom: 'iphone', size: '40x40', scale: '2x', pixels: 80],
+    [idiom: 'iphone', size: '40x40', scale: '3x', pixels: 120],
+    [idiom: 'iphone', size: '60x60', scale: '2x', pixels: 120],
+    [idiom: 'iphone', size: '60x60', scale: '3x', pixels: 180],
+    [idiom: 'ipad', size: '20x20', scale: '1x', pixels: 20],
+    [idiom: 'ipad', size: '20x20', scale: '2x', pixels: 40],
+    [idiom: 'ipad', size: '29x29', scale: '1x', pixels: 29],
+    [idiom: 'ipad', size: '29x29', scale: '2x', pixels: 58],
+    [idiom: 'ipad', size: '40x40', scale: '1x', pixels: 40],
+    [idiom: 'ipad', size: '40x40', scale: '2x', pixels: 80],
+    [idiom: 'ipad', size: '76x76', scale: '1x', pixels: 76],
+    [idiom: 'ipad', size: '76x76', scale: '2x', pixels: 152],
+    [idiom: 'ipad', size: '83.5x83.5', scale: '2x', pixels: 167],
+    [idiom: 'ios-marketing', size: '1024x1024', scale: '1x', pixels: 1024]
+]
+def libJGLIOSAppIconSource = {
+    def value = libJGLIOSOptionalSetting('appIcon')
+    if (value == null) {
+        return null
+    }
+    def icon = value instanceof File ? value : file(value.toString())
+    def lowerName = icon.name.toLowerCase(Locale.ROOT)
+    if (icon.isFile() && lowerName.endsWith('.png')) {
+        return [type: 'png', file: icon]
+    }
+    if (icon.isDirectory() && lowerName.endsWith('.xcassets')) {
+        return [type: 'xcassets', file: icon]
+    }
+    throw new GradleException(
+        "Unsupported libJGLIOS.appIcon '${icon}'. Expected a PNG file or an Assets.xcassets directory."
+    )
+}
+def libJGLIOSAppIconInputFiles = {
+    def source = libJGLIOSAppIconSource()
+    if (source == null) {
+        return files()
+    }
+    source.type == 'xcassets' ? fileTree(source.file) : files(source.file)
+}
+def libJGLIOSGeneratedAppIconCatalog = { File sourcePng ->
+    def catalogDir = new File(graalAppIconBuildDir.get().asFile, 'Assets.xcassets')
+    def appIconDir = new File(catalogDir, 'AppIcon.appiconset')
+    delete catalogDir
+    appIconDir.mkdirs()
+    def images = libJGLIOSAppIconImages.collect { spec ->
+        def filename = "AppIcon-${spec.idiom}-${spec.size}-${spec.scale}.png".replaceAll('[^A-Za-z0-9_.-]', '-')
+        def output = new File(appIconDir, filename)
+        runCommand([
+            '/usr/bin/sips',
+            '-s', 'format', 'png',
+            '-z', spec.pixels.toString(), spec.pixels.toString(),
+            sourcePng.absolutePath,
+            '--out', output.absolutePath
+        ])
+        [
+            idiom: spec.idiom,
+            size: spec.size,
+            scale: spec.scale,
+            filename: filename
+        ]
+    }
+    new File(appIconDir, 'Contents.json').text = JsonOutput.prettyPrint(JsonOutput.toJson([
+        images: images,
+        info: [
+            version: 1,
+            author: 'libJGLIOS'
+        ]
+    ])) + System.lineSeparator()
+    catalogDir
+}
+def libJGLIOSCompileAppIcon = { File appDir, String platform, File infoPlist ->
+    def source = libJGLIOSAppIconSource()
+    if (source == null) {
+        return
+    }
+    def catalogDir = source.type == 'png' ? libJGLIOSGeneratedAppIconCatalog(source.file) : source.file
+    def partialInfoPlist = new File(graalAppIconBuildDir.get().asFile, "${platform}-AppIcon-PartialInfo.plist")
+    delete partialInfoPlist
+    runCommand([
+        'xcrun', 'actool',
+        catalogDir.absolutePath,
+        '--compile', appDir.absolutePath,
+        '--platform', platform,
+        '--minimum-deployment-target', libJGLIOSMinIosVersion(),
+        '--target-device', 'iphone',
+        '--target-device', 'ipad',
+        '--app-icon', 'AppIcon',
+        '--output-partial-info-plist', partialInfoPlist.absolutePath
+    ])
+    if (!partialInfoPlist.isFile()) {
+        throw new GradleException("actool did not create the iOS app icon partial Info.plist: ${partialInfoPlist}")
+    }
+    runCommand(['/usr/libexec/PlistBuddy', '-c', "Merge ${partialInfoPlist.absolutePath}", infoPlist.absolutePath])
+    println "Compiled iOS app icon from ${source.file.absolutePath}"
 }
 
 def libJGLIOSXcrun = { List<String> args ->
@@ -1555,6 +1681,7 @@ tasks.register('buildIosSimulatorApp', Exec) {
     dependsOn 'archiveIosSimulatorUsercode', 'generateLibJGLIOSSimulatorInfoPlist'
     inputs.files(
         graalSimulatorInfoPlist,
+        { libJGLIOSAppIconInputFiles() },
         sourceSets.main.runtimeClasspath,
         graalSimulatorLibDir,
         graalSimulatorRuntimeDir
@@ -1567,6 +1694,7 @@ tasks.register('buildIosSimulatorApp', Exec) {
             from graalSimulatorInfoPlist
             into appDir
         }
+        libJGLIOSCompileAppIcon(appDir, 'iphonesimulator', new File(appDir, 'Info.plist'))
     }
 
     def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path']) }
@@ -1754,6 +1882,7 @@ tasks.register('linkApp', Exec) {
     dependsOn 'archiveUsercode', 'generateLibJGLIOSInfoPlist'
     inputs.files(
         graalDeviceInfoPlist,
+        { libJGLIOSAppIconInputFiles() },
         sourceSets.main.runtimeClasspath,
         graalDeviceLibDir,
         graalDeviceRuntimeDir
@@ -1766,6 +1895,7 @@ tasks.register('linkApp', Exec) {
             from graalDeviceInfoPlist
             into appDir
         }
+        libJGLIOSCompileAppIcon(appDir, 'iphoneos', new File(appDir, 'Info.plist'))
     }
 
     def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphoneos', '--show-sdk-path']) }

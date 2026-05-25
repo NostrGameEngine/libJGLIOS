@@ -15,6 +15,7 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.simulatorDevice = project.objects.property(String)
         extension.buildType = project.objects.property(String)
         extension.orientation = project.objects.property(String)
+        extension.appIcon = project.objects.property(Object)
 
         extension.minIosVersion.convention(settingProvider(project, 'minIosVersion', '15.0'))
         extension.simulatorDevice.convention(settingProvider(project, 'simulatorDevice', 'iPhone 16'))

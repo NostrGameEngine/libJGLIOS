@@ -33,6 +33,8 @@ libJGLIOS {
     mainClass = 'com.example.Main'
     bundleId = 'com.example.game'
     appName = 'ExampleGame'
+    // appIcon = file('src/ios/app-icon.png')
+    // appIcon = file('src/ios/Assets.xcassets')
     // minIosVersion = '15.0'
     // simulatorDevice = 'iPhone 16'
     // buildType = 'release'
@@ -41,6 +43,9 @@ libJGLIOS {
 ```
 
 `mainClass`, `bundleId`, and `appName` are required.
+`appIcon` is optional. It accepts either a single PNG file, which the plugin
+converts into an iOS `AppIcon.appiconset`, or an existing `Assets.xcassets`
+directory containing an `AppIcon` asset catalog.
 
 Useful app tasks:
 
