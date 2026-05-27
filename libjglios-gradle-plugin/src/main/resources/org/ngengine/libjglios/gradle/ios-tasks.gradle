@@ -828,6 +828,88 @@ def libJGLIOSAssetExcludeResourcesPattern = {
     excludes.isEmpty() ? null : excludes.join('|')
 }
 
+def libJGLIOSDefaultIncludeResourceExtensions = [
+    // jME/application config and text data
+    'cfg', 'properties', 'json', 'json5', 'xml', 'txt', 'csv', 'tsv', 'ini', 'toml', 'yaml', 'yml',
+    // bitmap/vector images, texture containers, and HDR environment maps
+    'png', 'jpg', 'jpeg', 'bmp', 'gif', 'tga', 'webp', 'avif', 'ico', 'icns', 'svg',
+    'hdr', 'pfm', 'exr', 'dds', 'ktx', 'ktx2', 'basis',
+    // fonts and bitmap-font descriptors
+    'fnt', 'ttf', 'otf', 'ttc', 'woff', 'woff2', 'eot',
+    // jME materials, scenes, and serialized assets
+    'j3m', 'j3md', 'j3sn', 'j3o', 'j3f', 'j3odata', 'material',
+    // shader sources and shader include files
+    'vert', 'frag', 'geom', 'tsctrl', 'tseval', 'tesc', 'tese', 'comp',
+    'glsl', 'glsllib', 'hlsl', 'metal', 'msl', 'wgsl', 'spv', 'spirv', 'cl', 'clh',
+    // meshes, model formats, and common sidecar data
+    'obj', 'mtl', 'meshxml', 'skeletonxml', 'scene', 'gltf', 'glb', 'bin',
+    'fbx', 'dae', 'blend', 'stl', 'ply', 'vox',
+    // audio and video assets
+    'ogg', 'wav', 'mp3', 'flac', 'aac', 'm4a', 'opus', 'mid', 'midi',
+    'mp4', 'm4v', 'mov', 'webm',
+    // packaged asset/data containers
+    'zip', 'pak', 'atlas'
+] as LinkedHashSet<String>
+
+def libJGLIOSNormalizeResourceExtension = { Object extension ->
+    def value = extension?.toString()?.trim()
+    if (!value) {
+        return null
+    }
+    if (value.startsWith('.')) {
+        value = value.substring(1)
+    }
+    value = value.trim().toLowerCase(Locale.ROOT)
+    if (!value) {
+        return null
+    }
+    if (!(value ==~ /[a-z0-9][a-z0-9_+-]*/)) {
+        throw new GradleException("Invalid iOS native-image resource extension '${extension}'. Use values like 'svg' or '.svg'.")
+    }
+    value
+}
+
+def libJGLIOSExtraIncludeResourceExtensions = {
+    def extensions = [] as List<Object>
+    def extension = libJGLIOSExtension()
+    if (extension != null && extension.hasProperty('includeResourceExtensions')) {
+        def value = extension.includeResourceExtensions
+        if (value != null) {
+            def resolved = null
+            if (value.respondsTo('getOrElse', Object)) {
+                resolved = value.getOrElse([])
+            } else if (value.respondsTo('getOrNull')) {
+                resolved = value.getOrNull()
+            } else {
+                resolved = value
+            }
+            if (resolved instanceof Iterable) {
+                extensions.addAll(resolved)
+            } else if (resolved != null) {
+                extensions << resolved
+            }
+        }
+    }
+
+    def projectValue = libJGLIOSProjectProperty('includeResourceExtensions')
+    if (projectValue != null && projectValue.toString().trim()) {
+        extensions.addAll(projectValue.toString().split(',').collect { it.trim() }.findAll { it })
+    }
+
+    extensions.collect { libJGLIOSNormalizeResourceExtension(it) }.findAll { it }
+}
+
+def libJGLIOSIncludeResourceExtensions = {
+    def extensions = [] as LinkedHashSet<String>
+    extensions.addAll(libJGLIOSDefaultIncludeResourceExtensions)
+    extensions.addAll(libJGLIOSExtraIncludeResourceExtensions())
+    extensions
+}
+
+def libJGLIOSDefaultIncludeResourcesPattern = {
+    "(?i).*[.](${libJGLIOSIncludeResourceExtensions().collect { java.util.regex.Pattern.quote(it) }.join('|')})\$"
+}
+
 def libJGLIOSXcrun = { List<String> args ->
     captureCommand(['xcrun'] + args)
 }
@@ -1674,6 +1756,7 @@ tasks.register('buildIosSimulatorUsercode') {
         libJGLIOSProviderTask('prepareGraalHostNik'),
         libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir, { libJGLIOSAssetsInputFiles() })
+    inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
     outputs.dir(graalSimulatorLibDir)
 
     doLast {
@@ -1708,7 +1791,7 @@ tasks.register('buildIosSimulatorUsercode') {
         def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
-            ?: '(?i).*[.](cfg|properties|fnt|png|jpg|jpeg|bmp|gif|tga|hdr|pfm|dds|ktx|j3m|j3md|j3sn|j3o|j3f|j3odata|vert|frag|geom|tsctrl|tseval|glsl|glsllib|comp|obj|mtl|meshxml|skeletonxml|scene|material|gltf|glb|bin|ogg|wav|xml|txt|cl|clh)$').toString().trim()
+            ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
         def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
 
         def args = [
@@ -1891,6 +1974,7 @@ tasks.register('buildUsercode') {
         libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64'),
         libJGLIOSProviderTask('prepareGraalHostNik')
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir, { libJGLIOSAssetsInputFiles() })
+    inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
     outputs.dir(graalDeviceLibDir)
 
     doLast {
@@ -1921,7 +2005,7 @@ tasks.register('buildUsercode') {
         def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
-            ?: '(?i).*[.](cfg|properties|fnt|png|jpg|jpeg|bmp|gif|tga|hdr|pfm|dds|ktx|j3m|j3md|j3sn|j3o|j3f|j3odata|vert|frag|geom|tsctrl|tseval|glsl|glsllib|comp|obj|mtl|meshxml|skeletonxml|scene|material|gltf|glb|bin|ogg|wav|xml|txt|cl|clh)$').toString().trim()
+            ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
         def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
 
         def args = [

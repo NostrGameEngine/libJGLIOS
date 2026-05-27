@@ -36,6 +36,7 @@ iOS {
     // appIcon = file('src/ios/app-icon.png')
     // appIcon = file('src/ios/Assets.xcassets')
     // assets.from('src/assets', 'src/ios/assets')
+    // includeResourceExtensions 'foo', '.bar'
     // minIosVersion = '15.0'
     // simulatorDevice = 'iPhone 16'
     // buildType = 'release'
@@ -50,6 +51,11 @@ directory containing an `AppIcon` asset catalog.
 `assets` is optional. Paths added with `assets.from(...)` are copied into the
 iOS `.app` bundle as files and are not added to GraalVM native-image resources
 by the plugin.
+`includeResourceExtensions` is optional. Values added there are appended to the
+default native-image resource extension list. Use `-Pios.includeResourceExtensions=foo,bar`
+for the same additive behavior from the command line. Use
+`-PiosGraalIncludeResources=<regex>` only when you want to replace the whole
+native-image include regex.
 
 Useful app tasks:
 

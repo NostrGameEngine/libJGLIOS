@@ -24,7 +24,7 @@ UIViewController* libjglios_top_view_controller() {
 }
 
 void libjglios_show_error_alert(const char* title, const char* message) {
-    NSString* alertTitle = [NSString stringWithUTF8String:title != nullptr ? title : "libJGLIOS Error"];
+    NSString* alertTitle = [NSString stringWithUTF8String:title != nullptr ? title : "Error"];
     NSString* alertMessage = [NSString stringWithUTF8String:message != nullptr ? message : "An unknown error occurred."];
 
     void (^presentAlert)(void) = ^{
