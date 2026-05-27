@@ -8,6 +8,8 @@ ext {
     libericaNikJavaVersion = rootProject.findProperty('libericaNikJavaVersion') ?: '21.0.3+10'
     libericaNikUrl = rootProject.findProperty('libericaNikUrl') ?: "https://download.bell-sw.com/vm/${libericaNikVersion}/bellsoft-liberica-vm-openjdk${libericaNikJavaVersion}-${libericaNikVersion}+1-macos-aarch64.zip"
     libericaNikSha256 = rootProject.findProperty('libericaNikSha256') ?: ''
+    libericaNikDownloadRetries = (rootProject.findProperty('libericaNikDownloadRetries') ?: '3').toString().toInteger()
+    libericaNikDownloadRetryCooldownSeconds = (rootProject.findProperty('libericaNikDownloadRetryCooldownSeconds') ?: '10').toString().toInteger()
     iosGraalHostHome = rootProject.findProperty('iosGraalHostHome') ?: ''
     hostRoot = rootProject.layout.buildDirectory.dir('libjglios/third_party/graalvm-host/liberica-nik-23.1.3-macos-aarch64').get()
     graalHomeMarker = hostRoot.file('GRAAL_HOME.txt')
@@ -80,20 +82,37 @@ tasks.register('downloadGraalHostNik') {
             println "Already downloaded: ${out}"
             return
         }
-        try {
-            println "Downloading ${libericaNikUrl}"
-            def process = new ProcessBuilder('curl', '-fL', '-o', out.absolutePath, libericaNikUrl as String)
-                .redirectErrorStream(true)
-                .start()
-            def output = process.inputStream.getText('UTF-8')
-            int exitCode = process.waitFor()
-            if (exitCode != 0) {
-                throw new GradleException("curl failed with exit code ${exitCode}:\n${output}")
+        int attempts = Math.max(1, libericaNikDownloadRetries as int)
+        int cooldownSeconds = Math.max(0, libericaNikDownloadRetryCooldownSeconds as int)
+        Exception lastFailure = null
+
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                println "Downloading ${libericaNikUrl} (attempt ${attempt}/${attempts})"
+                def process = new ProcessBuilder('curl', '-fL', '-o', out.absolutePath, libericaNikUrl as String)
+                    .redirectErrorStream(true)
+                    .start()
+                def output = process.inputStream.getText('UTF-8')
+                int exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw new GradleException("curl failed with exit code ${exitCode}:\n${output}")
+                }
+                println "Downloaded: ${out} (${out.length()} bytes)"
+                return
+            } catch (Exception ex) {
+                lastFailure = ex
+                delete out
+                if (attempt == attempts) {
+                    break
+                }
+                println "Download failed: ${ex.message}"
+                println "Retrying in ${cooldownSeconds} seconds..."
+                if (cooldownSeconds > 0) {
+                    Thread.sleep(cooldownSeconds * 1000L)
+                }
             }
-            println "Downloaded: ${out} (${out.length()} bytes)"
-        } catch (Exception ex) {
-            throw new GradleException('Could not download Liberica NIK 23.1.3. Set -PlibericaNikUrl=... or -PiosGraalVmHome=...', ex)
         }
+        throw new GradleException("Could not download Liberica NIK 23.1.3 after ${attempts} attempt(s). Set -PlibericaNikUrl=... or -PiosGraalVmHome=...", lastFailure)
     }
 }
 
