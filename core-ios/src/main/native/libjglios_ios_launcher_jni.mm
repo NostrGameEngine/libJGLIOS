@@ -220,6 +220,13 @@ Java_org_ngengine_libjglios_core_LibJGLIOSBufferAllocator_free(JNIEnv* env, jcla
     }
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSBufferAllocator_freeAddress(JNIEnv*, jclass, jlong address) {
+    if (address != 0) {
+        std::free(reinterpret_cast<void*>(address));
+    }
+}
+
 extern "C" JNIEXPORT jlong JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSBufferAllocator_baseAddress(JNIEnv* env, jclass, jobject buffer) {
     if (buffer == nullptr) {

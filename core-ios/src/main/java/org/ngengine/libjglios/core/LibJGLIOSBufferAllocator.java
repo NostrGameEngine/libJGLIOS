@@ -17,6 +17,8 @@ public final class LibJGLIOSBufferAllocator {
 
     public static native void free(Buffer buffer);
 
+    public static native void freeAddress(long address);
+
     public static long address(Buffer buffer) {
         long baseAddress = baseAddress(buffer);
         if (baseAddress == 0 || buffer == null) {
@@ -38,5 +40,5 @@ public final class LibJGLIOSBufferAllocator {
         throw new IllegalArgumentException("Unsupported direct buffer type: " + buffer.getClass().getName());
     }
 
-    private static native long baseAddress(Buffer buffer);
+    public static native long baseAddress(Buffer buffer);
 }
