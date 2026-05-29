@@ -1,7 +1,8 @@
 # libJGLIOS
 
-libJGLIOS is an iOS-only support library for running Java applications through
-SDL3, OpenAL, ANGLE/Metal, OpenGL ES, and GraalVM Native Image.
+libJGLIOS is a full suite to build graphical Java apps with GraalVM Native Image for iOS.
+
+It includes bindings for SDL3, OpenAL, Clipboard and OpenGL ES via ANGLE on Metal.
 
 
 ## What It Provides
