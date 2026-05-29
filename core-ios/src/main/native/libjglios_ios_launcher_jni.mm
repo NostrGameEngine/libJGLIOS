@@ -147,6 +147,80 @@ Java_org_ngengine_libjglios_core_LibJGLIOSLifecycleBridge_showError(JNIEnv* env,
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSPlatformBridge_setClipboardString(JNIEnv* env, jclass, jstring value) {
+    const char* nativeValue = value != nullptr ? env->GetStringUTFChars(value, nullptr) : "";
+    NSString* clipboardValue = [NSString stringWithUTF8String:nativeValue != nullptr ? nativeValue : ""];
+
+    void (^setClipboard)(void) = ^{
+        [UIPasteboard generalPasteboard].string = clipboardValue;
+    };
+
+    if ([NSThread isMainThread]) {
+        setClipboard();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), setClipboard);
+    }
+
+    if (value != nullptr && nativeValue != nullptr) {
+        env->ReleaseStringUTFChars(value, nativeValue);
+    }
+    return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSPlatformBridge_getClipboardString(JNIEnv* env, jclass) {
+    __block NSString* clipboardValue = nil;
+
+    void (^getClipboard)(void) = ^{
+        clipboardValue = [UIPasteboard generalPasteboard].string;
+    };
+
+    if ([NSThread isMainThread]) {
+        getClipboard();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), getClipboard);
+    }
+
+    if (clipboardValue == nil) {
+        return env->NewStringUTF("");
+    }
+    return env->NewStringUTF(clipboardValue.UTF8String != nullptr ? clipboardValue.UTF8String : "");
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSPlatformBridge_openURL(JNIEnv* env, jclass, jstring url) {
+    if (url == nullptr) {
+        return JNI_FALSE;
+    }
+
+    const char* nativeUrl = env->GetStringUTFChars(url, nullptr);
+    NSString* urlString = [NSString stringWithUTF8String:nativeUrl != nullptr ? nativeUrl : ""];
+    env->ReleaseStringUTFChars(url, nativeUrl);
+
+    NSURL* nsUrl = [NSURL URLWithString:urlString];
+    if (nsUrl == nil) {
+        return JNI_FALSE;
+    }
+
+    __block BOOL accepted = NO;
+    void (^openUrl)(void) = ^{
+        UIApplication* app = UIApplication.sharedApplication;
+        if ([app canOpenURL:nsUrl]) {
+            accepted = YES;
+            [app openURL:nsUrl options:@{} completionHandler:nil];
+        }
+    };
+
+    if ([NSThread isMainThread]) {
+        openUrl();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), openUrl);
+    }
+
+    return accepted ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSKeyboardBridge_setSoftwareKeyboardVisible(JNIEnv*, jclass, jboolean visible) {
     return libjglios_app_set_software_keyboard_visible(visible == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
 }
