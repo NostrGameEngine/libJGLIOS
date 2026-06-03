@@ -914,6 +914,13 @@ def libJGLIOSDefaultIncludeResourcesPattern = {
     "(?i).*[.](${libJGLIOSIncludeResourceExtensions().collect { java.util.regex.Pattern.quote(it) }.join('|')})\$"
 }
 
+def libJGLIOSDisableCapCacheArgs = { List<String> args ->
+    def disabledArgs = new ArrayList<String>(args)
+    disabledArgs.add(disabledArgs.size() - 1, '-H:-UseCAPCache')
+    disabledArgs.add(disabledArgs.size() - 1, '-H:-NewCAPCache')
+    disabledArgs
+}
+
 def libJGLIOSXcrun = { List<String> args ->
     captureCommand(['xcrun'] + args)
 }
@@ -1802,6 +1809,7 @@ tasks.register('buildIosSimulatorUsercode') {
             resolved.nativeImage.absolutePath,
             '-cp', sourceSets.main.runtimeClasspath.asPath,
             '--no-server',
+            '-H:+UnlockExperimentalVMOptions',
             '-R:-UsePerfData',
             '-H:+ExitAfterRelocatableImageWrite',
             '-H:+SharedLibrary',
@@ -1842,21 +1850,24 @@ tasks.register('buildIosSimulatorUsercode') {
         def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
 
         if (useCapCache) {
+            graalSimulatorCapDir.mkdirs()
             def argsWithCap = new ArrayList<String>(args)
-            argsWithCap.add('-H:+UseCAPCache')
-            argsWithCap.add("-H:CAPCacheDir=${graalSimulatorCapDir.absolutePath}")
+            argsWithCap.add(argsWithCap.size() - 1, '-H:+UseCAPCache')
+            argsWithCap.add(argsWithCap.size() - 1, "-H:CAPCacheDir=${graalSimulatorCapDir.absolutePath}")
             try {
                 runCommand(argsWithCap, environment, libDir)
             } catch (GradleException capFailure) {
-                if (!capFailure.message.contains('Missing CAP cache value for:')) {
+                def capMessage = capFailure.message ?: ''
+                if (!capMessage.contains('Missing CAP cache value for:') &&
+                    !capMessage.contains('Path to C Annotation Processor Cache must be specified using -H:CAPCacheDir=')) {
                     throw capFailure
                 }
                 logger.warn('CAP cache mismatch detected; retrying native-image without CAP cache.')
-                runCommand(args, environment, libDir)
+                runCommand(libJGLIOSDisableCapCacheArgs(args), environment, libDir)
             }
         } else {
             println 'CAP cache disabled for this build (-PiosGraalUseCapCache=false).'
-            runCommand(args, environment, libDir)
+            runCommand(libJGLIOSDisableCapCacheArgs(args), environment, libDir)
         }
     }
 }
@@ -2016,6 +2027,7 @@ tasks.register('buildUsercode') {
             resolved.nativeImage.absolutePath,
             '-cp', sourceSets.main.runtimeClasspath.asPath,
             '--no-server',
+            '-H:+UnlockExperimentalVMOptions',
             '-R:-UsePerfData',
             '-H:+ExitAfterRelocatableImageWrite',
             '-H:+SharedLibrary',
@@ -2053,18 +2065,28 @@ tasks.register('buildUsercode') {
             args.add(args.size() - 1, "-H:ExcludeResources=${excludeResources}")
         }
 
-        def argsWithCap = new ArrayList<String>(args)
-        argsWithCap.add('-H:+UseCAPCache')
-        argsWithCap.add("-H:CAPCacheDir=${graalDeviceCapDir.absolutePath}")
+        def useCapCache = (findProperty('iosGraalUseCapCache') ?: 'true').toString().toBoolean()
         def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
-        try {
-            runCommand(argsWithCap, environment, libDir)
-        } catch (GradleException capFailure) {
-            if (!capFailure.message.contains('Missing CAP cache value for:')) {
-                throw capFailure
+
+        if (useCapCache) {
+            graalDeviceCapDir.mkdirs()
+            def argsWithCap = new ArrayList<String>(args)
+            argsWithCap.add(argsWithCap.size() - 1, '-H:+UseCAPCache')
+            argsWithCap.add(argsWithCap.size() - 1, "-H:CAPCacheDir=${graalDeviceCapDir.absolutePath}")
+            try {
+                runCommand(argsWithCap, environment, libDir)
+            } catch (GradleException capFailure) {
+                def capMessage = capFailure.message ?: ''
+                if (!capMessage.contains('Missing CAP cache value for:') &&
+                    !capMessage.contains('Path to C Annotation Processor Cache must be specified using -H:CAPCacheDir=')) {
+                    throw capFailure
+                }
+                logger.warn('Device CAP cache mismatch detected; retrying native-image without CAP cache.')
+                runCommand(libJGLIOSDisableCapCacheArgs(args), environment, libDir)
             }
-            logger.warn('Device CAP cache mismatch detected; retrying native-image without CAP cache.')
-            runCommand(args, environment, libDir)
+        } else {
+            println 'CAP cache disabled for this build (-PiosGraalUseCapCache=false).'
+            runCommand(libJGLIOSDisableCapCacheArgs(args), environment, libDir)
         }
     }
 }
