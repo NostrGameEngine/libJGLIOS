@@ -91,6 +91,7 @@ graalTargets.each { target ->
             delete extractDirProvider.get().asFile
         }
         from { zipTree(zipProvider.get().asFile) }
+        exclude '**/*.cap'
         into extractDirProvider
     }
 
@@ -102,11 +103,9 @@ graalTargets.each { target ->
         doLast {
             def extracted = extractDirProvider.get().asFile
             def normalized = normalizedDirProvider.asFile
-            def capDir = new File(normalized, 'cap')
 
             delete normalized
             normalized.mkdirs()
-            capDir.mkdirs()
 
             def allFiles = fileTree(extracted).files
 
@@ -126,24 +125,14 @@ graalTargets.each { target ->
             if (libjavaDebug != null) copy { from libjavaDebug; into normalized; rename { 'libjava-debug.a' } }
             if (libjvmDebug != null) copy { from libjvmDebug; into normalized; rename { 'libjvm-debug.a' } }
 
-            def capFiles = allFiles.findAll { it.name.endsWith('.cap') }.sort { it.name }
-            if (capFiles.isEmpty()) {
-                println "Extracted files:"
-                allFiles.sort { it.absolutePath }.each { println "  ${rel(extracted, it)}" }
-                throw new GradleException("No CAP cache files found in ${target.name} zip.")
-            }
-            copy { from capFiles; into capDir }
-
             new File(normalized, 'MANIFEST-libJGLIOS.txt').text = """target=${target.name}
 sdk=${target.sdk}
 sourceUrl=${target.url}
 zipSha256=${sha256Of(zipProvider.get().asFile)}
 libjavaRelease=libjava-release.a
 libjvmRelease=libjvm-release.a
-capFiles=${capFiles.collect { it.name }.join(',')}
 """
             println "Prepared ios-graal-jdk-21 ${target.name}: ${normalized}"
-            println "  caps: ${capFiles.size()} files"
         }
     }
 
@@ -153,11 +142,9 @@ capFiles=${capFiles.collect { it.name }.join(',')}
         dependsOn "prepareGraalJdk${capitalized}"
         doLast {
             def normalized = normalizedDirProvider.asFile
-            [new File(normalized, 'libjava-release.a'), new File(normalized, 'libjvm-release.a'), new File(normalized, 'cap')].each { f ->
+            [new File(normalized, 'libjava-release.a'), new File(normalized, 'libjvm-release.a')].each { f ->
                 if (!f.exists()) throw new GradleException("Missing prepared Graal artifact for ${target.name}: ${f}")
             }
-            def caps = fileTree(new File(normalized, 'cap')).matching { include '*.cap' }.files
-            if (caps.isEmpty()) throw new GradleException("Prepared Graal CAP cache is empty for ${target.name}")
             println "Verified prepared Graal ${target.name}: ${normalized}"
         }
     }

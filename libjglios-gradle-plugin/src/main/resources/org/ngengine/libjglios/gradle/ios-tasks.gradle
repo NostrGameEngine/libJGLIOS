@@ -75,6 +75,10 @@ def libJGLIOSThirdPartyFile = { String path ->
     rootProject.layout.buildDirectory.file("libjglios/third_party/${path}").get().asFile
 }
 
+def libJGLIOSLocalCacheFile = { String path ->
+    rootProject.file(".gradle/libjglios/${path}")
+}
+
 def libJGLIOSIosFrameworkResourcePrefix = 'lib/ios'
 def libJGLIOSDefaultSystemFrameworks = [
     'OpenAL',
@@ -545,11 +549,11 @@ ext {
     graalHostVendorDir = libJGLIOSThirdPartyFile("graalvm-host/liberica-nik-23.1.3-${_hostArchTag}")
     graalHostMarkerFile = libJGLIOSThirdPartyFile("graalvm-host/liberica-nik-23.1.3-${_hostArchTag}/GRAAL_HOME.txt")
     graalSimulatorRuntimeDir = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64')
-    graalSimulatorCapDir = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64/cap')
+    graalSimulatorCapDir = libJGLIOSLocalCacheFile('cap-cache/iphonesimulator-arm64')
     graalSimulatorLibJava = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64/libjava-release.a')
     graalSimulatorLibJvm = libJGLIOSThirdPartyFile('graalvm/iphonesimulator-arm64/libjvm-release.a')
     graalDeviceRuntimeDir = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64')
-    graalDeviceCapDir = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64/cap')
+    graalDeviceCapDir = libJGLIOSLocalCacheFile('cap-cache/iphoneos-arm64')
     graalDeviceLibJava = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64/libjava-release.a')
     graalDeviceLibJvm = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64/libjvm-release.a')
 }
@@ -919,6 +923,74 @@ def libJGLIOSDisableCapCacheArgs = { List<String> args ->
     disabledArgs.add(disabledArgs.size() - 1, '-H:-UseCAPCache')
     disabledArgs.add(disabledArgs.size() - 1, '-H:-NewCAPCache')
     disabledArgs
+}
+
+def libJGLIOSCapCacheFiles = { File capDir ->
+    capDir.exists() ? fileTree(capDir).matching { include '*.cap' }.files : [] as Set<File>
+}
+
+def libJGLIOSUseCapCache = {
+    (findProperty('iosGraalUseCapCache') ?: 'true').toString().toBoolean()
+}
+
+def libJGLIOSNativeImageArgs = { File nativeImage, File libDir, boolean enableMonitoring, String limitModules, String includeResources, String excludeResources ->
+    def args = [
+        nativeImage.absolutePath,
+        '-cp', sourceSets.main.runtimeClasspath.asPath,
+        '--no-server',
+        '-H:+UnlockExperimentalVMOptions',
+        '-R:-UsePerfData',
+        '-H:+ExitAfterRelocatableImageWrite',
+        '-H:+SharedLibrary',
+        "-H:TempDirectory=${libDir.absolutePath}",
+        '-H:Name=usercode',
+        '-H:+AddAllCharsets',
+        '-H:-DeadlockWatchdogExitOnTimeout',
+        '-H:DeadlockWatchdogInterval=0',
+        '-H:+RemoveSaturatedTypeFlows',
+        '-H:-SpawnIsolates',
+        '-H:PageSize=16384',
+        '-H:EnableURLProtocols=http,https,jar',
+        '-H:+PrintAnalysisCallTree',
+        '-H:Log=registerResource:',
+        '-Djdk.internal.lambda.eagerlyInitialize=false',
+        '-H:+ReportExceptionStackTraces',
+        '-Dsvm.targetName=iOS',
+        '-Dsvm.targetArch=arm64',
+        '-H:CompilerBackend=lir',
+        '-Dsvm.platform=org.graalvm.nativeimage.Platform$IOS_AARCH64',
+        '--no-fallback',
+        libJGLIOSMainClass()
+    ]
+
+    if (enableMonitoring) {
+        args.add(args.size() - 1, '--enable-monitoring=heapdump,jfr')
+    }
+    if (limitModules) {
+        args.add(args.size() - 1, "--limit-modules=${limitModules}")
+    }
+    if (includeResources) {
+        args.add(args.size() - 1, "-H:IncludeResources=${includeResources}")
+    }
+    if (excludeResources) {
+        args.add(args.size() - 1, "-H:ExcludeResources=${excludeResources}")
+    }
+    args
+}
+
+def libJGLIOSBootstrapCapCache = { File nativeImage, File libDir, File capDir, boolean enableMonitoring, String limitModules, String includeResources, String excludeResources, Map<String, String> environment ->
+    delete capDir
+    capDir.mkdirs()
+    def args = libJGLIOSNativeImageArgs(nativeImage, libDir, enableMonitoring, limitModules, includeResources, excludeResources)
+    args.add(args.size() - 1, '-H:+ExitAfterCAPCache')
+    args.add(args.size() - 1, '-H:+NewCAPCache')
+    args.add(args.size() - 1, "-H:CAPCacheDir=${capDir.absolutePath}")
+    runCommand(args, environment, libDir)
+    def capFiles = libJGLIOSCapCacheFiles(capDir)
+    if (capFiles.isEmpty()) {
+        throw new GradleException("Native Image did not write CAP cache files into ${capDir}")
+    }
+    println "Bootstrapped local CAP cache: ${capDir.absolutePath} (${capFiles.size()} files)"
 }
 
 def libJGLIOSXcrun = { List<String> args ->
@@ -1714,8 +1786,68 @@ iOS Graal VM info:
   runtime dir: ${graalSimulatorRuntimeDir}
   libjava: ${graalSimulatorLibJava}
   libjvm: ${graalSimulatorLibJvm}
-  cap dir: ${graalSimulatorCapDir}
+  local CAP cache dir: ${graalSimulatorCapDir}
 """
+    }
+}
+
+tasks.register('bootstrapIosSimulatorCapCache') {
+    group = 'iOS setup'
+    description = 'Bootstraps a local Native Image CAP cache for the iOS simulator target.'
+    dependsOn 'classes',
+        libJGLIOSNativeImageMetadataTasks,
+        libJGLIOSProviderTask('prepareGraalHostNik'),
+        libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
+    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir, { libJGLIOSAssetsInputFiles() })
+    inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
+    outputs.dir(graalSimulatorCapDir)
+    outputs.upToDateWhen { !libJGLIOSCapCacheFiles(graalSimulatorCapDir).isEmpty() }
+    onlyIf { libJGLIOSUseCapCache() }
+
+    doLast {
+        def resolved = resolveIosGraalVm()
+        def libDir = layout.buildDirectory.dir('libjglios/cap-bootstrap/ios-simulator').get().asFile
+        def sdkPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path'])
+        def clangPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang'])
+        def clangxxPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang++'])
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
+        def includeResources = (findProperty('iosGraalIncludeResources')
+            ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
+        def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
+        def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
+
+        libJGLIOSBootstrapCapCache(resolved.nativeImage, libDir, graalSimulatorCapDir, enableMonitoring, limitModules, includeResources, excludeResources, environment)
+    }
+}
+
+tasks.register('bootstrapIosDeviceCapCache') {
+    group = 'iOS setup'
+    description = 'Bootstraps a local Native Image CAP cache for the iOS device target.'
+    dependsOn 'classes',
+        libJGLIOSNativeImageMetadataTasks,
+        libJGLIOSProviderTask('prepareGraalHostNik'),
+        libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64')
+    inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir, { libJGLIOSAssetsInputFiles() })
+    inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
+    outputs.dir(graalDeviceCapDir)
+    outputs.upToDateWhen { !libJGLIOSCapCacheFiles(graalDeviceCapDir).isEmpty() }
+    onlyIf { libJGLIOSUseCapCache() }
+
+    doLast {
+        def resolved = resolveIosGraalVm()
+        def libDir = layout.buildDirectory.dir('libjglios/cap-bootstrap/ios-device').get().asFile
+        def sdkPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--show-sdk-path'])
+        def clangPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--find', 'clang'])
+        def clangxxPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--find', 'clang++'])
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
+        def includeResources = (findProperty('iosGraalIncludeResources')
+            ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
+        def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
+        def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
+
+        libJGLIOSBootstrapCapCache(resolved.nativeImage, libDir, graalDeviceCapDir, enableMonitoring, limitModules, includeResources, excludeResources, environment)
     }
 }
 
@@ -1735,7 +1867,6 @@ tasks.register('verifyIosSimulatorToolchain') {
             ['Host graal home', resolved.home],
             ['Host native-image', resolved.nativeImage],
             ['Simulator runtime dir', graalSimulatorRuntimeDir],
-            ['Simulator CAP cache dir', graalSimulatorCapDir],
             ['Simulator libjava', graalSimulatorLibJava],
             ['Simulator libjvm', graalSimulatorLibJvm]
         ].each { entry ->
@@ -1745,13 +1876,8 @@ tasks.register('verifyIosSimulatorToolchain') {
             println "  ✓ ${entry[0]}: ${entry[1]}"
         }
 
-        def capFiles = fileTree(graalSimulatorCapDir).matching { include '*.cap' }.files
-        if (capFiles.isEmpty()) {
-            throw new GradleException("Prepared Graal CAP cache is empty: ${graalSimulatorCapDir}")
-        }
-
         println "  ✓ native-image --version: ${versionOut}"
-        println "  ✓ CAP cache files: ${capFiles.size()}"
+        println "  ✓ Local CAP cache dir: ${graalSimulatorCapDir}"
         println "  ✓ iOS Simulator SDK: ${sdkPath}"
         println "  ✓ iOS Simulator clang++: ${clangPath}"
         println "  ✓ iOS Simulator ar: ${arPath}"
@@ -1765,7 +1891,8 @@ tasks.register('buildIosSimulatorUsercode') {
     dependsOn 'classes',
         libJGLIOSNativeImageMetadataTasks,
         libJGLIOSProviderTask('prepareGraalHostNik'),
-        libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
+        libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64'),
+        'bootstrapIosSimulatorCapCache'
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir, { libJGLIOSAssetsInputFiles() })
     inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
     outputs.dir(graalSimulatorLibDir)
@@ -1798,71 +1925,40 @@ tasks.register('buildIosSimulatorUsercode') {
         println "clang path: ${clangxxPath}"
         println "Apple target triple: ${libJGLIOSSimulatorTargetTriple()}"
 
-        def useCapCache = (findProperty('iosGraalUseCapCache') ?: 'true').toString().toBoolean()
+        def useCapCache = libJGLIOSUseCapCache()
         def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
             ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
         def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
 
-        def args = [
-            resolved.nativeImage.absolutePath,
-            '-cp', sourceSets.main.runtimeClasspath.asPath,
-            '--no-server',
-            '-H:+UnlockExperimentalVMOptions',
-            '-R:-UsePerfData',
-            '-H:+ExitAfterRelocatableImageWrite',
-            '-H:+SharedLibrary',
-            "-H:TempDirectory=${libDir.absolutePath}",
-            '-H:Name=usercode',
-            '-H:+AddAllCharsets',
-            '-H:-DeadlockWatchdogExitOnTimeout',
-            '-H:DeadlockWatchdogInterval=0',
-            '-H:+RemoveSaturatedTypeFlows',
-            '-H:-SpawnIsolates',
-            '-H:PageSize=16384',
-            '-H:EnableURLProtocols=http,https,jar',
-            '-H:+PrintAnalysisCallTree',
-            '-H:Log=registerResource:',
-            '-Djdk.internal.lambda.eagerlyInitialize=false',
-            '-H:+ReportExceptionStackTraces',
-            '-Dsvm.targetName=iOS',
-            '-Dsvm.targetArch=arm64',
-            '-H:CompilerBackend=lir',
-            '-Dsvm.platform=org.graalvm.nativeimage.Platform$IOS_AARCH64',
-            '--no-fallback',
-            libJGLIOSMainClass()
-        ]
-
-        if (enableMonitoring) {
-            args.add(args.size() - 1, '--enable-monitoring=heapdump,jfr')
-        }
-        if (limitModules) {
-            args.add(args.size() - 1, "--limit-modules=${limitModules}")
-        }
-        if (includeResources) {
-            args.add(args.size() - 1, "-H:IncludeResources=${includeResources}")
-        }
-        if (excludeResources) {
-            args.add(args.size() - 1, "-H:ExcludeResources=${excludeResources}")
-        }
+        def args = libJGLIOSNativeImageArgs(resolved.nativeImage, libDir, enableMonitoring, limitModules, includeResources, excludeResources)
 
         def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
 
         if (useCapCache) {
-            graalSimulatorCapDir.mkdirs()
-            def argsWithCap = new ArrayList<String>(args)
-            argsWithCap.add(argsWithCap.size() - 1, '-H:+UseCAPCache')
-            argsWithCap.add(argsWithCap.size() - 1, "-H:CAPCacheDir=${graalSimulatorCapDir.absolutePath}")
-            try {
-                runCommand(argsWithCap, environment, libDir)
-            } catch (GradleException capFailure) {
-                def capMessage = capFailure.message ?: ''
-                if (!capMessage.contains('Missing CAP cache value for:') &&
-                    !capMessage.contains('Path to C Annotation Processor Cache must be specified using -H:CAPCacheDir=')) {
-                    throw capFailure
+            def capFiles = libJGLIOSCapCacheFiles(graalSimulatorCapDir)
+            def completedWithCap = false
+            if (!capFiles.isEmpty()) {
+                def argsWithCap = new ArrayList<String>(args)
+                argsWithCap.add(argsWithCap.size() - 1, '-H:+UseCAPCache')
+                argsWithCap.add(argsWithCap.size() - 1, "-H:CAPCacheDir=${graalSimulatorCapDir.absolutePath}")
+                try {
+                    runCommand(argsWithCap, environment, libDir)
+                    completedWithCap = true
+                } catch (GradleException capFailure) {
+                    def capMessage = capFailure.message ?: ''
+                    if (!capMessage.contains('Missing CAP cache value for:') &&
+                        !capMessage.contains('Path to C Annotation Processor Cache must be specified using -H:CAPCacheDir=')) {
+                        throw capFailure
+                    }
+                    logger.warn('Local CAP cache mismatch detected; deleting it and retrying native-image without CAP cache.')
+                    delete graalSimulatorCapDir
                 }
-                logger.warn('CAP cache mismatch detected; retrying native-image without CAP cache.')
+            } else {
+                logger.warn('Local CAP cache is empty; running native-image without CAP cache.')
+            }
+            if (!completedWithCap) {
                 runCommand(libJGLIOSDisableCapCacheArgs(args), environment, libDir)
             }
         } else {
@@ -1987,7 +2083,8 @@ tasks.register('buildUsercode') {
     dependsOn 'classes',
         libJGLIOSNativeImageMetadataTasks,
         libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64'),
-        libJGLIOSProviderTask('prepareGraalHostNik')
+        libJGLIOSProviderTask('prepareGraalHostNik'),
+        'bootstrapIosDeviceCapCache'
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir, { libJGLIOSAssetsInputFiles() })
     inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
     outputs.dir(graalDeviceLibDir)
@@ -2023,65 +2120,34 @@ tasks.register('buildUsercode') {
             ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
         def excludeResources = libJGLIOSAssetExcludeResourcesPattern()
 
-        def args = [
-            resolved.nativeImage.absolutePath,
-            '-cp', sourceSets.main.runtimeClasspath.asPath,
-            '--no-server',
-            '-H:+UnlockExperimentalVMOptions',
-            '-R:-UsePerfData',
-            '-H:+ExitAfterRelocatableImageWrite',
-            '-H:+SharedLibrary',
-            "-H:TempDirectory=${libDir.absolutePath}",
-            '-H:Name=usercode',
-            '-H:+AddAllCharsets',
-            '-H:-DeadlockWatchdogExitOnTimeout',
-            '-H:DeadlockWatchdogInterval=0',
-            '-H:+RemoveSaturatedTypeFlows',
-            '-H:-SpawnIsolates',
-            '-H:PageSize=16384',
-            '-H:EnableURLProtocols=http,https,jar',
-            '-H:+PrintAnalysisCallTree',
-            '-H:Log=registerResource:',
-            '-Djdk.internal.lambda.eagerlyInitialize=false',
-            '-H:+ReportExceptionStackTraces',
-            '-Dsvm.targetName=iOS',
-            '-Dsvm.targetArch=arm64',
-            '-H:CompilerBackend=lir',
-            '-Dsvm.platform=org.graalvm.nativeimage.Platform$IOS_AARCH64',
-            '--no-fallback',
-            libJGLIOSMainClass()
-        ]
-
-        if (enableMonitoring) {
-            args.add(args.size() - 1, '--enable-monitoring=heapdump,jfr')
-        }
-        if (limitModules) {
-            args.add(args.size() - 1, "--limit-modules=${limitModules}")
-        }
-        if (includeResources) {
-            args.add(args.size() - 1, "-H:IncludeResources=${includeResources}")
-        }
-        if (excludeResources) {
-            args.add(args.size() - 1, "-H:ExcludeResources=${excludeResources}")
-        }
+        def args = libJGLIOSNativeImageArgs(resolved.nativeImage, libDir, enableMonitoring, limitModules, includeResources, excludeResources)
 
         def useCapCache = (findProperty('iosGraalUseCapCache') ?: 'true').toString().toBoolean()
         def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
 
         if (useCapCache) {
-            graalDeviceCapDir.mkdirs()
-            def argsWithCap = new ArrayList<String>(args)
-            argsWithCap.add(argsWithCap.size() - 1, '-H:+UseCAPCache')
-            argsWithCap.add(argsWithCap.size() - 1, "-H:CAPCacheDir=${graalDeviceCapDir.absolutePath}")
-            try {
-                runCommand(argsWithCap, environment, libDir)
-            } catch (GradleException capFailure) {
-                def capMessage = capFailure.message ?: ''
-                if (!capMessage.contains('Missing CAP cache value for:') &&
-                    !capMessage.contains('Path to C Annotation Processor Cache must be specified using -H:CAPCacheDir=')) {
-                    throw capFailure
+            def capFiles = libJGLIOSCapCacheFiles(graalDeviceCapDir)
+            def completedWithCap = false
+            if (!capFiles.isEmpty()) {
+                def argsWithCap = new ArrayList<String>(args)
+                argsWithCap.add(argsWithCap.size() - 1, '-H:+UseCAPCache')
+                argsWithCap.add(argsWithCap.size() - 1, "-H:CAPCacheDir=${graalDeviceCapDir.absolutePath}")
+                try {
+                    runCommand(argsWithCap, environment, libDir)
+                    completedWithCap = true
+                } catch (GradleException capFailure) {
+                    def capMessage = capFailure.message ?: ''
+                    if (!capMessage.contains('Missing CAP cache value for:') &&
+                        !capMessage.contains('Path to C Annotation Processor Cache must be specified using -H:CAPCacheDir=')) {
+                        throw capFailure
+                    }
+                    logger.warn('Local device CAP cache mismatch detected; deleting it and retrying native-image without CAP cache.')
+                    delete graalDeviceCapDir
                 }
-                logger.warn('Device CAP cache mismatch detected; retrying native-image without CAP cache.')
+            } else {
+                logger.warn('Local device CAP cache is empty; running native-image without CAP cache.')
+            }
+            if (!completedWithCap) {
                 runCommand(libJGLIOSDisableCapCacheArgs(args), environment, libDir)
             }
         } else {
