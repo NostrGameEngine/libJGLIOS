@@ -1649,6 +1649,138 @@ def libJGLIOSRunCommandIgnoringFailure = { List<String> command ->
     }
 }
 
+def libJGLIOSNumberParts = { Object value ->
+    ((value?.toString() ?: '') =~ /\d+/).collect { it.toString().toInteger() }
+}
+
+def libJGLIOSCompareNumberParts = { List<Integer> left, List<Integer> right ->
+    def max = Math.max(left.size(), right.size())
+    for (int index = 0; index < max; index++) {
+        def leftValue = index < left.size() ? left[index] : 0
+        def rightValue = index < right.size() ? right[index] : 0
+        if (leftValue != rightValue) {
+            return leftValue <=> rightValue
+        }
+    }
+    0
+}
+
+def libJGLIOSAvailableSimulatorDevices = {
+    def parsed = new JsonSlurper().parseText(captureCommand(['xcrun', 'simctl', 'list', 'devices', '--json']))
+    def devicesByRuntime = parsed?.devices instanceof Map ? parsed.devices.values() : []
+    devicesByRuntime.collectMany { it instanceof Collection ? it : [] }
+        .findAll { it?.isAvailable != false }
+}
+
+def libJGLIOSFindSimulatorDevice = { String requestedDevice ->
+    def devices = libJGLIOSAvailableSimulatorDevices()
+    devices.find { it?.udid?.toString() == requestedDevice }
+        ?: devices.find { it?.name?.toString() == requestedDevice }
+}
+
+def libJGLIOSSortedSimulatorRuntimes = {
+    def parsed = new JsonSlurper().parseText(captureCommand(['xcrun', 'simctl', 'list', 'runtimes', '--json']))
+    def runtimes = parsed?.runtimes instanceof Collection ? parsed.runtimes : []
+    def iosRuntimes = runtimes.findAll {
+        it?.isAvailable != false && (
+            it?.platform?.toString() == 'iOS'
+                || it?.name?.toString()?.startsWith('iOS')
+                || it?.identifier?.toString()?.contains('.SimRuntime.iOS-')
+        )
+    }
+    if (iosRuntimes.isEmpty()) {
+        throw new GradleException('No available iOS Simulator runtime found. Install an iOS simulator runtime in Xcode and retry.')
+    }
+    iosRuntimes.sort { left, right ->
+        def compared = libJGLIOSCompareNumberParts(
+            libJGLIOSNumberParts(left?.version ?: left?.name ?: left?.identifier),
+            libJGLIOSNumberParts(right?.version ?: right?.name ?: right?.identifier)
+        )
+        compared != 0 ? compared : ((left?.identifier?.toString() ?: '') <=> (right?.identifier?.toString() ?: ''))
+    }
+}
+
+def libJGLIOSRuntimeDeviceTypes = { Object runtime ->
+    runtime?.supportedDeviceTypes instanceof Collection ? runtime.supportedDeviceTypes : []
+}
+
+def libJGLIOSDeviceTypeMatches = { Object deviceType, String requestedDevice ->
+    deviceType?.identifier?.toString() == requestedDevice || deviceType?.name?.toString() == requestedDevice
+}
+
+def libJGLIOSSelectSimulatorRuntime = { String requestedDevice ->
+    def runtimes = libJGLIOSSortedSimulatorRuntimes()
+    def exactRuntime = runtimes.reverse().find { runtime ->
+        libJGLIOSRuntimeDeviceTypes(runtime).any { libJGLIOSDeviceTypeMatches(it, requestedDevice) }
+    }
+    exactRuntime ?: runtimes.last()
+}
+
+def libJGLIOSAllSimulatorDeviceTypes = {
+    def parsed = new JsonSlurper().parseText(captureCommand(['xcrun', 'simctl', 'list', 'devicetypes', '--json']))
+    def deviceTypes = parsed?.devicetypes instanceof Collection ? parsed.devicetypes : []
+    deviceTypes.findAll { it?.isAvailable != false }
+}
+
+def libJGLIOSSelectSimulatorDeviceType = { String requestedDevice, Object runtime ->
+    def runtimeDeviceTypes = libJGLIOSRuntimeDeviceTypes(runtime)
+    def availableDeviceTypes = runtimeDeviceTypes.isEmpty()
+        ? libJGLIOSAllSimulatorDeviceTypes()
+        : runtimeDeviceTypes.findAll { it?.isAvailable != false }
+    def exactDeviceType = availableDeviceTypes.find { it?.identifier?.toString() == requestedDevice }
+        ?: availableDeviceTypes.find { it?.name?.toString() == requestedDevice }
+    if (exactDeviceType != null) {
+        return exactDeviceType
+    }
+
+    def knownDeviceType = libJGLIOSAllSimulatorDeviceTypes().find { libJGLIOSDeviceTypeMatches(it, requestedDevice) }
+    if (knownDeviceType != null && !runtimeDeviceTypes.isEmpty()) {
+        throw new GradleException("Simulator device type '${requestedDevice}' is not supported by ${runtime.name ?: runtime.identifier}. Install a compatible iOS simulator runtime and retry.")
+    }
+
+    def iphoneDeviceTypes = availableDeviceTypes.findAll { it?.name?.toString()?.startsWith('iPhone ') }
+    if (iphoneDeviceTypes.isEmpty()) {
+        throw new GradleException('No available iPhone Simulator device type found. Install iOS simulator components in Xcode and retry.')
+    }
+    iphoneDeviceTypes.sort { left, right ->
+        def compared = libJGLIOSCompareNumberParts(
+            libJGLIOSNumberParts(left?.name ?: left?.identifier),
+            libJGLIOSNumberParts(right?.name ?: right?.identifier)
+        )
+        compared != 0 ? compared : ((left?.name?.toString() ?: '') <=> (right?.name?.toString() ?: ''))
+    }.last()
+}
+
+def libJGLIOSCreateSimulatorDevice = { String requestedDevice ->
+    def runtime = libJGLIOSSelectSimulatorRuntime(requestedDevice)
+    def deviceType = libJGLIOSSelectSimulatorDeviceType(requestedDevice, runtime)
+    logger.lifecycle("Creating iOS simulator ${requestedDevice} (${deviceType.name}, ${runtime.name ?: runtime.identifier})")
+    def udid = captureCommand([
+        'xcrun',
+        'simctl',
+        'create',
+        requestedDevice,
+        deviceType.identifier.toString(),
+        runtime.identifier.toString()
+    ]).trim()
+    if (!udid) {
+        throw new GradleException("simctl did not return a UDID for the created simulator '${requestedDevice}'.")
+    }
+    [name: requestedDevice, identifier: udid, created: true]
+}
+
+def libJGLIOSResolveSimulatorDevice = { String requestedDevice ->
+    def device = libJGLIOSFindSimulatorDevice(requestedDevice)
+    if (device != null) {
+        return [
+            name: device?.name?.toString() ?: requestedDevice,
+            identifier: device?.udid?.toString() ?: requestedDevice,
+            created: false
+        ]
+    }
+    libJGLIOSCreateSimulatorDevice(requestedDevice)
+}
+
 def libJGLIOSDetectedAppTarget = null
 libJGLIOSIosAppRunTarget = {
     if (libJGLIOSDetectedAppTarget != null) {
@@ -1724,13 +1856,15 @@ def libJGLIOSRunIosAppOnSimulator = {
     def deviceName = providers.gradleProperty('iosSimulatorDevice').orElse(libJGLIOSSimulatorDevice()).get()
     def bundleId = libJGLIOSBundleId()
     def simulatorApp = graalSimulatorAppDir.get().asFile
-    logger.lifecycle("Running iOS app on simulator ${deviceName}")
-    libJGLIOSRunCommandIgnoringFailure(['xcrun', 'simctl', 'boot', deviceName])
+    def simulatorDevice = libJGLIOSResolveSimulatorDevice(deviceName)
+    def simulatorIdentifier = simulatorDevice.identifier.toString()
+    logger.lifecycle("Running iOS app on simulator ${simulatorDevice.name} (${simulatorIdentifier})")
+    libJGLIOSRunCommandIgnoringFailure(['xcrun', 'simctl', 'boot', simulatorIdentifier])
     runCommand(['open', '-a', 'Simulator'])
-    runCommand(['xcrun', 'simctl', 'bootstatus', deviceName, '-b'])
-    libJGLIOSRunCommandIgnoringFailure(['xcrun', 'simctl', 'terminate', deviceName, bundleId])
-    runCommand(['xcrun', 'simctl', 'install', deviceName, simulatorApp.absolutePath])
-    runCommand(['xcrun', 'simctl', 'launch', deviceName, bundleId])
+    runCommand(['xcrun', 'simctl', 'bootstatus', simulatorIdentifier, '-b'])
+    libJGLIOSRunCommandIgnoringFailure(['xcrun', 'simctl', 'terminate', simulatorIdentifier, bundleId])
+    runCommand(['xcrun', 'simctl', 'install', simulatorIdentifier, simulatorApp.absolutePath])
+    runCommand(['xcrun', 'simctl', 'launch', simulatorIdentifier, bundleId])
 }
 
 def libJGLIOSRunIosAppOnDevice = { Map target ->

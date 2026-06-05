@@ -171,6 +171,10 @@ Then build or run the app normally:
 ./gradlew buildIosApp
 ```
 
+When `runIosDebugApp` targets the simulator, `simulatorDevice` defaults to
+`iPhone 16`. If no available simulator with that name or UDID exists, the plugin
+creates one from the newest installed iOS runtime before booting it.
+
 During the app build, libJGLIOS scans the runtime classpath for
 `lib/ios/**/*.xcframework`, selects the right device or simulator slice, links
 the frameworks, adds configured Apple system frameworks, and embeds frameworks
