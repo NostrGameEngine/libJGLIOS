@@ -51,7 +51,7 @@ converts into an iOS `AppIcon.appiconset`, or an existing `Assets.xcassets`
 directory containing an `AppIcon` asset catalog.
 `assets` is optional. Paths added with `assets.from(...)` are copied into the
 iOS `.app` bundle as files and are not added to GraalVM native-image resources
-by the plugin.
+by the plugin. Missing asset paths are reported as warnings and treated as empty.
 `includeResourceExtensions` is optional. Values added there are appended to the
 default native-image resource extension list. Use `-Pios.includeResourceExtensions=foo,bar`
 for the same additive behavior from the command line. Use

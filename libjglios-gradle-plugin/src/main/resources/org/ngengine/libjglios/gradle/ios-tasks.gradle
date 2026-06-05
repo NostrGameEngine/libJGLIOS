@@ -774,11 +774,13 @@ def libJGLIOSCopyAssets = { File appDir ->
         ? manifest.readLines('UTF-8').collect { it.trim() }.findAll { it } as LinkedHashSet<String>
         : [] as LinkedHashSet<String>
     def assetPaths = assets.files
+    def existingAssetPaths = assetPaths.findAll { it.exists() }
+    def missingAssetPaths = assetPaths.findAll { !it.exists() }
+    missingAssetPaths.each { assetPath ->
+        logger.warn("Configured iOS asset path does not exist, treating it as empty: ${assetPath}")
+    }
     def currentAssetNames = [] as LinkedHashSet<String>
-    assetPaths.each { assetPath ->
-        if (!assetPath.exists()) {
-            throw new GradleException("Configured iOS asset path does not exist: ${assetPath}")
-        }
+    existingAssetPaths.each { assetPath ->
         if (assetPath.isDirectory()) {
             assetPath.listFiles()?.sort { it.name }?.each { child ->
                 currentAssetNames << child.name
@@ -797,11 +799,11 @@ def libJGLIOSCopyAssets = { File appDir ->
     (previousAssetNames + currentAssetNames).each { assetName ->
         delete new File(appDir, assetName)
     }
-    if (assetPaths.isEmpty()) {
+    if (existingAssetPaths.isEmpty()) {
         delete manifest
         return
     }
-    assetPaths.each { assetPath ->
+    existingAssetPaths.each { assetPath ->
         copy {
             from assetPath
             into appDir
@@ -809,7 +811,7 @@ def libJGLIOSCopyAssets = { File appDir ->
     }
     manifest.parentFile.mkdirs()
     manifest.text = currentAssetNames.sort().join(System.lineSeparator()) + System.lineSeparator()
-    println "Copied ${assetPaths.size()} iOS asset path(s) into ${appDir.absolutePath}"
+    println "Copied ${existingAssetPaths.size()} iOS asset path(s) into ${appDir.absolutePath}"
 }
 def libJGLIOSAssetExcludeResourcesPattern = {
     def assets = libJGLIOSAssetsInputFiles()
