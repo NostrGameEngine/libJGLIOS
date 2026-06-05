@@ -57,6 +57,8 @@ default native-image resource extension list. Use `-Pios.includeResourceExtensio
 for the same additive behavior from the command line. Use
 `-PiosGraalIncludeResources=<regex>` only when you want to replace the whole
 native-image include regex.
+Use `-PiosGraalUseCapCache=false` to skip local CAP cache bootstrap/use for
+Native Image builds.
 
 Useful app tasks:
 

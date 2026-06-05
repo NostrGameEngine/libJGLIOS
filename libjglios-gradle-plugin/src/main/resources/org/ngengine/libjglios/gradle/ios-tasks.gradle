@@ -2124,7 +2124,7 @@ tasks.register('buildUsercode') {
 
         def args = libJGLIOSNativeImageArgs(resolved.nativeImage, libDir, enableMonitoring, limitModules, includeResources, excludeResources)
 
-        def useCapCache = (findProperty('iosGraalUseCapCache') ?: 'true').toString().toBoolean()
+        def useCapCache = libJGLIOSUseCapCache()
         def environment = [SDKROOT: sdkPath, CC: clangPath, CXX: clangxxPath]
 
         if (useCapCache) {
