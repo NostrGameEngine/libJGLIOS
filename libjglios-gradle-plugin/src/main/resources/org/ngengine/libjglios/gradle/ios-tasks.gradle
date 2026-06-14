@@ -935,6 +935,12 @@ def libJGLIOSUseCapCache = {
     (findProperty('iosGraalUseCapCache') ?: 'true').toString().toBoolean()
 }
 
+def libJGLIOSNeedsArm64CrossToolchainBypass = {
+    def osName = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+    def hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+    osName.contains('mac') && (hostArch == 'x86_64' || hostArch == 'amd64')
+}
+
 def libJGLIOSNativeImageArgs = { File nativeImage, File libDir, boolean enableMonitoring, String limitModules, String includeResources, String excludeResources ->
     def args = [
         nativeImage.absolutePath,
@@ -965,6 +971,9 @@ def libJGLIOSNativeImageArgs = { File nativeImage, File libDir, boolean enableMo
         libJGLIOSMainClass()
     ]
 
+    if (libJGLIOSNeedsArm64CrossToolchainBypass()) {
+        args.add(args.size() - 1, '-H:-CheckToolchain')
+    }
     if (enableMonitoring) {
         args.add(args.size() - 1, '--enable-monitoring=heapdump,jfr')
     }
