@@ -43,7 +43,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build sample-ios debug app
-        run: ./gradlew --no-daemon :sample-ios:buildIosSimulatorApp -PiosGraalUseCapCache=false
+        run: ./gradlew --no-daemon :sample-ios:buildIosSimulatorApp
 
   build:
     name: Build

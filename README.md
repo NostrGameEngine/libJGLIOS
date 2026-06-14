@@ -58,8 +58,10 @@ default native-image resource extension list. Use `-Pios.includeResourceExtensio
 for the same additive behavior from the command line. Use
 `-PiosGraalIncludeResources=<regex>` only when you want to replace the whole
 native-image include regex.
-Use `-PiosGraalUseCapCache=false` to skip local CAP cache bootstrap/use for
-Native Image builds.
+Native Image builds use the CAP cache packaged in the ios-graal-jdk artifact
+by default. Use `-PiosGraalRegenerateCapCache=true` to rebuild a local cache
+under `.gradle/libjglios/cap-cache`, or `-PiosGraalUseCapCache=false` to build
+without CAP.
 
 Useful app tasks:
 
