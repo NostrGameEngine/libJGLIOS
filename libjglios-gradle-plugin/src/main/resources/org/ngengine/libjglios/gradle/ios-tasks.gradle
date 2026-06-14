@@ -1981,7 +1981,7 @@ tasks.register('bootstrapIosSimulatorCapCache') {
         def sdkPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path'])
         def clangPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang'])
         def clangxxPath = libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--find', 'clang++'])
-        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'false').toString().toBoolean()
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
             ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
@@ -2011,7 +2011,7 @@ tasks.register('bootstrapIosDeviceCapCache') {
         def sdkPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--show-sdk-path'])
         def clangPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--find', 'clang'])
         def clangxxPath = libJGLIOSXcrun(['--sdk', 'iphoneos', '--find', 'clang++'])
-        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'false').toString().toBoolean()
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
             ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
@@ -2106,7 +2106,7 @@ tasks.register('buildIosSimulatorUsercode') {
         println "Apple target triple: ${libJGLIOSSimulatorTargetTriple()}"
 
         def useCapCache = libJGLIOSUseCapCache()
-        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'false').toString().toBoolean()
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
             ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
@@ -2137,7 +2137,8 @@ tasks.register('buildIosSimulatorUsercode') {
                 }
                 throw new GradleException(
                     "Simulator CAP cache did not match the native-image query set in ${capDir}. " +
-                    "Regenerate it with -PiosGraalRegenerateCapCache=true, or explicitly disable CAP with -PiosGraalUseCapCache=false.",
+                    "Regenerate it with -PiosGraalRegenerateCapCache=true, or explicitly disable CAP with -PiosGraalUseCapCache=false.\n\n" +
+                    "Native Image output:\n${capMessage}",
                     capFailure
                 )
             }
@@ -2295,7 +2296,7 @@ tasks.register('buildUsercode') {
         println "clang path: ${clangxxPath}"
         println "Apple target triple: ${libJGLIOSDeviceTargetTriple()}"
 
-        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'true').toString().toBoolean()
+        def enableMonitoring = (findProperty('iosGraalEnableMonitoring') ?: 'false').toString().toBoolean()
         def limitModules = findProperty('iosGraalLimitModules')?.toString()?.trim()
         def includeResources = (findProperty('iosGraalIncludeResources')
             ?: libJGLIOSDefaultIncludeResourcesPattern()).toString().trim()
@@ -2327,7 +2328,8 @@ tasks.register('buildUsercode') {
                 }
                 throw new GradleException(
                     "Device CAP cache did not match the native-image query set in ${capDir}. " +
-                    "Regenerate it with -PiosGraalRegenerateCapCache=true, or explicitly disable CAP with -PiosGraalUseCapCache=false.",
+                    "Regenerate it with -PiosGraalRegenerateCapCache=true, or explicitly disable CAP with -PiosGraalUseCapCache=false.\n\n" +
+                    "Native Image output:\n${capMessage}",
                     capFailure
                 )
             }
