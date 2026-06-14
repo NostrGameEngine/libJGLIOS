@@ -11,6 +11,7 @@ It includes bindings for SDL3, OpenAL, Clipboard and OpenGL ES via ANGLE on Meta
 - `:gles-ios`: bindings for OpenGL ES
 - `:openal-ios`: bindings for OpenAL
 - `:core-ios`: bridge for lifecycle, runble and setup
+- `:angle-ios`: native build of Google ANGLE for iOS
 - `:libjglios-gradle-plugin`: `org.ngengine.libjglios`, a Gradle plugin to build iOS apps
 
 ## Usage
