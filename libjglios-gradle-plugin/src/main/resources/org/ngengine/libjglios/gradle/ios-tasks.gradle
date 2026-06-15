@@ -683,6 +683,15 @@ def runCommand = { List<String> command, Map<String, String> environment = [:], 
     captureCommand(command, environment, workingDirectory)
 }
 
+def libJGLIOSXcrunToolExists = { String toolName ->
+    try {
+        captureCommand(['xcrun', '--find', toolName])
+        return true
+    } catch (GradleException ignored) {
+        return false
+    }
+}
+
 def libJGLIOSAppIconImages = [
     [idiom: 'iphone', size: '20x20', scale: '2x', pixels: 40],
     [idiom: 'iphone', size: '20x20', scale: '3x', pixels: 60],
@@ -1288,21 +1297,21 @@ def libJGLIOSWriteXcodeProvisioningProbe = { File projectRoot, String signingTyp
     archiveVersion = 1;
     classes = {
     };
-    objectVersion = 56;
+    objectVersion = 54;
     objects = {
         000000000000000000000001 = {
             isa = PBXProject;
             attributes = {
-                LastUpgradeCheck = 1640;
+                LastUpgradeCheck = 1230;
                 TargetAttributes = {
                     000000000000000000000002 = {
-                        CreatedOnToolsVersion = 16.4;
+                        CreatedOnToolsVersion = 12.3;
                         ProvisioningStyle = Automatic;
                     };
                 };
             };
             buildConfigurationList = 000000000000000000000003;
-            compatibilityVersion = "Xcode 14.0";
+            compatibilityVersion = "Xcode 12.0";
             developmentRegion = en;
             hasScannedForEncodings = 0;
             knownRegions = (en, Base);
@@ -1895,6 +1904,127 @@ def libJGLIOSResolveSimulatorDevice = { String requestedDevice ->
     libJGLIOSCreateSimulatorDevice(requestedDevice)
 }
 
+def libJGLIOSDeviceTarget = { String identifier, String name ->
+    if (!identifier) {
+        return null
+    }
+    [
+        kind: 'device',
+        identifier: identifier,
+        name: name ?: identifier
+    ]
+}
+
+def libJGLIOSDetectDeviceWithDevicectl = {
+    if (!libJGLIOSXcrunToolExists('devicectl')) {
+        return null
+    }
+    def devicesJson = layout.buildDirectory.file('libjglios/devicectl/available-devices.json').get().asFile
+    devicesJson.parentFile.mkdirs()
+    delete devicesJson
+    captureCommand([
+        'xcrun',
+        'devicectl',
+        '--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds(),
+        'list',
+        'devices',
+        '--json-output', devicesJson.absolutePath
+    ])
+    def parsed = new JsonSlurper().parse(devicesJson)
+    def devices = parsed?.result?.devices ?: []
+    def device = devices.find {
+        it?.hardwareProperties?.reality?.toString() == 'physical'
+            && it?.hardwareProperties?.platform?.toString() == 'iOS'
+    } ?: devices.find {
+        it?.hardwareProperties?.platform?.toString() == 'iOS'
+    }
+    if (device == null) {
+        return null
+    }
+    def identifier = device.identifier?.toString()
+        ?: device.hardwareProperties?.udid?.toString()
+        ?: device.deviceProperties?.name?.toString()
+    libJGLIOSDeviceTarget(identifier, device.deviceProperties?.name?.toString())
+}
+
+def libJGLIOSDetectDeviceWithXcdevice = {
+    if (!libJGLIOSXcrunToolExists('xcdevice')) {
+        return null
+    }
+    def output = captureCommand(['xcrun', 'xcdevice', 'list', '--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds()])
+    def parsed = new JsonSlurper().parseText(output)
+    def devices = parsed instanceof Collection ? parsed : []
+    def device = devices.find {
+        def platform = it?.platform?.toString()
+        def modelCode = it?.modelCode?.toString()
+        it?.simulator != true && (platform == 'iOS' || modelCode?.startsWith('iPhone') || modelCode?.startsWith('iPad'))
+    }
+    if (device == null) {
+        return null
+    }
+    libJGLIOSDeviceTarget(device?.identifier?.toString(), device?.name?.toString())
+}
+
+def libJGLIOSParseDeviceListLine = { String line ->
+    def trimmed = line?.trim()
+    if (!trimmed || trimmed.contains('Simulator')) {
+        return null
+    }
+    def matcher = trimmed =~ /^(.+?)\s+\(([^()]+)\)(?:\s+\(([^()]+)\))?$/
+    if (!matcher.matches()) {
+        return null
+    }
+    def name = matcher.group(1)?.trim()
+    def last = matcher.group(3)?.trim() ?: matcher.group(2)?.trim()
+    if (!last || last ==~ /\d+[.]\d+([.]\d+)?/) {
+        return null
+    }
+    libJGLIOSDeviceTarget(last, name)
+}
+
+def libJGLIOSDetectDeviceWithTextTool = { List<String> command ->
+    def output = captureCommand(command)
+    output.readLines()
+        .collect { libJGLIOSParseDeviceListLine(it) }
+        .find { it != null }
+}
+
+def libJGLIOSDetectDeviceWithLegacyXcode = {
+    if (libJGLIOSXcrunToolExists('xctrace')) {
+        def device = libJGLIOSDetectDeviceWithTextTool(['xcrun', 'xctrace', 'list', 'devices'])
+        if (device != null) {
+            return device
+        }
+    }
+    if (libJGLIOSXcrunToolExists('instruments')) {
+        return libJGLIOSDetectDeviceWithTextTool(['xcrun', 'instruments', '-s', 'devices'])
+    }
+    null
+}
+
+def libJGLIOSDetectAvailableDevice = {
+    def failures = []
+    for (detector in [
+        [name: 'devicectl', detect: libJGLIOSDetectDeviceWithDevicectl],
+        [name: 'xcdevice', detect: libJGLIOSDetectDeviceWithXcdevice],
+        [name: 'xctrace/instruments', detect: libJGLIOSDetectDeviceWithLegacyXcode]
+    ]) {
+        try {
+            def device = detector.detect.call()
+            if (device != null) {
+                logger.info("Detected iOS device with ${detector.name}: ${device.name} (${device.identifier})")
+                return device
+            }
+        } catch (Exception exception) {
+            failures << "${detector.name}: ${exception.message}"
+        }
+    }
+    if (!failures.isEmpty()) {
+        logger.info("iOS device detection attempts failed:\n${failures.join('\n')}")
+    }
+    null
+}
+
 def libJGLIOSDetectedAppTarget = null
 libJGLIOSIosAppRunTarget = {
     if (libJGLIOSDetectedAppTarget != null) {
@@ -1918,44 +2048,10 @@ libJGLIOSIosAppRunTarget = {
         return libJGLIOSDetectedAppTarget
     }
 
-    def devicesJson = layout.buildDirectory.file('libjglios/devicectl/available-devices.json').get().asFile
-    devicesJson.parentFile.mkdirs()
-    delete devicesJson
-    try {
-        captureCommand([
-            'xcrun',
-            'devicectl',
-            '--timeout', libJGLIOSIosDeviceCommandTimeoutSeconds(),
-            'list',
-            'devices',
-            '--json-output', devicesJson.absolutePath
-        ])
-        def parsed = new JsonSlurper().parse(devicesJson)
-        def devices = parsed?.result?.devices ?: []
-        def device = devices.find {
-            it?.hardwareProperties?.reality?.toString() == 'physical'
-                && it?.hardwareProperties?.platform?.toString() == 'iOS'
-        } ?: devices.find {
-            it?.hardwareProperties?.platform?.toString() == 'iOS'
-        }
-        if (device != null) {
-            def identifier = device.identifier?.toString()
-                ?: device.hardwareProperties?.udid?.toString()
-                ?: device.deviceProperties?.name?.toString()
-            if (identifier) {
-                libJGLIOSDetectedAppTarget = [
-                    kind: 'device',
-                    identifier: identifier,
-                    name: device.deviceProperties?.name?.toString() ?: identifier
-                ]
-                return libJGLIOSDetectedAppTarget
-            }
-        }
-    } catch (Exception exception) {
-        if (requestedTarget == 'device') {
-            throw new GradleException('Could not detect an available iOS device.', exception)
-        }
-        logger.info("Could not detect an available iOS device; falling back to simulator: ${exception.message}")
+    def detectedDevice = libJGLIOSDetectAvailableDevice()
+    if (detectedDevice != null) {
+        libJGLIOSDetectedAppTarget = detectedDevice
+        return libJGLIOSDetectedAppTarget
     }
 
     if (requestedTarget == 'device') {
@@ -1982,6 +2078,13 @@ def libJGLIOSRunIosAppOnSimulator = {
 }
 
 def libJGLIOSRunIosAppOnDevice = { Map target ->
+    if (!libJGLIOSXcrunToolExists('devicectl')) {
+        throw new GradleException(
+            "Running on a real iOS device requires xcrun devicectl for automatic install/launch. " +
+            "This Xcode does not provide devicectl. The app can still be built/signed with -PiosAppTarget=device -PiosDevice=<UDID>; " +
+            "install it manually from Xcode, or run the simulator with -PiosAppTarget=simulator."
+        )
+    }
     def bundleId = libJGLIOSBundleId()
     def deviceApp = graalDebugAppDir.get().asFile
     logger.lifecycle("Running iOS app on device ${target.name}")
