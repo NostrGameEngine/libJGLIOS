@@ -6,8 +6,9 @@ ext {
     sdl3Version = rootProject.findProperty('sdl3Version') ?: '3.4.0'
     sdl3Url = rootProject.findProperty('sdl3Url') ?: "https://github.com/libsdl-org/SDL/releases/download/release-${sdl3Version}/SDL3-${sdl3Version}.dmg"
     sdl3Sha256 = rootProject.findProperty('sdl3Sha256') ?: ''
-    sdl3Dmg = layout.buildDirectory.file("downloads/SDL3-${sdl3Version}.dmg")
-    sdl3DmgFingerprint = layout.buildDirectory.file("downloads/SDL3-${sdl3Version}.dmg.fingerprint")
+    def _safeSdl3Version = sdl3Version.toString().replaceAll('[^A-Za-z0-9_.-]', '_')
+    sdl3Dmg = layout.buildDirectory.file("downloads/SDL3-${_safeSdl3Version}.dmg")
+    sdl3DmgFingerprint = layout.buildDirectory.file("downloads/SDL3-${_safeSdl3Version}.dmg.fingerprint")
     sdl3VendorDir = rootProject.layout.buildDirectory.dir('libjglios/third_party/sdl3').get()
 }
 

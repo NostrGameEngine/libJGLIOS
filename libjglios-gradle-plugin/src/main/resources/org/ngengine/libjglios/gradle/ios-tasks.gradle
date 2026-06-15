@@ -807,6 +807,18 @@ def libJGLIOSAssetManifestFile = { File appDir ->
     def manifestDir = layout.buildDirectory.dir('libjglios/asset-manifests').get().asFile
     new File(manifestDir, appDir.name.replaceAll('[^A-Za-z0-9_.-]', '_') + '.txt')
 }
+def libJGLIOSBundleAssetFile = { File appDir, String assetName ->
+    if (!assetName || assetName == '.' || assetName == '..' ||
+        assetName.contains('/') || assetName.contains('\\') || assetName.contains(File.separator)) {
+        throw new GradleException("Invalid iOS bundle asset name in manifest: ${assetName}")
+    }
+    def appRoot = appDir.canonicalFile
+    def target = new File(appRoot, assetName).canonicalFile
+    if (target.parentFile != appRoot) {
+        throw new GradleException("Refusing to delete iOS bundle asset outside ${appRoot}: ${assetName}")
+    }
+    target
+}
 def libJGLIOSReservedBundleAssetNames = {
     def names = [
         'Info.plist',
@@ -847,6 +859,9 @@ def libJGLIOSCopyAssets = { File appDir ->
             currentAssetNames << assetPath.name
         }
     }
+    (previousAssetNames + currentAssetNames).each { assetName ->
+        libJGLIOSBundleAssetFile(appDir, assetName)
+    }
 
     def reservedNames = libJGLIOSReservedBundleAssetNames()
     def reservedCollisions = currentAssetNames.findAll { reservedNames.contains(it) }.sort()
@@ -855,7 +870,7 @@ def libJGLIOSCopyAssets = { File appDir ->
     }
 
     (previousAssetNames + currentAssetNames).each { assetName ->
-        delete new File(appDir, assetName)
+        delete libJGLIOSBundleAssetFile(appDir, assetName)
     }
     if (existingAssetPaths.isEmpty()) {
         delete manifest
