@@ -60,7 +60,7 @@ for the same additive behavior from the command line. Use
 native-image include regex.
 Native Image builds use the CAP cache packaged in the ios-graal-jdk artifact
 by default. Use `-PiosGraalRegenerateCapCache=true` to rebuild a local cache
-under `.gradle/libjglios/cap-cache`, or `-PiosGraalUseCapCache=false` to build
+under `build/libjglios/cap-cache`, or `-PiosGraalUseCapCache=false` to build
 without CAP.
 
 Useful app tasks:

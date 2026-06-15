@@ -7,24 +7,47 @@ ext {
     sdl3Url = rootProject.findProperty('sdl3Url') ?: "https://github.com/libsdl-org/SDL/releases/download/release-${sdl3Version}/SDL3-${sdl3Version}.dmg"
     sdl3Sha256 = rootProject.findProperty('sdl3Sha256') ?: ''
     sdl3Dmg = layout.buildDirectory.file("downloads/SDL3-${sdl3Version}.dmg")
+    sdl3DmgFingerprint = layout.buildDirectory.file("downloads/SDL3-${sdl3Version}.dmg.fingerprint")
     sdl3VendorDir = rootProject.layout.buildDirectory.dir('libjglios/third_party/sdl3').get()
+}
+
+static String sha256Text(String value) {
+    def digest = MessageDigest.getInstance('SHA-256')
+    digest.update(value.getBytes('UTF-8'))
+    return digest.digest().collect { String.format('%02x', it) }.join()
+}
+
+static String downloadFingerprint(Object url, Object sha256) {
+    def configuredSha256 = sha256?.toString()?.trim()
+    return "${sha256Text(url.toString())}:${configuredSha256 ?: '0'}"
 }
 
 tasks.register('downloadSDL3') {
     group = 'libJGLIOS setup'
     description = 'Downloads SDL3 DMG from the configured URL.'
     outputs.file(sdl3Dmg)
+    outputs.file(sdl3DmgFingerprint)
+    inputs.property('downloadFingerprint', providers.provider { downloadFingerprint(sdl3Url, sdl3Sha256) })
     doLast {
         def out = sdl3Dmg.get().asFile
+        def fingerprintFile = sdl3DmgFingerprint.get().asFile
+        def fingerprint = downloadFingerprint(sdl3Url, sdl3Sha256)
         out.parentFile.mkdirs()
+        fingerprintFile.parentFile.mkdirs()
         if (out.exists()) {
-            println "Already downloaded: ${out}"
-            return
+            if (fingerprintFile.isFile() && fingerprintFile.text.trim() == fingerprint) {
+                println "Already downloaded: ${out}"
+                return
+            }
+            println "Download fingerprint changed; deleting stale ${out}"
+            delete out
+            delete fingerprintFile
         }
         println "Downloading ${sdl3Url}"
         new URL(sdl3Url).withInputStream { input ->
             out.withOutputStream { output -> output << input }
         }
+        fingerprintFile.text = fingerprint + System.lineSeparator()
         println "Downloaded: ${out}"
     }
 }
@@ -60,13 +83,18 @@ tasks.register('prepareSDL3') {
     group = 'libJGLIOS setup'
     description = 'Downloads, verifies, mounts, and normalizes SDL3 for libJGLIOS.'
     dependsOn 'verifySDL3'
+    inputs.file(sdl3Dmg)
+    inputs.property('downloadFingerprint', providers.provider { downloadFingerprint(sdl3Url, sdl3Sha256) })
     outputs.dir(sdl3VendorDir)
     doLast {
         def vendor = sdl3VendorDir.asFile
         def existingSimulator = new File(vendor, 'SDL3.xcframework/ios-arm64_x86_64-simulator/SDL3.framework')
         def existingDevice = new File(vendor, 'SDL3.xcframework/ios-arm64/SDL3.framework')
         def existingHeader = new File(vendor, 'include/SDL3/SDL.h')
-        if (existingSimulator.exists() && existingDevice.exists() && existingHeader.exists()) {
+        def preparedFingerprint = new File(vendor, 'SDL3_FINGERPRINT.txt')
+        def fingerprint = downloadFingerprint(sdl3Url, sdl3Sha256)
+        if (existingSimulator.exists() && existingDevice.exists() && existingHeader.exists() &&
+            preparedFingerprint.isFile() && preparedFingerprint.text.trim() == fingerprint) {
             println "SDL3 already prepared in ${vendor}"
             return
         }
@@ -121,6 +149,7 @@ tasks.register('prepareSDL3') {
                     }
                 }
             }
+            preparedFingerprint.text = fingerprint + System.lineSeparator()
 
             println "Prepared SDL3 in ${vendor}"
         } finally {

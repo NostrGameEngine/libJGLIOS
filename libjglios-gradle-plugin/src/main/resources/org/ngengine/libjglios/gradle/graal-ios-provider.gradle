@@ -36,6 +36,17 @@ static String sha256Of(File file) {
     return digest.digest().collect { String.format('%02x', it) }.join()
 }
 
+static String sha256Text(String value) {
+    def digest = MessageDigest.getInstance('SHA-256')
+    digest.update(value.getBytes('UTF-8'))
+    return digest.digest().collect { String.format('%02x', it) }.join()
+}
+
+static String downloadFingerprint(Object url, Object sha256) {
+    def configuredSha256 = sha256?.toString()?.trim()
+    return "${sha256Text(url.toString())}:${configuredSha256 ?: '0'}"
+}
+
 static String rel(File base, File file) {
     return base.toPath().relativize(file.toPath()).toString()
 }
@@ -43,6 +54,7 @@ static String rel(File base, File file) {
 graalTargets.each { target ->
     def capitalized = target.name.split('-').collect { it.capitalize() }.join('')
     def zipProvider = layout.buildDirectory.file("downloads/ios-graal-jdk-21-${target.name}.zip")
+    def fingerprintProvider = layout.buildDirectory.file("downloads/ios-graal-jdk-21-${target.name}.zip.fingerprint")
     def extractDirProvider = layout.buildDirectory.dir("extracted/${target.name}")
     def normalizedDirProvider = vendorRoot.dir(target.name)
 
@@ -50,17 +62,28 @@ graalTargets.each { target ->
         group = 'iOS setup'
         description = "Downloads ios-graal-jdk-21 ${target.name} zip."
         outputs.file(zipProvider)
+        outputs.file(fingerprintProvider)
+        inputs.property('downloadFingerprint', providers.provider { downloadFingerprint(target.url, target.sha256) })
         doLast {
             def out = zipProvider.get().asFile
+            def fingerprintFile = fingerprintProvider.get().asFile
+            def fingerprint = downloadFingerprint(target.url, target.sha256)
             out.parentFile.mkdirs()
+            fingerprintFile.parentFile.mkdirs()
             if (out.exists()) {
-                println "Already downloaded: ${out}"
-                return
+                if (fingerprintFile.isFile() && fingerprintFile.text.trim() == fingerprint) {
+                    println "Already downloaded: ${out}"
+                    return
+                }
+                println "Download fingerprint changed; deleting stale ${out}"
+                delete out
+                delete fingerprintFile
             }
             println "Downloading ${target.url}"
             new URL(target.url).withInputStream { input ->
                 out.withOutputStream { output -> output << input }
             }
+            fingerprintFile.text = fingerprint + System.lineSeparator()
             println "Downloaded: ${out} (${out.length()} bytes)"
         }
     }
@@ -98,6 +121,8 @@ graalTargets.each { target ->
         group = 'iOS setup'
         description = "Normalizes ios-graal-jdk-21 ${target.name} runtime under build/libjglios/third_party/graalvm/${target.name}."
         dependsOn "extractGraalJdk${capitalized}"
+        inputs.dir(extractDirProvider)
+        inputs.property('downloadFingerprint', providers.provider { downloadFingerprint(target.url, target.sha256) })
         outputs.dir(normalizedDirProvider)
         doLast {
             def extracted = extractDirProvider.get().asFile
