@@ -4,19 +4,13 @@ description = 'Downloads and normalizes ios-graal-jdk-21 runtime artifacts for l
 import java.security.MessageDigest
 
 ext {
-    iosGraalJdkVersion = rootProject.findProperty('iosGraalJdkVersion') ?: '0.1'
-
     graalTargets = [
         [
             name: 'iphoneos-arm64',
-            url: rootProject.findProperty('iosGraalJdkIphoneOsArm64Url') ?: "https://github.com/NostrGameEngine/ios-graal-jdk-21/releases/download/${iosGraalJdkVersion}/ios-graal-jdk-21-iphoneos-arm64.zip",
-            sha256: rootProject.findProperty('iosGraalJdkIphoneOsArm64Sha256') ?: '',
             sdk: 'iphoneos'
         ],
         [
             name: 'iphonesimulator-arm64',
-            url: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Url') ?: "https://github.com/NostrGameEngine/ios-graal-jdk-21/releases/download/${iosGraalJdkVersion}/ios-graal-jdk-21-iphonesimulator-arm64.zip",
-            sha256: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Sha256') ?: '',
             sdk: 'iphonesimulator'
         ]
     ]
@@ -47,8 +41,105 @@ static String downloadFingerprint(Object url, Object sha256) {
     return "${sha256Text(url.toString())}:${configuredSha256 ?: '0'}"
 }
 
+static List<Integer> versionParts(Object value) {
+    def parts = value?.toString()?.trim()?.tokenize('.') ?: []
+    if (parts.isEmpty()) {
+        return [0]
+    }
+    return parts.collect { part ->
+        def matcher = (part =~ /^(\d+)/)
+        matcher.find() ? matcher.group(1).toInteger() : 0
+    }
+}
+
+static boolean versionLessThan(Object left, Object right) {
+    def a = versionParts(left)
+    def b = versionParts(right)
+    def max = Math.max(a.size(), b.size())
+    for (int i = 0; i < max; i++) {
+        def av = i < a.size() ? a[i] : 0
+        def bv = i < b.size() ? b[i] : 0
+        if (av != bv) {
+            return av < bv
+        }
+    }
+    return false
+}
+
 static String rel(File base, File file) {
     return base.toPath().relativize(file.toPath()).toString()
+}
+
+def blankToNull = { Object value ->
+    def text = value?.toString()?.trim()
+    text ? text : null
+}
+
+def configuredMinIosVersion = {
+    def extension = extensions.findByName('iOS') ?: extensions.findByName('libJGLIOS')
+    if (extension != null && extension.hasProperty('minIosVersion')) {
+        def value = extension.minIosVersion
+        if (value != null && value.respondsTo('getOrElse', Object)) {
+            return value.getOrElse('15.0').toString()
+        }
+        if (value != null) {
+            return value.toString()
+        }
+    }
+    def projectValue = findProperty('iOS.minIosVersion')
+        ?: findProperty('ios.minIosVersion')
+        ?: findProperty('libJGLIOS.minIosVersion')
+        ?: findProperty('libjglios.minIosVersion')
+    (projectValue ?: '15.0').toString()
+}
+
+def iosRuntimeBucket = {
+    versionLessThan(configuredMinIosVersion(), '15.0') ? '12' : '15'
+}
+
+def iosRuntimeConfig = { String targetName ->
+    def bucket = iosRuntimeBucket()
+    def configs = [
+        'iphoneos-arm64': [
+            '15': [
+                url: rootProject.findProperty('iosGraalJdkIphoneOsArm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneOsArm64Sha256')
+            ],
+            '12': [
+                url: rootProject.findProperty('iosGraalJdkIphoneOs12Arm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneOs12Arm64Sha256')
+            ]
+        ],
+        'iphonesimulator-arm64': [
+            '15': [
+                url: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Sha256')
+            ],
+            '12': [
+                url: rootProject.findProperty('iosGraalJdkIphoneSimulator12Arm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneSimulator12Arm64Sha256')
+            ]
+        ]
+    ]
+    def targetConfig = configs[targetName]
+    if (targetConfig == null) {
+        throw new GradleException("Unknown iOS Graal runtime target: ${targetName}")
+    }
+    def fallbackBucket = bucket == '12' ? '15' : '12'
+    def selected = targetConfig[bucket]
+    def fallback = targetConfig[fallbackBucket]
+    def selectedUrl = blankToNull(selected.url)
+    def fallbackUrl = blankToNull(fallback.url)
+    if (selectedUrl != null) {
+        return [bucket: bucket, url: selectedUrl, sha256: blankToNull(selected.sha256) ?: '']
+    }
+    if (fallbackUrl != null) {
+        return [bucket: fallbackBucket, url: fallbackUrl, sha256: blankToNull(fallback.sha256) ?: '']
+    }
+    throw new GradleException(
+        "No ios-graal-jdk-21 URL configured for ${targetName}. " +
+        "Set the iOS 15 URL or the iOS 12 fallback URL in gradle.properties."
+    )
 }
 
 graalTargets.each { target ->
@@ -63,11 +154,15 @@ graalTargets.each { target ->
         description = "Downloads ios-graal-jdk-21 ${target.name} zip."
         outputs.file(zipProvider)
         outputs.file(fingerprintProvider)
-        inputs.property('downloadFingerprint', providers.provider { downloadFingerprint(target.url, target.sha256) })
+        inputs.property('downloadFingerprint', providers.provider {
+            def config = iosRuntimeConfig(target.name)
+            "${config.bucket}:${downloadFingerprint(config.url, config.sha256)}"
+        })
         doLast {
             def out = zipProvider.get().asFile
             def fingerprintFile = fingerprintProvider.get().asFile
-            def fingerprint = downloadFingerprint(target.url, target.sha256)
+            def config = iosRuntimeConfig(target.name)
+            def fingerprint = "${config.bucket}:${downloadFingerprint(config.url, config.sha256)}"
             out.parentFile.mkdirs()
             fingerprintFile.parentFile.mkdirs()
             if (out.exists()) {
@@ -79,8 +174,8 @@ graalTargets.each { target ->
                 delete out
                 delete fingerprintFile
             }
-            println "Downloading ${target.url}"
-            new URL(target.url).withInputStream { input ->
+            println "Downloading ${config.url}"
+            new URL(config.url).withInputStream { input ->
                 out.withOutputStream { output -> output << input }
             }
             fingerprintFile.text = fingerprint + System.lineSeparator()
@@ -94,13 +189,14 @@ graalTargets.each { target ->
         dependsOn "downloadGraalJdk${capitalized}"
         inputs.file(zipProvider)
         doLast {
-            if (!target.sha256) {
+            def config = iosRuntimeConfig(target.name)
+            if (!config.sha256) {
                 println "No SHA-256 configured for ${target.name}; skipping checksum verification."
                 return
             }
             def actual = sha256Of(zipProvider.get().asFile)
-            if (!actual.equalsIgnoreCase(target.sha256 as String)) {
-                throw new GradleException("Checksum mismatch for ${target.name}. Expected ${target.sha256}, got ${actual}")
+            if (!actual.equalsIgnoreCase(config.sha256 as String)) {
+                throw new GradleException("Checksum mismatch for ${target.name}. Expected ${config.sha256}, got ${actual}")
             }
             println "Verified ${target.name} SHA-256: ${actual}"
         }
@@ -122,7 +218,10 @@ graalTargets.each { target ->
         description = "Normalizes ios-graal-jdk-21 ${target.name} runtime under build/libjglios/third_party/graalvm/${target.name}."
         dependsOn "extractGraalJdk${capitalized}"
         inputs.dir(extractDirProvider)
-        inputs.property('downloadFingerprint', providers.provider { downloadFingerprint(target.url, target.sha256) })
+        inputs.property('downloadFingerprint', providers.provider {
+            def config = iosRuntimeConfig(target.name)
+            "${config.bucket}:${downloadFingerprint(config.url, config.sha256)}"
+        })
         outputs.dir(normalizedDirProvider)
         doLast {
             def extracted = extractDirProvider.get().asFile

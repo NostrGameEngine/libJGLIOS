@@ -112,19 +112,105 @@ def libJGLIOSDownloadFingerprint = { Object url, Object sha256 ->
     "${libJGLIOSSha256Text(url.toString())}:${configuredSha256 ?: '0'}"
 }
 
+def libJGLIOSBlankToNull = { Object value ->
+    def text = value?.toString()?.trim()
+    text ? text : null
+}
+
+def libJGLIOSVersionParts = { Object value ->
+    value?.toString()
+        ?.trim()
+        ?.tokenize('.')
+        ?.collect { part ->
+            def matcher = (part =~ /^(\d+)/)
+            matcher.find() ? matcher.group(1).toInteger() : 0
+        } ?: [0]
+}
+
+def libJGLIOSVersionLessThan = { Object left, Object right ->
+    def a = libJGLIOSVersionParts(left)
+    def b = libJGLIOSVersionParts(right)
+    def max = Math.max(a.size(), b.size())
+    for (int i = 0; i < max; i++) {
+        def av = i < a.size() ? a[i] : 0
+        def bv = i < b.size() ? b[i] : 0
+        if (av != bv) {
+            return av < bv
+        }
+    }
+    false
+}
+
+def libJGLIOSConfiguredMinIosVersion = {
+    def extension = extensions.findByName('iOS') ?: extensions.findByName('libJGLIOS')
+    if (extension != null && extension.hasProperty('minIosVersion')) {
+        def value = extension.minIosVersion
+        if (value != null && value.respondsTo('getOrElse', Object)) {
+            return value.getOrElse('15.0').toString()
+        }
+        if (value != null) {
+            return value.toString()
+        }
+    }
+    def projectValue = findProperty('iOS.minIosVersion')
+        ?: findProperty('ios.minIosVersion')
+        ?: findProperty('libJGLIOS.minIosVersion')
+        ?: findProperty('libjglios.minIosVersion')
+    (projectValue ?: '15.0').toString()
+}
+
+def libJGLIOSIosRuntimeBucket = {
+    libJGLIOSVersionLessThan(libJGLIOSConfiguredMinIosVersion(), '15.0') ? '12' : '15'
+}
+
+def libJGLIOSIosRuntimeConfig = { String targetName ->
+    def bucket = libJGLIOSIosRuntimeBucket()
+    def configs = [
+        'iphoneos-arm64': [
+            '15': [
+                url: rootProject.findProperty('iosGraalJdkIphoneOsArm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneOsArm64Sha256')
+            ],
+            '12': [
+                url: rootProject.findProperty('iosGraalJdkIphoneOs12Arm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneOs12Arm64Sha256')
+            ]
+        ],
+        'iphonesimulator-arm64': [
+            '15': [
+                url: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Sha256')
+            ],
+            '12': [
+                url: rootProject.findProperty('iosGraalJdkIphoneSimulator12Arm64Url'),
+                sha256: rootProject.findProperty('iosGraalJdkIphoneSimulator12Arm64Sha256')
+            ]
+        ]
+    ]
+    def targetConfig = configs[targetName]
+    if (targetConfig == null) {
+        throw new GradleException("Unknown iOS Graal runtime target: ${targetName}")
+    }
+    def fallbackBucket = bucket == '12' ? '15' : '12'
+    def selected = targetConfig[bucket]
+    def fallback = targetConfig[fallbackBucket]
+    def selectedUrl = libJGLIOSBlankToNull(selected.url)
+    def fallbackUrl = libJGLIOSBlankToNull(fallback.url)
+    if (selectedUrl != null) {
+        return [bucket: bucket, url: selectedUrl, sha256: libJGLIOSBlankToNull(selected.sha256) ?: '']
+    }
+    if (fallbackUrl != null) {
+        return [bucket: fallbackBucket, url: fallbackUrl, sha256: libJGLIOSBlankToNull(fallback.sha256) ?: '']
+    }
+    throw new GradleException(
+        "No ios-graal-jdk-21 URL configured for ${targetName}. " +
+        "Set the iOS 15 URL or the iOS 12 fallback URL in gradle.properties."
+    )
+}
+
 def libJGLIOSIosRuntimeFingerprint = { String targetName ->
-    def version = rootProject.findProperty('iosGraalJdkVersion') ?: '0.1'
-    if (targetName == 'iphoneos-arm64') {
-        def url = rootProject.findProperty('iosGraalJdkIphoneOsArm64Url') ?: "https://github.com/NostrGameEngine/ios-graal-jdk-21/releases/download/${version}/ios-graal-jdk-21-iphoneos-arm64.zip"
-        def sha256 = rootProject.findProperty('iosGraalJdkIphoneOsArm64Sha256') ?: ''
-        return libJGLIOSDownloadFingerprint(url, sha256)
-    }
-    if (targetName == 'iphonesimulator-arm64') {
-        def url = rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Url') ?: "https://github.com/NostrGameEngine/ios-graal-jdk-21/releases/download/${version}/ios-graal-jdk-21-iphonesimulator-arm64.zip"
-        def sha256 = rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Sha256') ?: ''
-        return libJGLIOSDownloadFingerprint(url, sha256)
-    }
-    throw new GradleException("Unknown iOS Graal runtime target: ${targetName}")
+    def config = libJGLIOSIosRuntimeConfig(targetName)
+    "${config.bucket}:${libJGLIOSDownloadFingerprint(config.url, config.sha256)}"
 }
 
 def libJGLIOSHostNikFingerprint = {
@@ -144,7 +230,7 @@ def libJGLIOSHostNikFingerprint = {
 }
 
 def libJGLIOSCapCacheFingerprint = { String targetName ->
-    "cap-cache-v1:${targetName}:${libJGLIOSIosRuntimeFingerprint(targetName)}:${libJGLIOSHostNikFingerprint()}"
+    "cap-cache-v2:${targetName}:min-ios=${libJGLIOSConfiguredMinIosVersion()}:${libJGLIOSIosRuntimeFingerprint(targetName)}:${libJGLIOSHostNikFingerprint()}"
 }
 
 def libJGLIOSCapCacheFingerprintFile = { File capDir ->
