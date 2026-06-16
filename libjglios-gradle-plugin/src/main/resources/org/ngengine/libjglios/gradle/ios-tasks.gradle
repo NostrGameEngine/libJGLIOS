@@ -618,6 +618,7 @@ def libJGLIOSSimulatorTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion(
 def libJGLIOSDeviceTargetTriple = { "arm64-apple-ios${libJGLIOSMinIosVersion()}" }
 def libJGLIOSResolvedSigningIdentities = [:]
 def libJGLIOSResolvedProvisioningProfiles = [:]
+def libJGLIOSAutomaticProvisioningResults = [:]
 def libJGLIOSIosDeviceCommandTimeoutSeconds = {
     def value = findProperty('iosDeviceCommandTimeoutSeconds') ?: providers.environmentVariable('IOS_DEVICE_COMMAND_TIMEOUT_SECONDS').orNull ?: '120'
     value.toString().trim()
@@ -1506,6 +1507,7 @@ ${teamLine}                INFOPLIST_FILE = Info.plist;
 }
 
 def libJGLIOSXcodeAutomaticProvisioningProfile = { String signingType ->
+    libJGLIOSAutomaticProvisioningResults.remove(signingType)
     if (!libJGLIOSXcodeProvisioningAutoCreate() || !libJGLIOSBundleIdAutoCreate()) {
         return null
     }
@@ -1521,6 +1523,10 @@ def libJGLIOSXcodeAutomaticProvisioningProfile = { String signingType ->
         '-derivedDataPath', new File(projectRoot, 'DerivedData').absolutePath,
         '-allowProvisioningUpdates'
     ]
+    def teamId = libJGLIOSXcodeConfiguredTeamId()
+    if (teamId) {
+        args.add("DEVELOPMENT_TEAM=${teamId}")
+    }
     if (signingType == 'debug') {
         args.add('-allowProvisioningDeviceRegistration')
         def target = libJGLIOSIosAppRunTarget()
@@ -1537,12 +1543,22 @@ def libJGLIOSXcodeAutomaticProvisioningProfile = { String signingType ->
     try {
         runCommand(args)
     } catch (GradleException failure) {
+        libJGLIOSAutomaticProvisioningResults[signingType] = failure.message
         logger.lifecycle("""Xcode automatic provisioning did not resolve a ${libJGLIOSProfileLabel(signingType)} profile.
 ${failure.message}""")
         return null
     }
     libJGLIOSResolvedSigningIdentities.remove(signingType)
-    libJGLIOSValidLocalProvisioningProfile(signingType)?.file?.absolutePath
+    def profile = libJGLIOSValidLocalProvisioningProfile(signingType)?.file?.absolutePath
+    if (!profile) {
+        def dirs = libJGLIOSProvisioningProfileDirs()
+        def dirsMessage = dirs.isEmpty()
+            ? 'No local Xcode provisioning profile directories exist.'
+            : "Searched local Xcode provisioning profile directories:\n" + dirs.collect { "  ${it.absolutePath}" }.join('\n')
+        libJGLIOSAutomaticProvisioningResults[signingType] = """Xcode automatic signing completed, but no matching unexpired ${libJGLIOSProfileLabel(signingType)} profile for ${libJGLIOSBundleId()} was found locally.
+${dirsMessage}"""
+    }
+    profile
 }
 
 def libJGLIOSProvisioningProfile = { String signingType ->
@@ -1595,8 +1611,12 @@ def libJGLIOSValidateSigning = { String signingType ->
                 "  ${it.name} (${it.applicationIdentifier}) expired ${it.expiration}: ${it.file.absolutePath}"
             }.join('\n')
         def simulatorHint = signingType == 'debug' ? '\nUse -PiosAppTarget=simulator to run without device signing.' : ''
+        def automaticProvisioningResult = libJGLIOSAutomaticProvisioningResults[signingType]
+        def automaticProvisioningMessage = automaticProvisioningResult
+            ? "\n\nXcode automatic signing result:\n${automaticProvisioningResult}"
+            : ''
         throw new GradleException("""No valid ${libJGLIOSProfileLabel(signingType)} iOS provisioning profile was found for ${bundleId}.${expiredMessage}
-Add your Apple ID in Xcode Settings > Accounts so libJGLIOS can use Xcode automatic signing, or pass -Pios${signingType == 'release' ? 'Release' : 'Debug'}ProvisioningProfile=/path/to/profile.mobileprovision.${simulatorHint}""")
+Add your Apple ID in Xcode Settings > Accounts so libJGLIOS can use Xcode automatic signing, pass -PiosTeamId=<team-id> when Xcode cannot choose the team, or pass -Pios${signingType == 'release' ? 'Release' : 'Debug'}ProvisioningProfile=/path/to/profile.mobileprovision.${simulatorHint}${automaticProvisioningMessage}""")
     }
 
     def identity = libJGLIOSSigningIdentity(signingType)
