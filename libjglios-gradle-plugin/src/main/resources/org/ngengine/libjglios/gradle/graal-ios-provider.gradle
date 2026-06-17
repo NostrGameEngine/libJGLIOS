@@ -3,6 +3,30 @@ description = 'Downloads and normalizes ios-graal-jdk-21 runtime artifacts for l
 
 import java.security.MessageDigest
 
+def libJGLIOSDefaultsResourcePath = 'org/ngengine/libjglios/gradle/libjglios-defaults.properties'
+def libJGLIOSDefaultProperties = new Properties()
+def libJGLIOSDefaultsResource = [
+    getClass().classLoader,
+    Thread.currentThread().contextClassLoader,
+    buildscript.classLoader
+].findResult { loader ->
+    loader?.getResource(libJGLIOSDefaultsResourcePath)
+}
+if (libJGLIOSDefaultsResource != null) {
+    libJGLIOSDefaultsResource.withInputStream { input ->
+        libJGLIOSDefaultProperties.load(input)
+    }
+}
+
+def libJGLIOSProperty = { String name ->
+    def projectValue = rootProject.findProperty(name)
+    if (projectValue != null) {
+        return projectValue
+    }
+    def defaultValue = libJGLIOSDefaultProperties.getProperty(name)
+    defaultValue?.trim() ? defaultValue : null
+}
+
 ext {
     graalTargets = [
         [
@@ -102,22 +126,22 @@ def iosRuntimeConfig = { String targetName ->
     def configs = [
         'iphoneos-arm64': [
             '15': [
-                url: rootProject.findProperty('iosGraalJdkIphoneOsArm64Url'),
-                sha256: rootProject.findProperty('iosGraalJdkIphoneOsArm64Sha256')
+                url: libJGLIOSProperty('iosGraalJdkIphoneOsArm64Url'),
+                sha256: libJGLIOSProperty('iosGraalJdkIphoneOsArm64Sha256')
             ],
             '12': [
-                url: rootProject.findProperty('iosGraalJdkIphoneOs12Arm64Url'),
-                sha256: rootProject.findProperty('iosGraalJdkIphoneOs12Arm64Sha256')
+                url: libJGLIOSProperty('iosGraalJdkIphoneOs12Arm64Url'),
+                sha256: libJGLIOSProperty('iosGraalJdkIphoneOs12Arm64Sha256')
             ]
         ],
         'iphonesimulator-arm64': [
             '15': [
-                url: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Url'),
-                sha256: rootProject.findProperty('iosGraalJdkIphoneSimulatorArm64Sha256')
+                url: libJGLIOSProperty('iosGraalJdkIphoneSimulatorArm64Url'),
+                sha256: libJGLIOSProperty('iosGraalJdkIphoneSimulatorArm64Sha256')
             ],
             '12': [
-                url: rootProject.findProperty('iosGraalJdkIphoneSimulator12Arm64Url'),
-                sha256: rootProject.findProperty('iosGraalJdkIphoneSimulator12Arm64Sha256')
+                url: libJGLIOSProperty('iosGraalJdkIphoneSimulator12Arm64Url'),
+                sha256: libJGLIOSProperty('iosGraalJdkIphoneSimulator12Arm64Sha256')
             ]
         ]
     ]

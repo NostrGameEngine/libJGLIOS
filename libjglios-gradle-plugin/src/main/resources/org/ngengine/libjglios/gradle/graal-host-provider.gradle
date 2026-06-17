@@ -3,9 +3,33 @@ description = 'Downloads and normalizes the host Liberica Native Image Kit used 
 
 import java.security.MessageDigest
 
+def libJGLIOSDefaultsResourcePath = 'org/ngengine/libjglios/gradle/libjglios-defaults.properties'
+def libJGLIOSDefaultProperties = new Properties()
+def libJGLIOSDefaultsResource = [
+    getClass().classLoader,
+    Thread.currentThread().contextClassLoader,
+    buildscript.classLoader
+].findResult { loader ->
+    loader?.getResource(libJGLIOSDefaultsResourcePath)
+}
+if (libJGLIOSDefaultsResource != null) {
+    libJGLIOSDefaultsResource.withInputStream { input ->
+        libJGLIOSDefaultProperties.load(input)
+    }
+}
+
+def libJGLIOSProperty = { String name ->
+    def projectValue = rootProject.findProperty(name)
+    if (projectValue != null) {
+        return projectValue
+    }
+    def defaultValue = libJGLIOSDefaultProperties.getProperty(name)
+    defaultValue?.trim() ? defaultValue : null
+}
+
 ext {
-    libericaNikVersion = rootProject.findProperty('libericaNikVersion') ?: '23.1.3'
-    libericaNikJavaVersion = rootProject.findProperty('libericaNikJavaVersion') ?: '21.0.3+10'
+    libericaNikVersion = libJGLIOSProperty('libericaNikVersion') ?: '23.1.3'
+    libericaNikJavaVersion = libJGLIOSProperty('libericaNikJavaVersion') ?: '21.0.3+10'
 
     def _hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
     def _isAmd64 = (_hostArch == 'x86_64' || _hostArch == 'amd64')
@@ -14,16 +38,16 @@ ext {
     def _defaultAmd64Url   = "https://download.bell-sw.com/vm/${libericaNikVersion}/bellsoft-liberica-vm-openjdk${libericaNikJavaVersion}-${libericaNikVersion}+1-macos-amd64.zip"
 
     if (_isAmd64) {
-        libericaNikUrl    = rootProject.findProperty('libericaNikUrlAMD64') ?: _defaultAmd64Url
-        libericaNikSha256 = rootProject.findProperty('libericaNikSha256AMD64') ?: ''
+        libericaNikUrl    = libJGLIOSProperty('libericaNikUrlAMD64') ?: _defaultAmd64Url
+        libericaNikSha256 = libJGLIOSProperty('libericaNikSha256AMD64') ?: ''
     } else {
-        libericaNikUrl    = rootProject.findProperty('libericaNikUrl') ?: _defaultAarch64Url
-        libericaNikSha256 = rootProject.findProperty('libericaNikSha256') ?: ''
+        libericaNikUrl    = libJGLIOSProperty('libericaNikUrl') ?: _defaultAarch64Url
+        libericaNikSha256 = libJGLIOSProperty('libericaNikSha256') ?: ''
     }
 
-    libericaNikDownloadRetries = (rootProject.findProperty('libericaNikDownloadRetries') ?: '3').toString().toInteger()
-    libericaNikDownloadRetryCooldownSeconds = (rootProject.findProperty('libericaNikDownloadRetryCooldownSeconds') ?: '10').toString().toInteger()
-    iosGraalHostHome = rootProject.findProperty('iosGraalHostHome') ?: ''
+    libericaNikDownloadRetries = (libJGLIOSProperty('libericaNikDownloadRetries') ?: '3').toString().toInteger()
+    libericaNikDownloadRetryCooldownSeconds = (libJGLIOSProperty('libericaNikDownloadRetryCooldownSeconds') ?: '10').toString().toInteger()
+    iosGraalHostHome = libJGLIOSProperty('iosGraalHostHome') ?: ''
     def _archTag = _isAmd64 ? 'macos-amd64' : 'macos-aarch64'
     hostRoot = rootProject.layout.buildDirectory.dir("libjglios/third_party/graalvm-host/liberica-nik-23.1.3-${_archTag}").get()
     graalHomeMarker = hostRoot.file('GRAAL_HOME.txt')

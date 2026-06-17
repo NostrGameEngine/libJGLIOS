@@ -12,7 +12,32 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.ext.junitVersion}"
 }
 
+def generatedDefaultsDir = layout.buildDirectory.dir('generated/resources/libjgliosDefaults')
+def bundledDefaultsFile = rootProject.file('plugin.properties')
+
+tasks.register('generateLibJGLIOSPluginDefaults') {
+    def outputFile = generatedDefaultsDir.map {
+        it.file('org/ngengine/libjglios/gradle/libjglios-defaults.properties')
+    }
+    outputs.file(outputFile)
+    inputs.file(bundledDefaultsFile)
+    doLast {
+        def properties = new Properties()
+        bundledDefaultsFile.withInputStream { input ->
+            properties.load(input)
+        }
+        def file = outputFile.get().asFile
+        file.parentFile.mkdirs()
+        file.text = properties.stringPropertyNames()
+            .sort()
+            .collect { name -> "${name}=${properties.getProperty(name)}" }
+            .join(System.lineSeparator()) + System.lineSeparator()
+    }
+}
+
 tasks.named('processResources') {
+    from(generatedDefaultsDir)
+    dependsOn 'generateLibJGLIOSPluginDefaults'
     into('org/ngengine/libjglios/gradle/native') {
         from(rootProject.file('core-ios/src/main/native')) {
             include 'libjglios_ios_app.mm'
