@@ -2,8 +2,32 @@ import groovy.json.JsonOutput
 
 import java.util.Locale
 
-ext.libJGLIOSIosMinVersion = {
-    (rootProject.findProperty('libJGLIOSMinIosVersion') ?: rootProject.findProperty('libjglios.minIosVersion') ?: '15.0').toString()
+ext.libJGLIOSBuildForIosVersion = {
+    (rootProject.findProperty('libJGLIOSBuildForIosVersion') ?: rootProject.findProperty('libjglios.buildForIosVersion') ?: '12.0').toString()
+}
+
+ext.libJGLIOSVersionParts = { Object value ->
+    value?.toString()
+        ?.trim()
+        ?.tokenize('.')
+        ?.collect { part ->
+            def matcher = (part =~ /^(\d+)/)
+            matcher.find() ? matcher.group(1).toInteger() : 0
+        } ?: [0]
+}
+
+ext.libJGLIOSVersionLessThan = { Object left, Object right ->
+    def a = project.ext.libJGLIOSVersionParts(left)
+    def b = project.ext.libJGLIOSVersionParts(right)
+    def max = Math.max(a.size(), b.size())
+    for (int i = 0; i < max; i++) {
+        def av = i < a.size() ? a[i] : 0
+        def bv = i < b.size() ? b[i] : 0
+        if (av != bv) {
+            return av < bv
+        }
+    }
+    false
 }
 
 ext.libJGLIOSXcrun = { List<String> argsList ->
@@ -35,6 +59,24 @@ ext.libJGLIOSRunCommand = { List<String> argsList, File workingDir = project.pro
     if (exitValue != 0) {
         throw new GradleException("Command failed (${exitValue}): ${argsList.join(' ')}")
     }
+}
+
+ext.libJGLIOSClangSupportsFlag = { String clangPath, String flag, String sdkPath, String target ->
+    def process = new ProcessBuilder([
+        clangPath,
+        '-target', target,
+        '-isysroot', sdkPath,
+        '-x', 'objective-c++',
+        '-fsyntax-only',
+        flag,
+        '-'
+    ])
+        .directory(project.projectDir)
+        .redirectErrorStream(true)
+        .start()
+    process.outputStream.close()
+    process.inputStream.transferTo(new ByteArrayOutputStream())
+    process.waitFor() == 0
 }
 
 ext.libJGLIOSWriteFrameworkInfoPlist = { File plistFile, String frameworkName, String bundleId, String minIosVersion ->
@@ -120,7 +162,7 @@ ext.libJGLIOSStaticIosFramework = { Map config ->
         outputs.file(metadataFile)
 
         doLast {
-            def minIosVersion = project.ext.libJGLIOSIosMinVersion()
+            def buildForIosVersion = project.ext.libJGLIOSBuildForIosVersion()
             def javaHome = (System.getenv('JAVA_HOME') ?: System.getProperty('java.home'))
             def commonIncludes = [
                 new File(javaHome, 'include'),
@@ -149,6 +191,11 @@ ext.libJGLIOSStaticIosFramework = { Map config ->
             def buildSlice = { String sdk, String target, String sliceName ->
                 def sdkPath = project.ext.libJGLIOSXcrun(['--sdk', sdk, '--show-sdk-path'])
                 def clangPath = project.ext.libJGLIOSXcrun(['--sdk', sdk, '--find', 'clang++'])
+                def objectiveCFlags = []
+                if (project.ext.libJGLIOSVersionLessThan(buildForIosVersion, '15.0') &&
+                    project.ext.libJGLIOSClangSupportsFlag(clangPath, '-fno-objc-msgsend-selector-stubs', sdkPath, target)) {
+                    objectiveCFlags << '-fno-objc-msgsend-selector-stubs'
+                }
                 def sliceDir = new File(root, sliceName)
                 def objectDir = new File(sliceDir, 'objects')
                 def frameworkDir = new File(sliceDir, "${frameworkName}.framework")
@@ -174,6 +221,7 @@ ext.libJGLIOSStaticIosFramework = { Map config ->
                         '-DGL_GLEXT_PROTOTYPES=1',
                         '-DEGL_EGLEXT_PROTOTYPES=1'
                     ]
+                    args.addAll(objectiveCFlags)
                     commonIncludes.each { includeDir ->
                         args.addAll(['-I', includeDir.absolutePath])
                     }
@@ -192,13 +240,13 @@ ext.libJGLIOSStaticIosFramework = { Map config ->
                     new File(frameworkDir, 'Info.plist'),
                     frameworkName,
                     "org.ngengine.libjglios.${frameworkName.toLowerCase(Locale.ROOT)}",
-                    minIosVersion
+                    buildForIosVersion
                 )
                 frameworkDir
             }
 
-            def deviceFramework = buildSlice('iphoneos', "arm64-apple-ios${minIosVersion}", 'ios-arm64')
-            def simulatorFramework = buildSlice('iphonesimulator', "arm64-apple-ios${minIosVersion}-simulator", 'ios-arm64-simulator')
+            def deviceFramework = buildSlice('iphoneos', "arm64-apple-ios${buildForIosVersion}", 'ios-arm64')
+            def simulatorFramework = buildSlice('iphonesimulator', "arm64-apple-ios${buildForIosVersion}-simulator", 'ios-arm64-simulator')
             delete xcframeworkDir.get().asFile
             project.ext.libJGLIOSRunCommand([
                 'xcodebuild',
