@@ -1261,11 +1261,36 @@ def libJGLIOSPlistValue = { File plist, String keyPath ->
     }
 }
 
+def libJGLIOSXmlUnescape = { String value ->
+    value
+        .replace('&lt;', '<')
+        .replace('&gt;', '>')
+        .replace('&quot;', '"')
+        .replace('&apos;', "'")
+        .replace('&amp;', '&')
+}
+
+def libJGLIOSXmlPlistScalarValue = { String xmlOutput ->
+    if ((xmlOutput =~ /<true\s*\/>/).find()) {
+        return 'true'
+    }
+    if ((xmlOutput =~ /<false\s*\/>/).find()) {
+        return 'false'
+    }
+    def scalarMatcher = xmlOutput =~ /(?s)<(string|date|integer|real)>(.*?)<\/\1>/
+    scalarMatcher.find() ? libJGLIOSXmlUnescape(scalarMatcher.group(2)) : null
+}
+
 def libJGLIOSPlistRawValue = { File plist, String keyPath ->
     try {
         captureCommand(['plutil', '-extract', keyPath, 'raw', '-o', '-', plist.absolutePath])
     } catch (GradleException ignored) {
-        null
+        try {
+            def xmlOutput = captureCommand(['plutil', '-extract', keyPath, 'xml1', '-o', '-', plist.absolutePath])
+            libJGLIOSXmlPlistScalarValue(xmlOutput)
+        } catch (GradleException ignored2) {
+            null
+        }
     }
 }
 
