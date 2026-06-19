@@ -5,12 +5,17 @@ import java.security.MessageDigest
 
 def libJGLIOSDefaultsResourcePath = 'org/ngengine/libjglios/gradle/libjglios-defaults.properties'
 def libJGLIOSDefaultProperties = new Properties()
-def libJGLIOSDefaultsResource = [
-    getClass().classLoader,
-    Thread.currentThread().contextClassLoader,
-    buildscript.classLoader
-].findResult { loader ->
-    loader?.getResource(libJGLIOSDefaultsResourcePath)
+def libJGLIOSDefaultsResource = project.extensions.extraProperties.has('libJGLIOSDefaultsResource')
+    ? project.extensions.extraProperties.get('libJGLIOSDefaultsResource')
+    : null
+if (libJGLIOSDefaultsResource == null) {
+    libJGLIOSDefaultsResource = [
+        getClass().classLoader,
+        Thread.currentThread().contextClassLoader,
+        buildscript.classLoader
+    ].findAll { it != null }.findResult { loader ->
+        loader.getResource(libJGLIOSDefaultsResourcePath)
+    }
 }
 if (libJGLIOSDefaultsResource != null) {
     libJGLIOSDefaultsResource.withInputStream { input ->

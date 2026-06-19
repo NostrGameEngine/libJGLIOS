@@ -47,7 +47,12 @@ def libJGLIOSResource = { String path ->
 }
 
 def libJGLIOSDefaultProperties = new Properties()
-def libJGLIOSDefaultsResource = libJGLIOSResource('org/ngengine/libjglios/gradle/libjglios-defaults.properties')
+def libJGLIOSDefaultsResource = project.extensions.extraProperties.has('libJGLIOSDefaultsResource')
+    ? project.extensions.extraProperties.get('libJGLIOSDefaultsResource')
+    : null
+if (libJGLIOSDefaultsResource == null) {
+    libJGLIOSDefaultsResource = libJGLIOSResource('org/ngengine/libjglios/gradle/libjglios-defaults.properties')
+}
 if (libJGLIOSDefaultsResource != null) {
     libJGLIOSDefaultsResource.withInputStream { input ->
         libJGLIOSDefaultProperties.load(input)

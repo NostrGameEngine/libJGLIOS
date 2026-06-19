@@ -4,6 +4,8 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 class LibJGLIOSGradlePlugin implements Plugin<Project> {
+    private static final String DEFAULTS_RESOURCE_PATH = 'org/ngengine/libjglios/gradle/libjglios-defaults.properties'
+
     void apply(Project project) {
         project.pluginManager.apply('java-library')
 
@@ -28,6 +30,11 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
 
         registerGeneratedEntrypointsTask(project, extension)
         registerMaterializeNativeSourcesTask(project)
+
+        project.extensions.extraProperties.set(
+            'libJGLIOSDefaultsResource',
+            LibJGLIOSGradlePlugin.classLoader.getResource(DEFAULTS_RESOURCE_PATH)
+        )
 
         [
             'graal-host-provider.gradle',
