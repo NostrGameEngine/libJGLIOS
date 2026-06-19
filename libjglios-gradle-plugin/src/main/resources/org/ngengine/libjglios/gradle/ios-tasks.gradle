@@ -725,6 +725,30 @@ ext {
     graalDeviceLibJvm = libJGLIOSThirdPartyFile('graalvm/iphoneos-arm64/libjvm-release.a')
 }
 
+def libJGLIOSCommandFailureAdvice = { List<String> normalizedCommand, CharSequence output ->
+    def text = output?.toString() ?: ''
+    def isDeviceLaunch = normalizedCommand.contains('devicectl')
+        && normalizedCommand.contains('process')
+        && normalizedCommand.contains('launch')
+    def isTrustFailure = text.contains('has not been explicitly trusted by the user')
+        || text.contains('invalid code signature, inadequate entitlements')
+    if (isDeviceLaunch && isTrustFailure) {
+        return """
+
+iOS installed the app but refused to launch it because the developer certificate or provisioning profile is not trusted on the device.
+On the iPhone or iPad:
+
+  1. Open Settings > General > VPN & Device Management.
+  2. Open the Developer App entry for your Apple ID or team.
+  3. Tap Trust, confirm, then rerun the Gradle task.
+
+If the device asks for Developer Mode instead, enable Settings > Privacy & Security > Developer Mode, restart the device, and retry.
+If it is already trusted, check that the provisioning profile includes this device and that the app entitlements match the profile.
+"""
+    }
+    ''
+}
+
 def captureCommand = { List<String> command, Map<String, String> environment = [:], File workingDirectory = null ->
     def normalizedCommand = command.collect { it.toString() }
     def processBuilder = new ProcessBuilder(normalizedCommand)
@@ -753,7 +777,7 @@ Open Terminal and run:
 
 Then retry the Gradle task.""")
         }
-        throw new GradleException("Command failed (${normalizedCommand.join(' ')}):\n${output}")
+        throw new GradleException("Command failed (${normalizedCommand.join(' ')}):\n${output}${libJGLIOSCommandFailureAdvice(normalizedCommand, output)}")
     }
     output.trim()
 }
@@ -783,7 +807,7 @@ def streamCommand = { List<String> command, Map<String, String> environment = [:
     }
     def exitCode = process.waitFor()
     if (exitCode != 0) {
-        throw new GradleException("Command failed (${normalizedCommand.join(' ')}):\n${output}")
+        throw new GradleException("Command failed (${normalizedCommand.join(' ')}):\n${output}${libJGLIOSCommandFailureAdvice(normalizedCommand, output)}")
     }
     output.toString().trim()
 }
