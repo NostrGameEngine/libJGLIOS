@@ -17,7 +17,7 @@ float libjglios_egl_display_scale(void);
 const char* libjglios_egl_last_error(void);
 void libjglios_egl_shutdown(void);
 void libjglios_input_enqueue_sdl_event(const void* event);
-bool libjglios_input_poll_event(int intData[4], float floatData[4]);
+bool libjglios_input_poll_event(int intData[5], float floatData[4]);
 void libjglios_app_request_quit(void);
 void libjglios_app_reset_quit_request(void);
 bool libjglios_app_quit_requested(void);

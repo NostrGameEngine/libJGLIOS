@@ -279,6 +279,7 @@ public final class SDL3 {
     public static native int[] SDL_GetGamepads();
     public static native int SDL_GetGlobalProperties();
     public static native String SDL_GetHint(String name);
+    public static native int SDL_GetKeyFromScancode(int scancode, int modstate, boolean keyEvent);
     public static native String SDL_GetKeyName(int key);
     public static native int SDL_GetMouseState(float[] x, float[] y);
     public static native String SDL_GetJoystickName(long joystick);

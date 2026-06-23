@@ -221,6 +221,14 @@ JNIEXPORT jstring JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetHint(JNI
     return env->NewStringUTF(result);
 }
 
+JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetKeyFromScancode(JNIEnv*, jclass, jint scancode, jint modstate, jboolean keyEvent) {
+    auto result = SDL_GetKeyFromScancode(
+        static_cast<SDL_Scancode>(scancode),
+        static_cast<SDL_Keymod>(modstate),
+        keyEvent == JNI_TRUE);
+    return static_cast<jint>(result);
+}
+
 JNIEXPORT jstring JNICALL Java_org_ngengine_libjglios_sdl3_SDL3_SDL_1GetKeyName(JNIEnv* env, jclass, jint key) {
     const char* result = SDL_GetKeyName(key);
     if (result == nullptr) {
