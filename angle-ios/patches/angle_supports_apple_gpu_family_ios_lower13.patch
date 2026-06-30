@@ -2,7 +2,7 @@ diff --git a/src/libANGLE/renderer/metal/mtl_utils.mm b/src/libANGLE/renderer/me
 index acb165ef23..d24124206c 100644
 --- a/src/libANGLE/renderer/metal/mtl_utils.mm
 +++ b/src/libANGLE/renderer/metal/mtl_utils.mm
-@@ -1373,34 +1373,40 @@ bool DeviceHasMaximumRenderTargetSize(id<MTLDevice> device)
+@@ -1373,34 +1373,41 @@ bool DeviceHasMaximumRenderTargetSize(id<MTLDevice> device)
  
  bool SupportsAppleGPUFamily(id<MTLDevice> device, uint8_t appleFamily)
  {
@@ -63,8 +63,9 @@ index acb165ef23..d24124206c 100644
      }
 -    return [device supportsFamily:family];
 +#    pragma clang diagnostic pop
-+#endif
++#else
 +    return false;
++#endif
  }
  
  bool SupportsMacGPUFamily(id<MTLDevice> device, uint8_t macFamily)
