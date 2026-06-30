@@ -1,5 +1,50 @@
+diff --git a/src/libANGLE/renderer/metal/DisplayMtl.mm b/src/libANGLE/renderer/metal/DisplayMtl.mm
+index cdfd06b3f7..9275760760 100644
+--- a/src/libANGLE/renderer/metal/DisplayMtl.mm
++++ b/src/libANGLE/renderer/metal/DisplayMtl.mm
+@@ -1013,7 +1013,8 @@ void DisplayMtl::initializeExtensions() const
+ 
+     mNativeExtensions.sampleVariablesOES = true;
+ 
+-    if ([mMetalDevice supportsPullModelInterpolation])
++    if ([mMetalDevice respondsToSelector:@selector(supportsPullModelInterpolation)] &&
++        [mMetalDevice supportsPullModelInterpolation])
+     {
+         mNativeExtensions.shaderMultisampleInterpolationOES = true;
+         mNativeCaps.subPixelInterpolationOffsetBits         = 4;
+@@ -1365,7 +1366,11 @@ bool DisplayMtl::supportsEitherGPUFamily(uint8_t iOSFamily, uint8_t macFamily) c
+ bool DisplayMtl::supports32BitFloatFiltering() const
+ {
+ #if !TARGET_OS_WATCH
+-    return [mMetalDevice supports32BitFloatFiltering];
++    if ([mMetalDevice respondsToSelector:@selector(supports32BitFloatFiltering)])
++    {
++        return [mMetalDevice supports32BitFloatFiltering];
++    }
++    return false;
+ #else
+     return false;
+ #endif
+diff --git a/src/libANGLE/renderer/metal/mtl_context_device.mm b/src/libANGLE/renderer/metal/mtl_context_device.mm
+index 6aa02c0780..ea1b9cbf51 100644
+--- a/src/libANGLE/renderer/metal/mtl_context_device.mm
++++ b/src/libANGLE/renderer/metal/mtl_context_device.mm
+@@ -134,7 +134,12 @@ void ContextDevice::setOwnerWithIdentity(id<MTLResource> resource) const
+ 
+ bool ContextDevice::hasUnifiedMemory() const
+ {
+-    return [get() hasUnifiedMemory];
++    if ([get() respondsToSelector:@selector(hasUnifiedMemory)])
++    {
++        return [get() hasUnifiedMemory];
++    }
++    // hasUnifiedMemory requires iOS 14+. On older iOS all A-series chips have unified memory.
++    return TARGET_OS_IOS && !TARGET_OS_MACCATALYST;
+ }
+ 
+ }  // namespace mtl
 diff --git a/src/libANGLE/renderer/metal/mtl_utils.mm b/src/libANGLE/renderer/metal/mtl_utils.mm
-index acb165ef23..d24124206c 100644
+index acb165ef23..ffe2af0cb3 100644
 --- a/src/libANGLE/renderer/metal/mtl_utils.mm
 +++ b/src/libANGLE/renderer/metal/mtl_utils.mm
 @@ -1373,34 +1373,41 @@ bool DeviceHasMaximumRenderTargetSize(id<MTLDevice> device)
