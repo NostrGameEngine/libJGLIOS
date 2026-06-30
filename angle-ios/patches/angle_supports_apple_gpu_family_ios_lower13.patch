@@ -29,7 +29,7 @@ diff --git a/src/libANGLE/renderer/metal/mtl_context_device.mm b/src/libANGLE/re
 index 6aa02c0780..ea1b9cbf51 100644
 --- a/src/libANGLE/renderer/metal/mtl_context_device.mm
 +++ b/src/libANGLE/renderer/metal/mtl_context_device.mm
-@@ -134,7 +134,12 @@ void ContextDevice::setOwnerWithIdentity(id<MTLResource> resource) const
+@@ -134,7 +134,16 @@ void ContextDevice::setOwnerWithIdentity(id<MTLResource> resource) const
  
  bool ContextDevice::hasUnifiedMemory() const
  {
@@ -39,7 +39,11 @@ index 6aa02c0780..ea1b9cbf51 100644
 +        return [get() hasUnifiedMemory];
 +    }
 +    // hasUnifiedMemory requires iOS 14+. On older iOS all A-series chips have unified memory.
-+    return TARGET_OS_IOS && !TARGET_OS_MACCATALYST;
++#if TARGET_OS_IOS && !TARGET_OS_MACCATALYST
++    return true;
++#else
++    return false;
++#endif
  }
  
  }  // namespace mtl
