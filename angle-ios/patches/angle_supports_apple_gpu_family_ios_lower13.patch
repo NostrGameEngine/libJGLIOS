@@ -1,0 +1,70 @@
+diff --git a/src/libANGLE/renderer/metal/mtl_utils.mm b/src/libANGLE/renderer/metal/mtl_utils.mm
+index acb165ef23..d24124206c 100644
+--- a/src/libANGLE/renderer/metal/mtl_utils.mm
++++ b/src/libANGLE/renderer/metal/mtl_utils.mm
+@@ -1373,34 +1373,40 @@ bool DeviceHasMaximumRenderTargetSize(id<MTLDevice> device)
+ 
+ bool SupportsAppleGPUFamily(id<MTLDevice> device, uint8_t appleFamily)
+ {
+-    MTLGPUFamily family;
++    // supportsFamily: requires iOS 13+. Use respondsToSelector: to guard it and fall back
++    // to the deprecated supportsFeatureSet: API (available since iOS 8) on older systems.
++    if ([device respondsToSelector:@selector(supportsFamily:)])
++    {
++        MTLGPUFamily family;
++        switch (appleFamily)
++        {
++            case 1: family = MTLGPUFamilyApple1; break;
++            case 2: family = MTLGPUFamilyApple2; break;
++            case 3: family = MTLGPUFamilyApple3; break;
++            case 4: family = MTLGPUFamilyApple4; break;
++            case 5: family = MTLGPUFamilyApple5; break;
++            case 6: family = MTLGPUFamilyApple6; break;
++            case 7: family = MTLGPUFamilyApple7; break;
++            default: return false;
++        }
++        return [device supportsFamily:family];
++    }
++#if TARGET_OS_IOS && !TARGET_OS_MACCATALYST
++    // Fallback for iOS < 13: MTLFeatureSet is deprecated in iOS 16 but available since iOS 8.
++#    pragma clang diagnostic push
++#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+     switch (appleFamily)
+     {
+-        case 1:
+-            family = MTLGPUFamilyApple1;
+-            break;
+-        case 2:
+-            family = MTLGPUFamilyApple2;
+-            break;
+-        case 3:
+-            family = MTLGPUFamilyApple3;
+-            break;
+-        case 4:
+-            family = MTLGPUFamilyApple4;
+-            break;
+-        case 5:
+-            family = MTLGPUFamilyApple5;
+-            break;
+-        case 6:
+-            family = MTLGPUFamilyApple6;
+-            break;
+-        case 7:
+-            family = MTLGPUFamilyApple7;
+-            break;
+-        default:
+-            return false;
++        case 1: return [device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily1_v1];
++        case 2: return [device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily2_v1];
++        case 3: return [device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1];
++        case 4: return [device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily4_v1];
++        case 5: return [device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily5_v1];
++        default: return false;  // Family 6+ (A14+) does not exist on iOS < 13
+     }
+-    return [device supportsFamily:family];
++#    pragma clang diagnostic pop
++#endif
++    return false;
+ }
+ 
+ bool SupportsMacGPUFamily(id<MTLDevice> device, uint8_t macFamily)
