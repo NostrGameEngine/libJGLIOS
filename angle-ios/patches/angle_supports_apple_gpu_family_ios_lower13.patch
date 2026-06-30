@@ -26,7 +26,7 @@ index cdfd06b3f7..9275760760 100644
      return false;
  #endif
 diff --git a/src/libANGLE/renderer/metal/mtl_context_device.mm b/src/libANGLE/renderer/metal/mtl_context_device.mm
-index 6aa02c0780..ea1b9cbf51 100644
+index 6aa02c0780..ac42dc9809 100644
 --- a/src/libANGLE/renderer/metal/mtl_context_device.mm
 +++ b/src/libANGLE/renderer/metal/mtl_context_device.mm
 @@ -134,7 +134,16 @@ void ContextDevice::setOwnerWithIdentity(id<MTLResource> resource) const
