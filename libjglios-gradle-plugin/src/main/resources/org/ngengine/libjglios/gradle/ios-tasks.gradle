@@ -968,6 +968,7 @@ def libJGLIOSReservedBundleAssetNames = {
         'Frameworks',
         'PlugIns',
         'Watch',
+        'LaunchScreen.storyboardc',
         '_CodeSignature',
         'SC_Info',
         'Assets.car',
@@ -1027,6 +1028,55 @@ def libJGLIOSCopyAssets = { File appDir ->
     manifest.parentFile.mkdirs()
     manifest.text = currentAssetNames.sort().join(System.lineSeparator()) + System.lineSeparator()
     println "Copied ${existingAssetPaths.size()} iOS asset path(s) into ${appDir.absolutePath}"
+}
+def libJGLIOSWriteLaunchScreenStoryboard = { File storyboardFile ->
+    storyboardFile.parentFile.mkdirs()
+    storyboardFile.text = '''<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+    <device id="retina4_7" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23506"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <scene sceneID="EHf-IW-A2E">
+            <objects>
+                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
+                        <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+</document>
+'''
+}
+def libJGLIOSCompileLaunchScreen = { File appDir, String platform ->
+    def storyboardFile = new File(layout.buildDirectory.dir('libjglios/launch-screen').get().asFile, "${platform}-LaunchScreen.storyboard")
+    def compiledStoryboardDir = new File(appDir, 'LaunchScreen.storyboardc')
+    delete storyboardFile
+    delete compiledStoryboardDir
+    libJGLIOSWriteLaunchScreenStoryboard(storyboardFile)
+    runCommand([
+        'xcrun',
+        'ibtool',
+        '--compile', compiledStoryboardDir.absolutePath,
+        storyboardFile.absolutePath,
+        '--minimum-deployment-target', libJGLIOSMinIosVersion(),
+        '--target-device', 'iphone',
+        '--target-device', 'ipad'
+    ])
+    if (!compiledStoryboardDir.exists()) {
+        throw new GradleException("ibtool did not create the iOS launch storyboard: ${compiledStoryboardDir}")
+    }
 }
 def libJGLIOSAssetExcludeResourcesPattern = {
     def assets = libJGLIOSAssetsInputFiles()
@@ -1895,7 +1945,7 @@ def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String b
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     <key>UILaunchStoryboardName</key>
-    <string></string>
+    <string>LaunchScreen</string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
 ${supportedOrientations}
@@ -2568,6 +2618,7 @@ tasks.register('buildIosSimulatorApp', Exec) {
         }
         libJGLIOSCompileAppIcon(appDir, 'iphonesimulator', new File(appDir, 'Info.plist'))
         libJGLIOSCopyAssets(appDir)
+        libJGLIOSCompileLaunchScreen(appDir, 'iphonesimulator')
     }
 
     def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphonesimulator', '--show-sdk-path']) }
@@ -2759,6 +2810,7 @@ tasks.register('linkApp', Exec) {
         }
         libJGLIOSCompileAppIcon(appDir, 'iphoneos', new File(appDir, 'Info.plist'))
         libJGLIOSCopyAssets(appDir)
+        libJGLIOSCompileLaunchScreen(appDir, 'iphoneos')
     }
 
     def sdkPath = providers.provider { libJGLIOSXcrun(['--sdk', 'iphoneos', '--show-sdk-path']) }
