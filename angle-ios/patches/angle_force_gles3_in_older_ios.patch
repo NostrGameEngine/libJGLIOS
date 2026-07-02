@@ -1,0 +1,13 @@
+diff --git a/src/libANGLE/renderer/metal/DisplayMtl.mm b/src/libANGLE/renderer/metal/DisplayMtl.mm
+index cdfd06b3f7..dbef3ccf62 100644
+--- a/src/libANGLE/renderer/metal/DisplayMtl.mm
++++ b/src/libANGLE/renderer/metal/DisplayMtl.mm
+@@ -439,7 +439,7 @@ gl::Version DisplayMtl::getMaxSupportedESVersion() const
+     {
+         return mtl::kMaxSupportedGLVersion;
+     }
+-    return gl::Version(2, 0);
++    return gl::Version(3, 0);
+ #endif
+ }
+ 
