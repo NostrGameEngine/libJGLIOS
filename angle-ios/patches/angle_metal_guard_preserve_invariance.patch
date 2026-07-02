@@ -1,0 +1,18 @@
+diff --git a/src/libANGLE/renderer/metal/mtl_utils.mm b/src/libANGLE/renderer/metal/mtl_utils.mm
+index 2ec2dca9dc..3fae83ac26 100644
+--- a/src/libANGLE/renderer/metal/mtl_utils.mm
++++ b/src/libANGLE/renderer/metal/mtl_utils.mm
+@@ -891,8 +891,12 @@ angle::ObjCPtr<id<MTLLibrary>> CreateShaderLibrary(
+         angle::ObjCPtr options  = angle::adoptObjCPtr([[MTLCompileOptions alloc] init]);
+ 
+         // Mark all positions in VS with attribute invariant as non-optimizable
+-        options.get().preserveInvariance = usesInvariance;
++        // preserveInvariance is only available on iOS 14+.
++        if ([options.get() respondsToSelector:@selector(setPreserveInvariance:)])
++        {
++            options.get().preserveInvariance = usesInvariance;
++        }
+ 
+ // mathMode and mathFloatingPointFunctions are only available with macOS 15+ and iPhoneOS 18+
+ #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 150000 || __IPHONE_OS_VERSION_MAX_ALLOWED >= 180000 || \
+     __TV_OS_VERSION_MAX_ALLOWED >= 180000 || TARGET_OS_VISION

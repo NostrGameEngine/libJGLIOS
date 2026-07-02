@@ -34,6 +34,7 @@ apply_git_patch ../angle_metal_shader_prebuild.patch
 apply_git_patch ../angle_metal_blit_flush_hack.patch
 apply_git_patch ../angle_supports_apple_gpu_family_ios_lower13.patch
 apply_git_patch ../angle_force_gles3_in_older_ios.patch
+apply_git_patch ../angle_metal_guard_preserve_invariance.patch
 
 gn gen out/Debug-iphonesimulator_arm64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"simulator\""
 gn gen out/Debug-iphonesimulator_x86_64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"x64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"simulator\""
