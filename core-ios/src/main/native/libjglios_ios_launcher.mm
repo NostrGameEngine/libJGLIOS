@@ -13,10 +13,15 @@
 #include <SDL3/SDL.h>
 #include <TargetConditionals.h>
 #import <CoreHaptics/CoreHaptics.h>
+#if LIBJGLIOS_IOS_LEGACY_GLES
+#import <OpenGLES/ES3/gl.h>
+#else
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
+#endif
 
+#if !LIBJGLIOS_IOS_LEGACY_GLES
 #ifndef EGL_PLATFORM_ANGLE_ANGLE
 #define EGL_PLATFORM_ANGLE_ANGLE 0x3202
 #endif
@@ -26,13 +31,18 @@
 #ifndef EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE
 #define EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE 0x3489
 #endif
+#endif
 
+#if LIBJGLIOS_IOS_LEGACY_GLES
+static SDL_GLContext g_glContext = nullptr;
+#else
 static void* g_metalLayer = nullptr;
 
 static EGLDisplay g_display = EGL_NO_DISPLAY;
 static EGLSurface g_surface = EGL_NO_SURFACE;
 static EGLContext g_context = EGL_NO_CONTEXT;
 static EGLConfig g_config = nullptr;
+#endif
 static std::atomic_int g_framebufferWidth(0);
 static std::atomic_int g_framebufferHeight(0);
 static std::atomic_int g_windowWidth(0);
@@ -67,6 +77,7 @@ static int fail(int code, const char* message) {
     return code;
 }
 
+#if !LIBJGLIOS_IOS_LEGACY_GLES
 static EGLint config_attrib(EGLConfig config, EGLint attrib) {
     EGLint value = 0;
     eglGetConfigAttrib(g_display, config, attrib, &value);
@@ -145,8 +156,12 @@ static EGLContext create_context(int clientVersion) {
     };
     return eglCreateContext(g_display, g_config, EGL_NO_CONTEXT, contextAttribs);
 }
+#endif
 
 int libjglios_egl_init_with_metal_layer(void* metalLayer) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    return fail(-1, "Metal layer initialization is unavailable in legacy OpenGL ES mode");
+#else
     g_metalLayer = metalLayer;
     if (!g_metalLayer) {
         return fail(-1, "metal layer was null");
@@ -205,6 +220,7 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
         return fail(-8, "eglMakeCurrent failed");
     }
 
+    std::fprintf(stderr, "LIBJGLIOS_GRAPHICS_BACKEND=ANGLE\n");
     std::fprintf(stderr, "GL_VENDOR=%s\n", reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
     std::fprintf(stderr, "GL_RENDERER=%s\n", reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
     std::fprintf(stderr, "GL_VERSION=%s\n", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
@@ -218,12 +234,54 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
 
     g_lastError.clear();
     return 0;
+#endif
+}
+
+int libjglios_egl_init_with_sdl_window(void* window) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    g_window = static_cast<SDL_Window*>(window);
+    if (g_window == nullptr) {
+        return fail(-1, "SDL window was null");
+    }
+
+    g_glContext = SDL_GL_CreateContext(g_window);
+    if (g_glContext == nullptr) {
+        return fail(-2, SDL_GetError());
+    }
+    if (!SDL_GL_MakeCurrent(g_window, g_glContext)) {
+        return fail(-3, SDL_GetError());
+    }
+    SDL_GL_SetSwapInterval(1);
+
+    std::fprintf(stderr, "LIBJGLIOS_GRAPHICS_BACKEND=OpenGLES\n");
+    std::fprintf(stderr, "GL_VENDOR=%s\n", reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
+    std::fprintf(stderr, "GL_RENDERER=%s\n", reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
+    std::fprintf(stderr, "GL_VERSION=%s\n", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+    std::fprintf(stderr, "GL_SHADING_LANGUAGE_VERSION=%s\n", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
+    GLint maxTextureSize = 0;
+    GLint maxSamples = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+    glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+    std::fprintf(stderr, "GL_MAX_TEXTURE_SIZE=%d\n", maxTextureSize);
+    std::fprintf(stderr, "GL_MAX_SAMPLES=%d\n", maxSamples);
+
+    g_lastError.clear();
+    return 0;
+#else
+    return fail(-1, "SDL window initialization is unavailable in ANGLE mode");
+#endif
 }
 
 void libjglios_egl_swap_buffers(void) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    if (g_window != nullptr) {
+        SDL_GL_SwapWindow(g_window);
+    }
+#else
     if (g_display != EGL_NO_DISPLAY && g_surface != EGL_NO_SURFACE) {
         eglSwapBuffers(g_display, g_surface);
     }
+#endif
 }
 
 void libjglios_egl_set_framebuffer_size(int width, int height) {
@@ -249,6 +307,18 @@ void libjglios_egl_set_display_metrics(int framebufferWidth, int framebufferHeig
 }
 
 bool libjglios_egl_make_current(void) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    if (g_window == nullptr || g_glContext == nullptr) {
+        g_lastError = "SDL_GL_MakeCurrent failed: OpenGL ES is not initialized";
+        return false;
+    }
+    if (!SDL_GL_MakeCurrent(g_window, g_glContext)) {
+        fail(-9, SDL_GetError());
+        return false;
+    }
+    g_lastError.clear();
+    return true;
+#else
     if (g_display == EGL_NO_DISPLAY || g_surface == EGL_NO_SURFACE || g_context == EGL_NO_CONTEXT) {
         g_lastError = "eglMakeCurrent failed: EGL is not initialized";
         return false;
@@ -259,6 +329,7 @@ bool libjglios_egl_make_current(void) {
     }
     g_lastError.clear();
     return true;
+#endif
 }
 
 int libjglios_egl_framebuffer_width(void) {
@@ -266,6 +337,15 @@ int libjglios_egl_framebuffer_width(void) {
     if (overriddenWidth > 0) {
         return overriddenWidth;
     }
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    if (g_window == nullptr) {
+        return 0;
+    }
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSizeInPixels(g_window, &width, &height);
+    return width > 0 ? width : 0;
+#else
     if (g_display == EGL_NO_DISPLAY || g_surface == EGL_NO_SURFACE) {
         return 0;
     }
@@ -274,6 +354,7 @@ int libjglios_egl_framebuffer_width(void) {
         return 0;
     }
     return width;
+#endif
 }
 
 int libjglios_egl_framebuffer_height(void) {
@@ -281,6 +362,15 @@ int libjglios_egl_framebuffer_height(void) {
     if (overriddenHeight > 0) {
         return overriddenHeight;
     }
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    if (g_window == nullptr) {
+        return 0;
+    }
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSizeInPixels(g_window, &width, &height);
+    return height > 0 ? height : 0;
+#else
     if (g_display == EGL_NO_DISPLAY || g_surface == EGL_NO_SURFACE) {
         return 0;
     }
@@ -289,6 +379,7 @@ int libjglios_egl_framebuffer_height(void) {
         return 0;
     }
     return height;
+#endif
 }
 
 int libjglios_egl_window_width(void) {
@@ -329,6 +420,15 @@ const char* libjglios_egl_last_error(void) {
 }
 
 void libjglios_egl_shutdown(void) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    if (g_window != nullptr) {
+        SDL_GL_MakeCurrent(g_window, nullptr);
+    }
+    if (g_glContext != nullptr) {
+        SDL_GL_DestroyContext(g_glContext);
+    }
+    g_glContext = nullptr;
+#else
     if (g_display != EGL_NO_DISPLAY) {
         eglMakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (g_context != EGL_NO_CONTEXT) {
@@ -344,6 +444,7 @@ void libjglios_egl_shutdown(void) {
     g_surface = EGL_NO_SURFACE;
     g_display = EGL_NO_DISPLAY;
     g_metalLayer = nullptr;
+#endif
     g_framebufferWidth.store(0);
     g_framebufferHeight.store(0);
     g_windowWidth.store(0);

@@ -49,6 +49,9 @@ public final class IOSGlesGearsRenderer {
     private static final float[] RED_GEAR = {0.82f, 0.18f, 0.12f};
     private static final float[] GREEN_GEAR = {0.22f, 0.72f, 0.28f};
     private static final float[] BLUE_GEAR = {0.25f, 0.40f, 0.86f};
+    private static final float[] LEGACY_AMBER_GEAR = {0.95f, 0.58f, 0.10f};
+    private static final float[] LEGACY_MAGENTA_GEAR = {0.78f, 0.20f, 0.80f};
+    private static final float[] LEGACY_CYAN_GEAR = {0.10f, 0.76f, 0.82f};
 
     private final float[] projection = new float[16];
     private final float[] view = new float[16];
@@ -66,6 +69,10 @@ public final class IOSGlesGearsRenderer {
     private float angleDegrees;
     private int lastFramebufferWidth;
     private int lastFramebufferHeight;
+    private float[] firstGearColor = RED_GEAR;
+    private float[] secondGearColor = GREEN_GEAR;
+    private float[] thirdGearColor = BLUE_GEAR;
+    private boolean legacyOpenGlesBackend;
 
     public void initialize() {
         if (program != 0) {
@@ -79,6 +86,7 @@ public final class IOSGlesGearsRenderer {
         baseColorLocation = uniformLocation(program, "uBaseColor");
 
         gearMesh = GearMesh.create(0.35f, 1.05f, 0.36f, 24, 0.22f);
+        configureBackendPalette();
 
         Mat4.lookAt(view, 0.0f, 0.0f, 7.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
@@ -87,7 +95,9 @@ public final class IOSGlesGearsRenderer {
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
 
-        System.out.println("libJGLIOS_GRAAL_RENDERER_INIT program=" + program + " indices=" + gearMesh.indexCount);
+        System.out.println("libJGLIOS_GRAAL_RENDERER_INIT program=" + program
+                + " indices=" + gearMesh.indexCount
+                + " backendVisual=" + (legacyOpenGlesBackend ? "legacy-opengles" : "angle"));
     }
 
     public int renderFrame() {
@@ -110,7 +120,11 @@ public final class IOSGlesGearsRenderer {
         }
 
         glViewport(0, 0, framebufferWidth, framebufferHeight);
-        glClearColor(0.03f, 0.03f, 0.06f, 1.0f);
+        if (legacyOpenGlesBackend) {
+            glClearColor(0.02f, 0.07f, 0.05f, 1.0f);
+        } else {
+            glClearColor(0.03f, 0.03f, 0.06f, 1.0f);
+        }
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(program);
@@ -118,9 +132,9 @@ public final class IOSGlesGearsRenderer {
 
         Mat4.multiply(vp, projection, view);
 
-        drawGear(-2.1f, -0.3f, -0.2f, angleDegrees, RED_GEAR);
-        drawGear(2.0f, 0.8f, 0.1f, -1.7f * angleDegrees + 42.0f, GREEN_GEAR);
-        drawGear(0.35f, -1.95f, 0.0f, 2.4f * angleDegrees - 17.0f, BLUE_GEAR);
+        drawGear(-2.1f, -0.3f, -0.2f, angleDegrees, firstGearColor);
+        drawGear(2.0f, 0.8f, 0.1f, -1.7f * angleDegrees + 42.0f, secondGearColor);
+        drawGear(0.35f, -1.95f, 0.0f, 2.4f * angleDegrees - 17.0f, thirdGearColor);
 
         glBindVertexArray(0);
 
@@ -144,6 +158,18 @@ public final class IOSGlesGearsRenderer {
         if (frameCounter > 0) {
             System.out.println("libJGLIOS_GRAAL_RENDERER_STOP frames=" + frameCounter);
         }
+    }
+
+    private void configureBackendPalette() {
+        String renderer = glString(GL_RENDERER);
+        legacyOpenGlesBackend = !renderer.toUpperCase().contains("ANGLE");
+        if (legacyOpenGlesBackend) {
+            firstGearColor = LEGACY_AMBER_GEAR;
+            secondGearColor = LEGACY_MAGENTA_GEAR;
+            thirdGearColor = LEGACY_CYAN_GEAR;
+        }
+        System.out.println("libJGLIOS_GRAAL_BACKEND_VISUAL renderer=" + renderer
+                + " palette=" + (legacyOpenGlesBackend ? "amber-magenta-cyan" : "red-green-blue"));
     }
 
     private void drawGear(float tx, float ty, float tz, float rotationDegrees, float[] color) {
@@ -224,6 +250,18 @@ public final class IOSGlesGearsRenderer {
         byte[] terminated = new byte[raw.length + 1];
         System.arraycopy(raw, 0, terminated, 0, raw.length);
         return terminated;
+    }
+
+    private static String glString(int name) {
+        byte[] value = glGetString(name);
+        if (value == null) {
+            return "";
+        }
+        int length = 0;
+        while (length < value.length && value[length] != 0) {
+            length++;
+        }
+        return new String(value, 0, length, StandardCharsets.UTF_8);
     }
 
     private static final class GearMesh {

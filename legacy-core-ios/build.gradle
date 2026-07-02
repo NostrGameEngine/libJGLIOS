@@ -1,0 +1,48 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Legacy iOS launcher for libJGLIOS, using SDL OpenGL ES and native OpenGLES.framework.'
+
+dependencies {
+    api project(':legacy-gles-ios')
+}
+
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+
+def thirdPartyDir = rootProject.layout.buildDirectory.dir('libjglios/third_party')
+def sdl3Dir = thirdPartyDir.map { it.dir('sdl3') }
+def coreProject = project(':core-ios')
+
+sourceSets {
+    main {
+        java.srcDirs = [coreProject.file('src/main/java')]
+    }
+    test {
+        java.srcDirs = [coreProject.file('src/test/java')]
+    }
+}
+
+libJGLIOSStaticIosFramework(
+    frameworkName: 'libJGLIOSLegacyCore',
+    taskName: 'buildLibJGLIOSLegacyCoreXcframework',
+    dependsOn: [
+        ':sdl3-ios:prepareSDL3IosFrameworks'
+    ],
+    sources: [
+        coreProject.file('src/main/native/libjglios_ios_app.mm'),
+        coreProject.file('src/main/native/libjglios_ios_launcher.mm'),
+        coreProject.file('src/main/native/libjglios_ios_launcher_jni.mm')
+    ],
+    headers: [coreProject.file('src/main/native/libjglios_ios_launcher.h')],
+    publicHeaders: [coreProject.file('src/main/native/libjglios_ios_launcher.h')],
+    includes: [
+        coreProject.file('src/main/native'),
+        { sdl3Dir.get().dir('include').asFile }
+    ],
+    defines: ['LIBJGLIOS_IOS_LEGACY_GLES=1'],
+    compilerArgs: ['-Wno-deprecated-declarations'],
+    metadata: [
+        systemFrameworks: ['OpenGLES']
+    ]
+)

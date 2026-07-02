@@ -5,6 +5,7 @@ extern "C" {
 #endif
 
 int libjglios_egl_init_with_metal_layer(void* metalLayer);
+int libjglios_egl_init_with_sdl_window(void* window);
 bool libjglios_egl_make_current(void);
 void libjglios_egl_swap_buffers(void);
 void libjglios_egl_set_framebuffer_size(int width, int height);

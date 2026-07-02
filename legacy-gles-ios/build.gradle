@@ -1,0 +1,29 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Legacy iOS OpenGL ES bindings for libJGLIOS, built against native OpenGLES.framework.'
+
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+
+sourceSets {
+    main {
+        java.srcDirs = [project(':gles-ios').file('src/main/java')]
+    }
+    test {
+        java.srcDirs = [project(':gles-ios').file('src/test/java')]
+    }
+}
+
+libJGLIOSStaticIosFramework(
+    frameworkName: 'libJGLIOSLegacyGLES',
+    taskName: 'buildLibJGLIOSLegacyGLESXcframework',
+    sources: [
+        project(':gles-ios').file('src/main/native/jni_gles.mm')
+    ],
+    defines: ['LIBJGLIOS_IOS_LEGACY_GLES=1'],
+    compilerArgs: ['-Wno-deprecated-declarations'],
+    metadata: [
+        systemFrameworks: ['OpenGLES']
+    ]
+)

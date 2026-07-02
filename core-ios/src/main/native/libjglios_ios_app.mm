@@ -3,9 +3,13 @@
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#if !LIBJGLIOS_IOS_LEGACY_GLES
 #include <SDL3/SDL_metal.h>
+#endif
 #include <cstdlib>
+#if !LIBJGLIOS_IOS_LEGACY_GLES
 #import <QuartzCore/CAMetalLayer.h>
+#endif
 #import <UIKit/UIKit.h>
 
 struct __graal_isolate_t;
@@ -35,7 +39,9 @@ struct LibJGLIOSAppState {
     int maxFrames = -1;
     int javaFrame = 0;
     SDL_Window* window = nullptr;
+#if !LIBJGLIOS_IOS_LEGACY_GLES
     SDL_MetalView metalView = nullptr;
+#endif
     graal_isolate_t* isolate = nullptr;
     graal_isolatethread_t* thread = nullptr;
 };
@@ -52,8 +58,16 @@ static int positive_rounded(CGFloat value) {
     return value > 0 ? static_cast<int>(value + 0.5f) : 0;
 }
 
-static CGFloat positive_display_scale(UIScreen* screen, CAMetalLayer* metalLayer) {
+static CGFloat positive_display_scale(UIScreen* screen
+#if !LIBJGLIOS_IOS_LEGACY_GLES
+        , CAMetalLayer* metalLayer
+#endif
+) {
+#if !LIBJGLIOS_IOS_LEGACY_GLES
     CGFloat scale = metalLayer != nullptr && metalLayer.contentsScale > 0 ? metalLayer.contentsScale : 0;
+#else
+    CGFloat scale = 0;
+#endif
     if (scale <= 0 && screen != nullptr && screen.nativeScale > 0) {
         scale = screen.nativeScale;
     }
@@ -63,6 +77,41 @@ static CGFloat positive_display_scale(UIScreen* screen, CAMetalLayer* metalLayer
     return scale > 0 ? scale : 1;
 }
 
+#if LIBJGLIOS_IOS_LEGACY_GLES
+static void update_framebuffer_size(SDL_Window* window, UIScreen* screen, int fallbackWidth, int fallbackHeight) {
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    int windowWidth = 0;
+    int windowHeight = 0;
+    CGFloat scale = positive_display_scale(screen);
+    if (window != nullptr) {
+        SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+        SDL_GetWindowSizeInPixels(window, &framebufferWidth, &framebufferHeight);
+    }
+    if ((windowWidth <= 0 || windowHeight <= 0) && screen != nullptr) {
+        CGRect bounds = screen.bounds;
+        if (bounds.size.width > 0 && bounds.size.height > 0) {
+            windowWidth = positive_rounded(bounds.size.width);
+            windowHeight = positive_rounded(bounds.size.height);
+        }
+    }
+    if (windowWidth <= 0) {
+        windowWidth = fallbackWidth > 0 ? fallbackWidth : positive_rounded(framebufferWidth / scale);
+    }
+    if (windowHeight <= 0) {
+        windowHeight = fallbackHeight > 0 ? fallbackHeight : positive_rounded(framebufferHeight / scale);
+    }
+    if (framebufferWidth <= 0) {
+        framebufferWidth = positive_rounded(windowWidth * scale);
+    }
+    if (framebufferHeight <= 0) {
+        framebufferHeight = positive_rounded(windowHeight * scale);
+    }
+    libjglios_egl_set_display_metrics(framebufferWidth, framebufferHeight, windowWidth, windowHeight, static_cast<float>(scale));
+    SDL_Log("libJGLIOS_DISPLAY_METRICS framebuffer=%dx%d window=%dx%d scale=%.3f",
+        framebufferWidth, framebufferHeight, windowWidth, windowHeight, static_cast<double>(scale));
+}
+#else
 static void update_framebuffer_size(SDL_Window* window, CAMetalLayer* metalLayer, UIScreen* screen, int fallbackWidth, int fallbackHeight) {
     int framebufferWidth = 0;
     int framebufferHeight = 0;
@@ -120,14 +169,17 @@ static void update_framebuffer_size(SDL_Window* window, CAMetalLayer* metalLayer
     SDL_Log("libJGLIOS_DISPLAY_METRICS framebuffer=%dx%d window=%dx%d scale=%.3f",
         framebufferWidth, framebufferHeight, windowWidth, windowHeight, static_cast<double>(scale));
 }
+#endif
 
 static void destroy_windowing(LibJGLIOSAppState* state) {
     libjglios_egl_shutdown();
     libjglios_app_set_window(nullptr);
+#if !LIBJGLIOS_IOS_LEGACY_GLES
     if (state->metalView != nullptr) {
         SDL_Metal_DestroyView(state->metalView);
         state->metalView = nullptr;
     }
+#endif
     if (state->window != nullptr) {
         SDL_DestroyWindow(state->window);
         state->window = nullptr;
@@ -168,15 +220,39 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
         windowHeight = 600;
     }
 
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+#endif
+
     state->window = SDL_CreateWindow(
         "libJGLIOS",
         windowWidth,
         windowHeight,
-        SDL_WINDOW_FULLSCREEN | SDL_WINDOW_METAL | SDL_WINDOW_RESIZABLE);
+        SDL_WINDOW_FULLSCREEN |
+#if LIBJGLIOS_IOS_LEGACY_GLES
+        SDL_WINDOW_OPENGL |
+#else
+        SDL_WINDOW_METAL |
+#endif
+        SDL_WINDOW_RESIZABLE);
     if (state->window == nullptr) {
         return fail_app_init("SDL_CreateWindow");
     }
     libjglios_app_set_window(state->window);
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    update_framebuffer_size(state->window, screen, windowWidth, windowHeight);
+
+    int eglResult = libjglios_egl_init_with_sdl_window(state->window);
+#else
     state->metalView = SDL_Metal_CreateView(state->window);
     if (state->metalView == nullptr) {
         destroy_windowing(state);
@@ -203,6 +279,7 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
     update_framebuffer_size(state->window, metalLayerObject, screen, windowWidth, windowHeight);
 
     int eglResult = libjglios_egl_init_with_metal_layer(metalLayer);
+#endif
     if (eglResult != 0) {
         fprintf(stderr, "libJGLIOS_EGL_INIT_FAILED=%d error=%s\n", eglResult, libjglios_egl_last_error());
         fflush(stderr);
@@ -279,10 +356,18 @@ extern "C" SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         if (window != nullptr) {
             SDL_GetWindowSizeInPixels(window, &width, &height);
         }
-        if (state != nullptr && state->metalView != nullptr) {
-            void* metalLayer = SDL_Metal_GetLayer(state->metalView);
-            CAMetalLayer* metalLayerObject = (__bridge CAMetalLayer*)metalLayer;
-            update_framebuffer_size(window, metalLayerObject, [UIScreen mainScreen], width, height);
+        if (state != nullptr) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+            update_framebuffer_size(window, [UIScreen mainScreen], width, height);
+#else
+            if (state->metalView != nullptr) {
+                void* metalLayer = SDL_Metal_GetLayer(state->metalView);
+                CAMetalLayer* metalLayerObject = (__bridge CAMetalLayer*)metalLayer;
+                update_framebuffer_size(window, metalLayerObject, [UIScreen mainScreen], width, height);
+            } else {
+                libjglios_egl_set_framebuffer_size(width, height);
+            }
+#endif
         } else {
             libjglios_egl_set_framebuffer_size(width, height);
         }

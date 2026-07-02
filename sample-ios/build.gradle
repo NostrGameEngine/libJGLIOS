@@ -4,16 +4,25 @@ plugins {
 
 description = 'iOS-only Graal sample for libJGLIOS. The simulator app is built through the libJGLIOS plugin task script.'
 
+def libJGLIOSSampleBackend = (findProperty('libJGLIOSSampleBackend') ?: 'angle').toString().trim().toLowerCase(Locale.ROOT)
+
 dependencies {
-    implementation project(':core-ios')
     implementation project(':sdl3-ios')
-    implementation project(':angle-ios')
-    implementation project(':gles-ios')
     implementation project(':openal-ios')
+    if (libJGLIOSSampleBackend == 'legacy') {
+        implementation project(':legacy-core-ios')
+        implementation project(':legacy-gles-ios')
+    } else if (libJGLIOSSampleBackend == 'angle') {
+        implementation project(':core-ios')
+        implementation project(':angle-ios')
+        implementation project(':gles-ios')
+    } else {
+        throw new GradleException("Unsupported libJGLIOSSampleBackend: ${libJGLIOSSampleBackend}. Use 'angle' or 'legacy'.")
+    }
 }
 
 ext.set('iOS.mainClass', 'org.ngengine.libjglios.sample.IosGraalEntrypoints')
-ext.set('iOS.bundleId', 'org.ngengine.libjglios.sample')
-ext.set('iOS.appName', 'IOSGlesGears')
+ext.set('iOS.bundleId', libJGLIOSSampleBackend == 'legacy' ? 'org.ngengine.libjglios.sample.legacy' : 'org.ngengine.libjglios.sample')
+ext.set('iOS.appName', libJGLIOSSampleBackend == 'legacy' ? 'IOSLegacyGlesGears' : 'IOSGlesGears')
 
 apply from: rootProject.file('libjglios-gradle-plugin/src/main/resources/org/ngengine/libjglios/gradle/ios-tasks.gradle')

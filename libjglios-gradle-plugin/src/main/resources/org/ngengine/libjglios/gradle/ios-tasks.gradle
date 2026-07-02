@@ -275,7 +275,9 @@ def libJGLIOSXcframeworkName = { File xcframeworkDir ->
 def libJGLIOSXcframeworkSortRank = { File xcframeworkDir ->
     [
         libJGLIOSCore: -50,
+        libJGLIOSLegacyCore: -50,
         libJGLIOSGLES: -40,
+        libJGLIOSLegacyGLES: -40,
         libJGLIOSSdl3: -30,
         libJGLIOSOpenAL: -20,
         SDL3: 0,
@@ -1963,6 +1965,10 @@ tasks.register('generateLibJGLIOSSimulatorInfoPlist') {
     group = 'iOS'
     description = 'Generates the iOS Simulator app Info.plist from the iOS extension.'
     outputs.file(graalSimulatorInfoPlist)
+    inputs.property('executableName', providers.provider { libJGLIOSSimulatorExecutableName() })
+    inputs.property('bundleId', providers.provider { libJGLIOSBundleId() })
+    inputs.property('appName', providers.provider { libJGLIOSAppName() })
+    inputs.property('minIosVersion', providers.provider { libJGLIOSMinIosVersion() })
     inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
         libJGLIOSWriteInfoPlist(
@@ -1979,6 +1985,10 @@ tasks.register('generateLibJGLIOSInfoPlist') {
     group = 'iOS'
     description = 'Generates the iOS app Info.plist from the iOS extension.'
     outputs.file(graalDeviceInfoPlist)
+    inputs.property('executableName', providers.provider { libJGLIOSDeviceExecutableName() })
+    inputs.property('bundleId', providers.provider { libJGLIOSBundleId() })
+    inputs.property('appName', providers.provider { libJGLIOSAppName() })
+    inputs.property('minIosVersion', providers.provider { libJGLIOSMinIosVersion() })
     inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
         libJGLIOSWriteInfoPlist(

@@ -222,6 +222,12 @@ ext.libJGLIOSStaticIosFramework = { Map config ->
                         '-DEGL_EGLEXT_PROTOTYPES=1'
                     ]
                     args.addAll(objectiveCFlags)
+                    (config.defines ?: []).each { define ->
+                        args.add("-D${define}".toString())
+                    }
+                    (config.compilerArgs ?: []).each { compilerArg ->
+                        args.add(compilerArg.toString())
+                    }
                     commonIncludes.each { includeDir ->
                         args.addAll(['-I', includeDir.absolutePath])
                     }
