@@ -51,6 +51,20 @@ static std::atomic_int g_displayScaleMillis(1000);
 static std::atomic_bool g_quitRequested(false);
 static SDL_Window* g_window = nullptr;
 
+struct LibJGLIOSFramebufferConfig {
+    int redBits = 8;
+    int greenBits = 8;
+    int blueBits = 8;
+    int alphaBits = 8;
+    int depthBits = 24;
+    int stencilBits = 8;
+    int samples = 0;
+};
+
+static LibJGLIOSFramebufferConfig g_framebufferConfig;
+static void* g_pendingMetalLayer = nullptr;
+static SDL_Window* g_pendingWindow = nullptr;
+
 static std::string g_lastError;
 
 struct LibJGLIOSQueuedInputEvent {
@@ -77,6 +91,31 @@ static int fail(int code, const char* message) {
     return code;
 }
 
+static int non_negative_or_default(int value, int defaultValue) {
+    return value >= 0 ? value : defaultValue;
+}
+
+static bool graphics_initialized(void) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    return g_glContext != nullptr;
+#else
+    return g_display != EGL_NO_DISPLAY && g_surface != EGL_NO_SURFACE && g_context != EGL_NO_CONTEXT;
+#endif
+}
+
+static void log_framebuffer_config(const char* prefix) {
+    std::fprintf(stderr,
+        "%s framebuffer request: rgba=%d/%d/%d/%d depth=%d stencil=%d samples=%d\n",
+        prefix,
+        g_framebufferConfig.redBits,
+        g_framebufferConfig.greenBits,
+        g_framebufferConfig.blueBits,
+        g_framebufferConfig.alphaBits,
+        g_framebufferConfig.depthBits,
+        g_framebufferConfig.stencilBits,
+        g_framebufferConfig.samples);
+}
+
 #if !LIBJGLIOS_IOS_LEGACY_GLES
 static EGLint config_attrib(EGLConfig config, EGLint attrib) {
     EGLint value = 0;
@@ -92,13 +131,20 @@ static int config_score(EGLConfig config, EGLint renderableType) {
     }
 
     int score = 0;
-    score -= std::abs(config_attrib(config, EGL_RED_SIZE) - 8) * 16;
-    score -= std::abs(config_attrib(config, EGL_GREEN_SIZE) - 8) * 16;
-    score -= std::abs(config_attrib(config, EGL_BLUE_SIZE) - 8) * 16;
-    score -= std::abs(config_attrib(config, EGL_ALPHA_SIZE) - 8) * 16;
-    score -= std::abs(config_attrib(config, EGL_DEPTH_SIZE) - 24) * 4;
-    score -= std::abs(config_attrib(config, EGL_STENCIL_SIZE) - 8) * 4;
-    score -= config_attrib(config, EGL_SAMPLES);
+    score -= std::abs(config_attrib(config, EGL_RED_SIZE) - g_framebufferConfig.redBits) * 16;
+    score -= std::abs(config_attrib(config, EGL_GREEN_SIZE) - g_framebufferConfig.greenBits) * 16;
+    score -= std::abs(config_attrib(config, EGL_BLUE_SIZE) - g_framebufferConfig.blueBits) * 16;
+    score -= std::abs(config_attrib(config, EGL_ALPHA_SIZE) - g_framebufferConfig.alphaBits) * 16;
+    score -= std::abs(config_attrib(config, EGL_DEPTH_SIZE) - g_framebufferConfig.depthBits) * 4;
+    score -= std::abs(config_attrib(config, EGL_STENCIL_SIZE) - g_framebufferConfig.stencilBits) * 4;
+    const int actualSamples = config_attrib(config, EGL_SAMPLES);
+    if (g_framebufferConfig.samples <= 0) {
+        score -= actualSamples * 8;
+    } else if (actualSamples < g_framebufferConfig.samples) {
+        score -= (g_framebufferConfig.samples - actualSamples) * 24;
+    } else {
+        score -= (actualSamples - g_framebufferConfig.samples) * 8;
+    }
     score += renderableType == EGL_OPENGL_ES3_BIT ? 2000 : 1000;
     return score;
 }
@@ -162,6 +208,9 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
 #if LIBJGLIOS_IOS_LEGACY_GLES
     return fail(-1, "Metal layer initialization is unavailable in legacy OpenGL ES mode");
 #else
+    if (graphics_initialized()) {
+        return 0;
+    }
     g_metalLayer = metalLayer;
     if (!g_metalLayer) {
         return fail(-1, "metal layer was null");
@@ -192,6 +241,7 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
         return fail(-4, "eglInitialize failed");
     }
 
+    log_framebuffer_config("ANGLE");
     if (choose_config(EGL_OPENGL_ES3_BIT)) {
         g_context = create_context(3);
     }
@@ -239,10 +289,27 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
 
 int libjglios_egl_init_with_sdl_window(void* window) {
 #if LIBJGLIOS_IOS_LEGACY_GLES
+    if (graphics_initialized()) {
+        return 0;
+    }
     g_window = static_cast<SDL_Window*>(window);
     if (g_window == nullptr) {
         return fail(-1, "SDL window was null");
     }
+
+    log_framebuffer_config("OpenGLES");
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, g_framebufferConfig.redBits);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, g_framebufferConfig.greenBits);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, g_framebufferConfig.blueBits);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, g_framebufferConfig.alphaBits);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, g_framebufferConfig.depthBits);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, g_framebufferConfig.stencilBits);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, g_framebufferConfig.samples > 0 ? 1 : 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, g_framebufferConfig.samples);
 
     g_glContext = SDL_GL_CreateContext(g_window);
     if (g_glContext == nullptr) {
@@ -270,6 +337,49 @@ int libjglios_egl_init_with_sdl_window(void* window) {
 #else
     return fail(-1, "SDL window initialization is unavailable in ANGLE mode");
 #endif
+}
+
+void libjglios_egl_set_pending_metal_layer(void* metalLayer) {
+    g_pendingMetalLayer = metalLayer;
+}
+
+void libjglios_egl_set_pending_sdl_window(void* window) {
+    g_pendingWindow = static_cast<SDL_Window*>(window);
+}
+
+int libjglios_egl_init_pending(void) {
+    if (graphics_initialized()) {
+        return 0;
+    }
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    return libjglios_egl_init_with_sdl_window(g_pendingWindow);
+#else
+    return libjglios_egl_init_with_metal_layer(g_pendingMetalLayer);
+#endif
+}
+
+bool libjglios_egl_is_initialized(void) {
+    return graphics_initialized();
+}
+
+void libjglios_egl_configure_default_framebuffer(
+        int redBits,
+        int greenBits,
+        int blueBits,
+        int alphaBits,
+        int depthBits,
+        int stencilBits,
+        int samples) {
+    if (graphics_initialized()) {
+        return;
+    }
+    g_framebufferConfig.redBits = non_negative_or_default(redBits, g_framebufferConfig.redBits);
+    g_framebufferConfig.greenBits = non_negative_or_default(greenBits, g_framebufferConfig.greenBits);
+    g_framebufferConfig.blueBits = non_negative_or_default(blueBits, g_framebufferConfig.blueBits);
+    g_framebufferConfig.alphaBits = non_negative_or_default(alphaBits, g_framebufferConfig.alphaBits);
+    g_framebufferConfig.depthBits = non_negative_or_default(depthBits, g_framebufferConfig.depthBits);
+    g_framebufferConfig.stencilBits = non_negative_or_default(stencilBits, g_framebufferConfig.stencilBits);
+    g_framebufferConfig.samples = non_negative_or_default(samples, g_framebufferConfig.samples);
 }
 
 void libjglios_egl_swap_buffers(void) {
@@ -444,7 +554,9 @@ void libjglios_egl_shutdown(void) {
     g_surface = EGL_NO_SURFACE;
     g_display = EGL_NO_DISPLAY;
     g_metalLayer = nullptr;
+    g_pendingMetalLayer = nullptr;
 #endif
+    g_pendingWindow = nullptr;
     g_framebufferWidth.store(0);
     g_framebufferHeight.store(0);
     g_windowWidth.store(0);

@@ -26,6 +26,10 @@ extern "C" int libjglios_app_frame(graal_isolatethread_t* thread);
 extern "C" int libjglios_app_resize(graal_isolatethread_t* thread, int width, int height);
 extern "C" int libjglios_app_stop(graal_isolatethread_t* thread);
 
+extern "C" __attribute__((weak, visibility("default"))) int libjglios_app_configure(graal_isolatethread_t*) {
+    return 0;
+}
+
 extern "C" void parkRunLoop(void) {
     SDL_Log("libJGLIOS_GRAAL_PARK_RUN_LOOP");
 }
@@ -220,19 +224,6 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
         windowHeight = 600;
     }
 
-#if LIBJGLIOS_IOS_LEGACY_GLES
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-#endif
-
     state->window = SDL_CreateWindow(
         "libJGLIOS",
         windowWidth,
@@ -250,8 +241,7 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
     libjglios_app_set_window(state->window);
 #if LIBJGLIOS_IOS_LEGACY_GLES
     update_framebuffer_size(state->window, screen, windowWidth, windowHeight);
-
-    int eglResult = libjglios_egl_init_with_sdl_window(state->window);
+    libjglios_egl_set_pending_sdl_window(state->window);
 #else
     state->metalView = SDL_Metal_CreateView(state->window);
     if (state->metalView == nullptr) {
@@ -277,23 +267,42 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
     metalLayerObject.contentsScale = screenScale;
     metalLayerObject.drawableSize = CGSizeMake(windowWidth * screenScale, windowHeight * screenScale);
     update_framebuffer_size(state->window, metalLayerObject, screen, windowWidth, windowHeight);
-
-    int eglResult = libjglios_egl_init_with_metal_layer(metalLayer);
+    libjglios_egl_set_pending_metal_layer(metalLayer);
 #endif
-    if (eglResult != 0) {
-        fprintf(stderr, "libJGLIOS_EGL_INIT_FAILED=%d error=%s\n", eglResult, libjglios_egl_last_error());
-        fflush(stderr);
-        SDL_Log("libJGLIOS_EGL_INIT_FAILED=%d error=%s", eglResult, libjglios_egl_last_error());
-        destroy_windowing(state);
-        return SDL_APP_FAILURE;
-    }
 
     int isolateResult = graal_create_isolate(nullptr, &state->isolate, &state->thread);
     if (isolateResult != 0 || state->thread == nullptr) {
         fprintf(stderr, "libJGLIOS_GRAAL_CREATE_ISOLATE_FAILED=%d\n", isolateResult);
         fflush(stderr);
         SDL_Log("libJGLIOS_GRAAL_CREATE_ISOLATE_FAILED=%d", isolateResult);
+        destroy_windowing(state);
         return SDL_APP_FAILURE;
+    }
+
+    int configureResult = libjglios_app_configure(state->thread);
+    if (configureResult != 0) {
+        fprintf(stderr, "libJGLIOS_GRAAL_CONFIGURE_FAILED=%d\n", configureResult);
+        fflush(stderr);
+        SDL_Log("libJGLIOS_GRAAL_CONFIGURE_FAILED=%d", configureResult);
+        graal_tear_down_isolate(state->thread);
+        state->thread = nullptr;
+        state->isolate = nullptr;
+        destroy_windowing(state);
+        return SDL_APP_FAILURE;
+    }
+
+    if (!libjglios_egl_is_initialized()) {
+        int eglResult = libjglios_egl_init_pending();
+        if (eglResult != 0) {
+            fprintf(stderr, "libJGLIOS_EGL_INIT_FAILED=%d error=%s\n", eglResult, libjglios_egl_last_error());
+            fflush(stderr);
+            SDL_Log("libJGLIOS_EGL_INIT_FAILED=%d error=%s", eglResult, libjglios_egl_last_error());
+            graal_tear_down_isolate(state->thread);
+            state->thread = nullptr;
+            state->isolate = nullptr;
+            destroy_windowing(state);
+            return SDL_APP_FAILURE;
+        }
     }
 
     int startResult = libjglios_app_start(state->thread);
@@ -301,6 +310,10 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
         fprintf(stderr, "libJGLIOS_GRAAL_START_FAILED=%d\n", startResult);
         fflush(stderr);
         SDL_Log("libJGLIOS_GRAAL_START_FAILED=%d", startResult);
+        graal_tear_down_isolate(state->thread);
+        state->thread = nullptr;
+        state->isolate = nullptr;
+        destroy_windowing(state);
         return SDL_APP_FAILURE;
     }
 

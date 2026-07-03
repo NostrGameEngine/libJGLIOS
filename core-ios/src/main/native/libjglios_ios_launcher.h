@@ -6,6 +6,11 @@ extern "C" {
 
 int libjglios_egl_init_with_metal_layer(void* metalLayer);
 int libjglios_egl_init_with_sdl_window(void* window);
+void libjglios_egl_set_pending_metal_layer(void* metalLayer);
+void libjglios_egl_set_pending_sdl_window(void* window);
+int libjglios_egl_init_pending(void);
+bool libjglios_egl_is_initialized(void);
+void libjglios_egl_configure_default_framebuffer(int redBits, int greenBits, int blueBits, int alphaBits, int depthBits, int stencilBits, int samples);
 bool libjglios_egl_make_current(void);
 void libjglios_egl_swap_buffers(void);
 void libjglios_egl_set_framebuffer_size(int width, int height);

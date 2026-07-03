@@ -125,12 +125,31 @@ public final class LibJGLIOSGeneratedEntrypoints {
     public static void main(String[] args) {
     }
 
+    @CEntryPoint(name = "libjglios_app_configure")
+    public static int configure(IsolateThread thread) {
+        try {
+            Class<?> appClass = Class.forName(MAIN_CLASS);
+            try {
+                Object app = ensureApplication(appClass);
+                invokeIfPresent(app, "configure", new Class<?>[0]);
+            } catch (NoSuchMethodException noDefaultConstructor) {
+                return 0;
+            }
+            return 0;
+        } catch (Throwable throwable) {
+            logThrowable("libJGLIOS_GRAAL_CONFIGURE_EXCEPTION", throwable);
+            showFatalThrowable("Application configuration failed", throwable);
+            throwable.printStackTrace(System.out);
+            return -1;
+        }
+    }
+
     @CEntryPoint(name = "libjglios_app_start")
     public static int start(IsolateThread thread) {
         try {
             Class<?> appClass = Class.forName(MAIN_CLASS);
             try {
-                application = appClass.getDeclaredConstructor().newInstance();
+                application = ensureApplication(appClass);
             } catch (NoSuchMethodException noDefaultConstructor) {
                 invokeStaticMain(appClass);
                 return 0;
@@ -195,6 +214,13 @@ public final class LibJGLIOSGeneratedEntrypoints {
             throwable.printStackTrace(System.out);
             return 0;
         }
+    }
+
+    private static Object ensureApplication(Class<?> appClass) throws ReflectiveOperationException {
+        if (application == null) {
+            application = appClass.getDeclaredConstructor().newInstance();
+        }
+        return application;
     }
 
     private static Object invokeIfPresent(Object target, String name, Class<?>[] parameterTypes, Object... args)

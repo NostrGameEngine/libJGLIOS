@@ -75,6 +75,37 @@ Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_initWithMetalLayer(JNIEnv*, 
     return libjglios_egl_init_with_metal_layer(reinterpret_cast<void*>(metalLayer));
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_initializeGraphics(JNIEnv*, jclass) {
+    return libjglios_egl_init_pending();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_isInitialized(JNIEnv*, jclass) {
+    return libjglios_egl_is_initialized() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_configureDefaultFramebuffer(
+        JNIEnv*,
+        jclass,
+        jint redBits,
+        jint greenBits,
+        jint blueBits,
+        jint alphaBits,
+        jint depthBits,
+        jint stencilBits,
+        jint samples) {
+    libjglios_egl_configure_default_framebuffer(
+        redBits,
+        greenBits,
+        blueBits,
+        alphaBits,
+        depthBits,
+        stencilBits,
+        samples);
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_makeCurrent(JNIEnv*, jclass) {
     return libjglios_egl_make_current() ? JNI_TRUE : JNI_FALSE;

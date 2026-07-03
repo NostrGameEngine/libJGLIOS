@@ -11,6 +11,11 @@ public final class IosSdlRuntime {
     }
 
     public static int init(int width, int height) {
+        int initResult = LibJGLIOSEglBridge.initializeGraphics();
+        if (initResult != 0) {
+            lastError = LibJGLIOSEglBridge.lastError();
+            return initResult;
+        }
         if (!LibJGLIOSEglBridge.makeCurrent()) {
             lastError = LibJGLIOSEglBridge.lastError();
             return -1;

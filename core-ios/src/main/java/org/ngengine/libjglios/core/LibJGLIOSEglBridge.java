@@ -6,6 +6,19 @@ public final class LibJGLIOSEglBridge {
 
     public static native int initWithMetalLayer(long metalLayer);
 
+    public static native int initializeGraphics();
+
+    public static native boolean isInitialized();
+
+    public static native void configureDefaultFramebuffer(
+            int redBits,
+            int greenBits,
+            int blueBits,
+            int alphaBits,
+            int depthBits,
+            int stencilBits,
+            int samples);
+
     public static native boolean makeCurrent();
 
     public static native void swapBuffers();
