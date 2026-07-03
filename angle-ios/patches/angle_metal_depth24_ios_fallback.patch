@@ -1,0 +1,26 @@
+diff --git a/src/libANGLE/renderer/metal/mtl_format_map.json b/src/libANGLE/renderer/metal/mtl_format_map.json
+index 5020073..2bd577e 100644
+--- a/src/libANGLE/renderer/metal/mtl_format_map.json
++++ b/src/libANGLE/renderer/metal/mtl_format_map.json
+@@ -255,7 +255,7 @@
+         "depth_fallbacks_mac": {
+             "D24_UNORM_S8_UINT": {
+                 "format": "D32_FLOAT_S8X24_UINT",
+-                "condition": "metalDevice.depth24Stencil8PixelFormatSupported && !display->getFeatures().forceD24S8AsUnsupported.enabled"
++                "condition": "display->supportsDepth24Stencil8PixelFormat() && !display->getFeatures().forceD24S8AsUnsupported.enabled"
+             },
+             "D16_UNORM": {
+                 "format": "D32_FLOAT",
+diff --git a/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm b/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
+index fe74e97..e29ea7a 100644
+--- a/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
++++ b/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
+@@ -904,7 +904,7 @@ void Format::init(const DisplayMtl *display, angle::FormatID intendedFormatId_)
+ 
+         case angle::FormatID::D24_UNORM_S8_UINT:
+ 
+-            if (metalDevice.depth24Stencil8PixelFormatSupported &&
++            if (display->supportsDepth24Stencil8PixelFormat() &&
+                 !display->getFeatures().forceD24S8AsUnsupported.enabled)
+             {
+                 this->metalFormat    = MTLPixelFormatDepth24Unorm_Stencil8;
