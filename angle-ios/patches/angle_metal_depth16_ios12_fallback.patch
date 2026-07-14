@@ -1,27 +1,143 @@
+diff --git a/src/libANGLE/renderer/metal/DisplayMtl.h b/src/libANGLE/renderer/metal/DisplayMtl.h
+index 6901918..e074ff9 100644
+--- a/src/libANGLE/renderer/metal/DisplayMtl.h
++++ b/src/libANGLE/renderer/metal/DisplayMtl.h
+@@ -137,6 +137,7 @@ class DisplayMtl : public DisplayImpl
+     bool supportsEitherGPUFamily(uint8_t iOSFamily, uint8_t macFamily) const;
+     bool supportsAppleGPUFamily(uint8_t iOSFamily) const;
+     bool supportsMacGPUFamily(uint8_t macFamily) const;
++    bool supportsDepth16PixelFormat() const;
+     bool supportsDepth24Stencil8PixelFormat() const;
+     bool supports32BitFloatFiltering() const;
+     bool supportsBCTextureCompression() const;
+diff --git a/src/libANGLE/renderer/metal/DisplayMtl.mm b/src/libANGLE/renderer/metal/DisplayMtl.mm
+index 8d37ab0..205d8c9 100644
+--- a/src/libANGLE/renderer/metal/DisplayMtl.mm
++++ b/src/libANGLE/renderer/metal/DisplayMtl.mm
+@@ -1387,6 +1387,15 @@ bool DisplayMtl::supportsBCTextureCompression() const
+ #else
+     return false;  // Always false on old iOS
+ #endif
+ }
+-
++
++bool DisplayMtl::supportsDepth16PixelFormat() const
++{
++#if ANGLE_PLATFORM_IOS_FAMILY
++    return GetiOSVersion() >= OSVersion(13, 0, 0);
++#else
++    return true;
++#endif
++}
++
+ bool DisplayMtl::supportsDepth24Stencil8PixelFormat() const
+diff --git a/src/libANGLE/renderer/metal/gen_mtl_format_table.py b/src/libANGLE/renderer/metal/gen_mtl_format_table.py
+index 46c1605..a9f966c 100644
+--- a/src/libANGLE/renderer/metal/gen_mtl_format_table.py
++++ b/src/libANGLE/renderer/metal/gen_mtl_format_table.py
+@@ -328,19 +328,19 @@ def gen_image_map_switch_simple_case(angle_format, actual_angle_format_info, ang
+                                      gen_format_assign_code)
+-
++
+-
++
+-# Generate format conversion switch case (Mac case)
++# Generate format conversion switch case with a conditional depth fallback
+-
++
+-
++
+-def gen_image_map_switch_mac_case(angle_format, actual_angle_format_info, angle_to_gl,
+-                                  angle_to_mtl_map, mac_fallbacks):
++def gen_image_map_switch_depth_fallback_case(angle_format, actual_angle_format_info, angle_to_gl,
++                                              angle_to_mtl_map, depth_fallbacks):
+     gl_format = angle_to_gl[angle_format]
+-
++
+     def gen_format_assign_code(actual_angle_format, angle_to_mtl_map):
+-        if actual_angle_format in mac_fallbacks:
+-            # This format requires fallback when depth24Stencil8PixelFormatSupported flag is false.
++        if actual_angle_format in depth_fallbacks:
++            # This format requires a fallback when its native depth format is unavailable.
+             # Fallback format:
+-            actual_angle_format_fallback = mac_fallbacks[actual_angle_format]["format"]
+-            fallback_condition = mac_fallbacks[actual_angle_format]["condition"]
++            actual_angle_format_fallback = depth_fallbacks[actual_angle_format]["format"]
++            fallback_condition = depth_fallbacks[actual_angle_format]["condition"]
+             # return if else block:
+             return image_format_assign_template2.format(
+                 actual_angle_format=actual_angle_format,
+@@ -435,6 +435,7 @@ def gen_image_map_switch_string(image_table, angle_to_gl):
+     override_bc1 = image_table["override_bc1"]
+     ios_override = image_table["override_ios"]
+     mac_depth_fallbacks = image_table["depth_fallbacks_mac"]
++    ios_depth_fallbacks = image_table["depth_fallbacks_ios"]
+     angle_to_mtl = image_table["map"]
+     mac_specific_map = image_table["map_mac"].copy()
+     bc = image_table["map_bc"]
+@@ -468,8 +469,8 @@ def gen_image_map_switch_string(image_table, angle_to_gl):
+     # Mac GPU case: macOS + Catalyst targets
+     switch_data += "#if TARGET_OS_OSX || TARGET_OS_MACCATALYST\n"
+     for angle_format in sorted(mac_specific_map.keys()):
+-        switch_data += gen_image_map_switch_mac_case(angle_format, angle_format, angle_to_gl,
+-                                                     mac_angle_to_mtl, mac_depth_fallbacks)
++        switch_data += gen_image_map_switch_depth_fallback_case(
++            angle_format, angle_format, angle_to_gl, mac_angle_to_mtl, mac_depth_fallbacks)
+     for angle_format in sorted(mac_override.keys()):
+         switch_data += gen_image_map_switch_simple_case(angle_format, mac_override[angle_format],
+                                                         angle_to_gl, mac_angle_to_mtl)
+@@ -527,8 +528,8 @@ def gen_image_map_switch_string(image_table, angle_to_gl):
+             format_is_deprecated, section_contains_deprecated_format)
+         section_contains_deprecated_format = format_is_deprecated
+-
++
+-        switch_data += gen_image_map_switch_simple_case(angle_format, angle_format, angle_to_gl,
+-                                                        ios_specific_map)
++        switch_data += gen_image_map_switch_depth_fallback_case(
++            angle_format, angle_format, angle_to_gl, ios_angle_to_mtl, ios_depth_fallbacks)
+     for angle_format in sorted(ios_override.keys()):
+         switch_data += gen_image_map_switch_simple_case(angle_format, ios_override[angle_format],
+                                                         angle_to_gl, ios_angle_to_mtl)
 diff --git a/src/libANGLE/renderer/metal/mtl_format_map.json b/src/libANGLE/renderer/metal/mtl_format_map.json
-index 5020073..54c030c 100644
+index 2bd577e..6abc48c 100644
 --- a/src/libANGLE/renderer/metal/mtl_format_map.json
 +++ b/src/libANGLE/renderer/metal/mtl_format_map.json
-@@ -218,7 +218,8 @@
-         "override_mac": {
+@@ -261,6 +261,12 @@
+                 "condition": "display->supportsAppleGPUFamily(1)"
+             }
          },
-         "override_ios": {
--            "D24_UNORM_S8_UINT": "D32_FLOAT_S8X24_UINT"
-+            "D24_UNORM_S8_UINT": "D32_FLOAT_S8X24_UINT",
-+            "D16_UNORM": "D32_FLOAT"
-         },
-          "override_sim": {
-             "R5G6B5_UNORM": "R8G8B8A8_UNORM",
++        "depth_fallbacks_ios": {
++            "D16_UNORM": {
++                "format": "D32_FLOAT",
++                "condition": "display->supportsDepth16PixelFormat()"
++            }
++        },
+         "caps": {
+             "MTLPixelFormatA8Unorm":{
+                 "filterable": "true",
 diff --git a/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm b/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
-index fe74e97..2aeb2b0 100644
+index e29ea7a..9690f23 100644
 --- a/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
 +++ b/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
-@@ -1718,5 +1718,5 @@ void Format::init(const DisplayMtl *display, angle::FormatID intendedFormatId_)
+@@ -1717,8 +1717,16 @@ void Format::init(const DisplayMtl *display, angle::FormatID intendedFormatId_)
+-
++
          case angle::FormatID::D16_UNORM:
 -
++
 -            this->metalFormat    = MTLPixelFormatDepth16Unorm;
 -            this->actualFormatId = angle::FormatID::D16_UNORM;
-+
-+            this->metalFormat    = MTLPixelFormatDepth32Float;
-+            this->actualFormatId = angle::FormatID::D32_FLOAT;
++            if (display->supportsDepth16PixelFormat())
++            {
++                this->metalFormat    = MTLPixelFormatDepth16Unorm;
++                this->actualFormatId = angle::FormatID::D16_UNORM;
++            }
++            else
++            {
++                this->metalFormat    = MTLPixelFormatDepth32Float;
++                this->actualFormatId = angle::FormatID::D32_FLOAT;
++            }
              break;
+-
++
+         case angle::FormatID::EAC_R11G11_SNORM_BLOCK:
