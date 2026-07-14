@@ -1,0 +1,13 @@
+diff --git a/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm b/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm
+index 8d3d53a..3dc89be 100644
+--- a/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm
++++ b/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm
+@@ -367,7 +367,7 @@ angle::Result CreateMslShaderLib(mtl::Context *context,
+         translatedMslInfo->metalLibrary = libraryCache.getOrCompileShaderLibrary(
+             context->getDisplay(), translatedMslInfo->metalShaderSource, substitutionMacros,
+             disableFastMath, usesInvariance, &err);
+-        if (err || !translatedMslInfo->metalLibrary)
++        if (!translatedMslInfo->metalLibrary)
+         {
+             infoLog << "Internal error while linking shader. MSL compilation error:\n"
+                     << (err ? err.get().localizedDescription.UTF8String : "unknown error")
