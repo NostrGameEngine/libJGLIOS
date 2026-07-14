@@ -385,7 +385,24 @@ void libjglios_egl_configure_default_framebuffer(
 void libjglios_egl_swap_buffers(void) {
 #if LIBJGLIOS_IOS_LEGACY_GLES
     if (g_window != nullptr) {
-        SDL_GL_SwapWindow(g_window);
+        SDL_PropertiesID properties = SDL_GetWindowProperties(g_window);
+        GLuint drawableFramebuffer = static_cast<GLuint>(SDL_GetNumberProperty(
+            properties,
+            SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER,
+            0));
+        GLuint drawableRenderbuffer = static_cast<GLuint>(SDL_GetNumberProperty(
+            properties,
+            SDL_PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER,
+            0));
+        if (drawableFramebuffer != 0) {
+            glBindFramebuffer(GL_FRAMEBUFFER, drawableFramebuffer);
+        }
+        if (drawableRenderbuffer != 0) {
+            glBindRenderbuffer(GL_RENDERBUFFER, drawableRenderbuffer);
+        }
+        if (!SDL_GL_SwapWindow(g_window)) {
+            fail(-10, SDL_GetError());
+        }
     }
 #else
     if (g_display != EGL_NO_DISPLAY && g_surface != EGL_NO_SURFACE) {

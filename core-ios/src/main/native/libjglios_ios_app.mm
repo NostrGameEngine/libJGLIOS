@@ -229,6 +229,7 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
         windowWidth,
         windowHeight,
         SDL_WINDOW_FULLSCREEN |
+        SDL_WINDOW_HIGH_PIXEL_DENSITY |
 #if LIBJGLIOS_IOS_LEGACY_GLES
         SDL_WINDOW_OPENGL |
 #else
