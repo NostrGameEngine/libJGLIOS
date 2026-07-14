@@ -1,0 +1,27 @@
+diff --git a/src/libANGLE/renderer/metal/mtl_format_map.json b/src/libANGLE/renderer/metal/mtl_format_map.json
+index 5020073..54c030c 100644
+--- a/src/libANGLE/renderer/metal/mtl_format_map.json
++++ b/src/libANGLE/renderer/metal/mtl_format_map.json
+@@ -218,7 +218,8 @@
+         "override_mac": {
+         },
+         "override_ios": {
+-            "D24_UNORM_S8_UINT": "D32_FLOAT_S8X24_UINT"
++            "D24_UNORM_S8_UINT": "D32_FLOAT_S8X24_UINT",
++            "D16_UNORM": "D32_FLOAT"
+         },
+          "override_sim": {
+             "R5G6B5_UNORM": "R8G8B8A8_UNORM",
+diff --git a/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm b/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
+index fe74e97..2aeb2b0 100644
+--- a/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
++++ b/src/libANGLE/renderer/metal/mtl_format_table_autogen.mm
+@@ -1718,5 +1718,5 @@ void Format::init(const DisplayMtl *display, angle::FormatID intendedFormatId_)
+         case angle::FormatID::D16_UNORM:
+-
+-            this->metalFormat    = MTLPixelFormatDepth16Unorm;
+-            this->actualFormatId = angle::FormatID::D16_UNORM;
++
++            this->metalFormat    = MTLPixelFormatDepth32Float;
++            this->actualFormatId = angle::FormatID::D32_FLOAT;
+             break;
