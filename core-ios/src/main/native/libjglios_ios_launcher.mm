@@ -49,6 +49,7 @@ static std::atomic_int g_windowWidth(0);
 static std::atomic_int g_windowHeight(0);
 static std::atomic_int g_displayScaleMillis(1000);
 static std::atomic_bool g_quitRequested(false);
+static std::atomic_bool g_highPixelDensity(true);
 static SDL_Window* g_window = nullptr;
 
 struct LibJGLIOSFramebufferConfig {
@@ -298,18 +299,7 @@ int libjglios_egl_init_with_sdl_window(void* window) {
     }
 
     log_framebuffer_config("OpenGLES");
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, g_framebufferConfig.redBits);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, g_framebufferConfig.greenBits);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, g_framebufferConfig.blueBits);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, g_framebufferConfig.alphaBits);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, g_framebufferConfig.depthBits);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, g_framebufferConfig.stencilBits);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, g_framebufferConfig.samples > 0 ? 1 : 0);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, g_framebufferConfig.samples);
+    libjglios_egl_prepare_window();
 
     g_glContext = SDL_GL_CreateContext(g_window);
     if (g_glContext == nullptr) {
@@ -362,6 +352,16 @@ bool libjglios_egl_is_initialized(void) {
     return graphics_initialized();
 }
 
+void libjglios_egl_configure_window(bool highPixelDensity) {
+    if (g_window == nullptr) {
+        g_highPixelDensity.store(highPixelDensity);
+    }
+}
+
+bool libjglios_egl_high_pixel_density_enabled(void) {
+    return g_highPixelDensity.load();
+}
+
 void libjglios_egl_configure_default_framebuffer(
         int redBits,
         int greenBits,
@@ -380,6 +380,23 @@ void libjglios_egl_configure_default_framebuffer(
     g_framebufferConfig.depthBits = non_negative_or_default(depthBits, g_framebufferConfig.depthBits);
     g_framebufferConfig.stencilBits = non_negative_or_default(stencilBits, g_framebufferConfig.stencilBits);
     g_framebufferConfig.samples = non_negative_or_default(samples, g_framebufferConfig.samples);
+}
+
+void libjglios_egl_prepare_window(void) {
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, g_framebufferConfig.redBits);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, g_framebufferConfig.greenBits);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, g_framebufferConfig.blueBits);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, g_framebufferConfig.alphaBits);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, g_framebufferConfig.depthBits);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, g_framebufferConfig.stencilBits);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, g_framebufferConfig.samples > 0 ? 1 : 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, g_framebufferConfig.samples);
+#endif
 }
 
 void libjglios_egl_swap_buffers(void) {

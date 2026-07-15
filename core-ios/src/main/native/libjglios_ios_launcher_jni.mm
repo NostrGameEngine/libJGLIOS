@@ -86,6 +86,12 @@ Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_isInitialized(JNIEnv*, jclas
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_configureWindow(
+        JNIEnv*, jclass, jboolean highPixelDensity) {
+    libjglios_egl_configure_window(highPixelDensity == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_configureDefaultFramebuffer(
         JNIEnv*,
         jclass,

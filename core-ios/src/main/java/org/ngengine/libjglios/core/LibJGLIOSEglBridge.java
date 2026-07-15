@@ -10,6 +10,8 @@ public final class LibJGLIOSEglBridge {
 
     public static native boolean isInitialized();
 
+    public static native void configureWindow(boolean highPixelDensity);
+
     public static native void configureDefaultFramebuffer(
             int redBits,
             int greenBits,
