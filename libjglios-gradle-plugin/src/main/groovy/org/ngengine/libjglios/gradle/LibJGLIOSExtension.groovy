@@ -15,6 +15,7 @@ class LibJGLIOSExtension {
     Property<String> orientation
     Property<Object> appIcon
     ListProperty<String> includeResourceExtensions
+    ListProperty<String> runtimeInitializedTypes
     ConfigurableFileCollection assets
 
     void assets(Object... paths) {
@@ -29,5 +30,9 @@ class LibJGLIOSExtension {
 
     void includeResourceExtensions(Object... extensions) {
         this.includeResourceExtensions.addAll(extensions.collect { it.toString() })
+    }
+
+    void runtimeInitialize(String classOrPackageName) {
+        runtimeInitializedTypes.add(classOrPackageName)
     }
 }

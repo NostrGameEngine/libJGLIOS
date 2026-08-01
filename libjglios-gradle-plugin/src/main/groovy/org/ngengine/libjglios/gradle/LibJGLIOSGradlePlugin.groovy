@@ -20,6 +20,7 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.orientation = project.objects.property(String)
         extension.appIcon = project.objects.property(Object)
         extension.includeResourceExtensions = project.objects.listProperty(String)
+        extension.runtimeInitializedTypes = project.objects.listProperty(String)
         extension.assets = project.objects.fileCollection()
 
         extension.minIosVersion.convention(settingProvider(project, 'minIosVersion', '15.0'))
@@ -27,6 +28,7 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.buildType.convention(settingProvider(project, 'buildType', 'release'))
         extension.orientation.convention(settingProvider(project, 'orientation', 'landscape'))
         extension.includeResourceExtensions.convention([])
+        extension.runtimeInitializedTypes.convention([])
 
         registerGeneratedEntrypointsTask(project, extension)
         registerMaterializeNativeSourcesTask(project)

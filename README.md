@@ -39,6 +39,7 @@ iOS {
     // appIcon = file('src/ios/Assets.xcassets')
     // assets.from('src/assets', 'src/ios/assets')
     // includeResourceExtensions 'foo', '.bar'
+    // runtimeInitialize 'com.example.RuntimeState'
     // minIosVersion = '15.0'
     // simulatorDevice = 'iPhone 16'
     // buildType = 'release'
@@ -62,6 +63,11 @@ Native Image builds use the CAP cache packaged in the ios-graal-jdk artifact
 by default. Use `-PiosGraalRegenerateCapCache=true` to rebuild a local cache
 under `build/libjglios/cap-cache`, or `-PiosGraalUseCapCache=false` to build
 without CAP.
+
+`runtimeInitialize` is optional and additive. Use it once per class or package
+that Native Image must initialize at application runtime specifically for the
+iOS build. Runtime initialization supplied by dependencies through
+`META-INF/native-image` is consumed automatically from the runtime classpath.
 
 Useful app tasks:
 

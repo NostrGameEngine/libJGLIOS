@@ -185,6 +185,23 @@ def libJGLIOSIosRuntimeBucket = {
     libJGLIOSVersionLessThan(libJGLIOSConfiguredMinIosVersion(), '15.0') ? '12' : '15'
 }
 
+def libJGLIOSIosRuntimeInitializedTypes = {
+    def extension = extensions.findByName('iOS') ?: extensions.findByName('libJGLIOS')
+    def configured = extension != null && extension.hasProperty('runtimeInitializedTypes')
+        ? extension.runtimeInitializedTypes.getOrElse([])
+        : []
+    configured = configured
+        .collect { it == null ? null : it.toString().trim().replace('/', '.') }
+        .findAll { it != null && !it.isEmpty() }
+    def runtimeInitializedTypes = configured.toSorted().unique()
+    runtimeInitializedTypes.each { String classOrPackageName ->
+        if (!(classOrPackageName ==~ /[A-Za-z_$][A-Za-z0-9_$]*(\.[A-Za-z_$][A-Za-z0-9_$]*)*/)) {
+            throw new GradleException("Invalid iOS Native Image runtime-initialization type or package '${classOrPackageName}'")
+        }
+    }
+    runtimeInitializedTypes
+}
+
 def libJGLIOSIosRuntimeConfig = { String targetName ->
     def bucket = libJGLIOSIosRuntimeBucket()
     def configs = [
@@ -252,7 +269,7 @@ def libJGLIOSHostNikFingerprint = {
 }
 
 def libJGLIOSCapCacheFingerprint = { String targetName ->
-    "cap-cache-v2:${targetName}:min-ios=${libJGLIOSConfiguredMinIosVersion()}:${libJGLIOSIosRuntimeFingerprint(targetName)}:${libJGLIOSHostNikFingerprint()}"
+    "cap-cache-v3:${targetName}:min-ios=${libJGLIOSConfiguredMinIosVersion()}:runtime-init=${libJGLIOSIosRuntimeInitializedTypes().join(',')}:${libJGLIOSIosRuntimeFingerprint(targetName)}:${libJGLIOSHostNikFingerprint()}"
 }
 
 def libJGLIOSCapCacheFingerprintFile = { File capDir ->
@@ -1270,6 +1287,10 @@ def libJGLIOSNativeImageArgs = { File nativeImage, File libDir, boolean enableMo
         libJGLIOSMainClass()
     ]
 
+    def runtimeInitializedTypes = libJGLIOSIosRuntimeInitializedTypes()
+    if (!runtimeInitializedTypes.isEmpty()) {
+        args.add(args.size() - 1, "--initialize-at-run-time=${runtimeInitializedTypes.join(',')}")
+    }
     if (enableMonitoring) {
         args.add(args.size() - 1, '--enable-monitoring=heapdump,jfr')
     }
@@ -2392,6 +2413,7 @@ tasks.register('bootstrapIosSimulatorCapCache') {
         libJGLIOSProviderTask('prepareGraalJdkIphonesimulatorArm64')
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir, { libJGLIOSAssetsInputFiles() })
     inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
+    inputs.property('iosRuntimeInitializedTypes', providers.provider { libJGLIOSIosRuntimeInitializedTypes() })
     inputs.property('capCacheFingerprint', providers.provider { libJGLIOSCapCacheFingerprint('iphonesimulator-arm64') })
     outputs.dir(graalSimulatorLocalCapDir)
     outputs.file { libJGLIOSCapCacheFingerprintFile(graalSimulatorLocalCapDir) }
@@ -2427,6 +2449,7 @@ tasks.register('bootstrapIosDeviceCapCache') {
         libJGLIOSProviderTask('prepareGraalJdkIphoneosArm64')
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir, { libJGLIOSAssetsInputFiles() })
     inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
+    inputs.property('iosRuntimeInitializedTypes', providers.provider { libJGLIOSIosRuntimeInitializedTypes() })
     inputs.property('capCacheFingerprint', providers.provider { libJGLIOSCapCacheFingerprint('iphoneos-arm64') })
     outputs.dir(graalDeviceLocalCapDir)
     outputs.file { libJGLIOSCapCacheFingerprintFile(graalDeviceLocalCapDir) }
@@ -2505,6 +2528,7 @@ tasks.register('buildIosSimulatorUsercode') {
         'bootstrapIosSimulatorCapCache'
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalSimulatorRuntimeDir, { libJGLIOSAssetsInputFiles() })
     inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
+    inputs.property('iosRuntimeInitializedTypes', providers.provider { libJGLIOSIosRuntimeInitializedTypes() })
     outputs.dir(graalSimulatorLibDir)
 
     doLast {
@@ -2700,6 +2724,7 @@ tasks.register('buildUsercode') {
         'bootstrapIosDeviceCapCache'
     inputs.files(sourceSets.main.runtimeClasspath, graalHostVendorDir, graalDeviceRuntimeDir, { libJGLIOSAssetsInputFiles() })
     inputs.property('includeResourceExtensions', providers.provider { libJGLIOSIncludeResourceExtensions().join(',') })
+    inputs.property('iosRuntimeInitializedTypes', providers.provider { libJGLIOSIosRuntimeInitializedTypes() })
     outputs.dir(graalDeviceLibDir)
 
     doLast {
