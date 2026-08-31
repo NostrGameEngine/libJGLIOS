@@ -269,18 +269,19 @@ Java_org_ngengine_libjglios_core_LibJGLIOSInputBridge_pollEvent(JNIEnv* env, jcl
         return JNI_FALSE;
     }
 
-    int nativeIntData[5] = {0, 0, 0, 0, 0};
+    int nativeIntData[6] = {0, 0, 0, 0, 0, 0};
     float nativeFloatData[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     if (!libjglios_input_poll_event(nativeIntData, nativeFloatData)) {
         return JNI_FALSE;
     }
 
-    jint javaIntData[5] = {
+    jint javaIntData[6] = {
         static_cast<jint>(nativeIntData[0]),
         static_cast<jint>(nativeIntData[1]),
         static_cast<jint>(nativeIntData[2]),
         static_cast<jint>(nativeIntData[3]),
-        static_cast<jint>(nativeIntData[4])
+        static_cast<jint>(nativeIntData[4]),
+        static_cast<jint>(nativeIntData[5])
     };
     jfloat javaFloatData[4] = {
         static_cast<jfloat>(nativeFloatData[0]),
@@ -288,7 +289,7 @@ Java_org_ngengine_libjglios_core_LibJGLIOSInputBridge_pollEvent(JNIEnv* env, jcl
         static_cast<jfloat>(nativeFloatData[2]),
         static_cast<jfloat>(nativeFloatData[3])
     };
-    env->SetIntArrayRegion(intData, 0, std::min(static_cast<jsize>(5), env->GetArrayLength(intData)), javaIntData);
+    env->SetIntArrayRegion(intData, 0, std::min(static_cast<jsize>(6), env->GetArrayLength(intData)), javaIntData);
     env->SetFloatArrayRegion(floatData, 0, 4, javaFloatData);
     return JNI_TRUE;
 }

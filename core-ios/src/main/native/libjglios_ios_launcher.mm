@@ -69,7 +69,7 @@ static SDL_Window* g_pendingWindow = nullptr;
 static std::string g_lastError;
 
 struct LibJGLIOSQueuedInputEvent {
-    int intData[5] = {0, 0, 0, 0, 0};
+    int intData[6] = {0, 0, 0, 0, 0, 0};
     float floatData[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 };
 
@@ -822,6 +822,8 @@ void libjglios_input_enqueue_sdl_event(const void* rawEvent) {
             queued.intData[2] = event->type == SDL_EVENT_KEY_DOWN ? 1 : 0;
             queued.intData[3] = event->key.repeat ? 1 : 0;
             queued.intData[4] = static_cast<int>(event->key.mod);
+            // SDL reserves keyboard ID 0 for unknown or virtual keyboards.
+            queued.intData[5] = static_cast<int>(event->key.which);
             push_input_event(queued);
             break;
         case SDL_EVENT_TEXT_INPUT:
@@ -888,7 +890,7 @@ void libjglios_input_enqueue_sdl_event(const void* rawEvent) {
     }
 }
 
-bool libjglios_input_poll_event(int intData[5], float floatData[4]) {
+bool libjglios_input_poll_event(int intData[6], float floatData[4]) {
     std::lock_guard<std::mutex> lock(g_inputMutex);
     if (g_inputEvents.empty()) {
         return false;
@@ -896,7 +898,7 @@ bool libjglios_input_poll_event(int intData[5], float floatData[4]) {
 
     const LibJGLIOSQueuedInputEvent queued = g_inputEvents.front();
     g_inputEvents.erase(g_inputEvents.begin());
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 6; ++i) {
         intData[i] = queued.intData[i];
     }
     for (int i = 0; i < 4; ++i) {
