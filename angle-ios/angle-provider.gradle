@@ -9,6 +9,7 @@ ext {
     angleIosRevision = rootProject.findProperty('angleIosRevision') ?: 'HEAD'
     angleIosBuildType = rootProject.findProperty('angleIosBuildType') ?: 'Release'
     angleIosSourceDir = layout.buildDirectory.dir('angle/source').get()
+    angleIosCheckoutMarker = layout.buildDirectory.file('angle/source/.libjglios-checkout').get()
 }
 
 def libJGLIOSExecCapture = { List<String> argsList, File workingDir = project.projectDir ->
@@ -88,7 +89,8 @@ tasks.register('checkoutANGLESource') {
     description = 'Copies the ANGLE build scripts and checks out the configured upstream ANGLE revision.'
     inputs.dir(angleIosScriptDir)
     inputs.dir(angleIosPatchDir)
-    outputs.dir(angleIosSourceDir)
+    inputs.property('angleIosRevision', angleIosRevision)
+    outputs.file(angleIosCheckoutMarker)
     doLast {
         def source = angleIosSourceDir.asFile
         def scriptDir = angleIosScriptDir.asFile
@@ -141,6 +143,7 @@ tasks.register('checkoutANGLESource') {
         }
         println "ANGLE source: ${source}"
         println "ANGLE revision: ${resolvedAngle.stdout.trim()}"
+        angleIosCheckoutMarker.asFile.text = resolvedAngle.stdout.trim() + System.lineSeparator()
     }
 }
 
