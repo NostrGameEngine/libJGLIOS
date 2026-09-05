@@ -14,6 +14,16 @@ It includes bindings for SDL3, OpenAL, Clipboard and OpenGL ES via ANGLE on Meta
 - `:angle-ios`: native build of Google ANGLE for iOS
 - `:libjglios-gradle-plugin`: `org.ngengine.libjglios`, a Gradle plugin to build iOS apps
 
+## Device classification
+
+`LibJGLIOSDeviceBridge.isMobileDevice()` identifies phone and iPad device families
+through UIKit. It returns false for other interface idioms and for iOS apps
+running on Mac. The native call marshals UIKit access to the main thread, so a
+caller on another thread requires the application's main run loop to be running.
+This describes the device family, not whether a gamepad is connected.
+
+Consumers need matching Java and native core artifacts containing this method.
+
 ## Usage
 
 Consumer projects apply:

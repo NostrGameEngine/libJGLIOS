@@ -5,6 +5,9 @@ public final class LibJGLIOSDeviceBridge {
     }
     public static native boolean isMobileDevice();
 
+    /** Returns true for the phone and tablet device families, not TV or Mac. */
+    public static native boolean isMobileDevice();
+
     public static native boolean isRumbleSupported();
 
     public static native void rumble(float amountHigh, float amountLow, float duration);
