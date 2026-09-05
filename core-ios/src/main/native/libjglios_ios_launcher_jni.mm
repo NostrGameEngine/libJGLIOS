@@ -295,6 +295,25 @@ Java_org_ngengine_libjglios_core_LibJGLIOSInputBridge_pollEvent(JNIEnv* env, jcl
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_isMobileDevice(JNIEnv*, jclass) {
+    __block bool mobile = false;
+    void (^classify)(void) = ^{
+        UIUserInterfaceIdiom idiom = UIDevice.currentDevice.userInterfaceIdiom;
+        mobile = idiom == UIUserInterfaceIdiomPhone || idiom == UIUserInterfaceIdiomPad;
+        if (@available(iOS 14.0, *)) {
+            // iPhone/iPad apps running on Apple Silicon Macs can retain their original idiom.
+            mobile = mobile && !NSProcessInfo.processInfo.iOSAppOnMac;
+        }
+    };
+    if ([NSThread isMainThread]) {
+        classify();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), classify);
+    }
+    return mobile ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSDeviceBridge_isRumbleSupported(JNIEnv*, jclass) {
     return libjglios_device_rumble_supported() ? JNI_TRUE : JNI_FALSE;
 }
