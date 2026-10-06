@@ -13,6 +13,8 @@
 #include <SDL3/SDL.h>
 #include <TargetConditionals.h>
 #import <CoreHaptics/CoreHaptics.h>
+#import <UIKit/UIKit.h>
+#import <QuartzCore/CAMetalLayer.h>
 #if LIBJGLIOS_IOS_LEGACY_GLES
 #import <OpenGLES/ES3/gl.h>
 #else
@@ -50,6 +52,9 @@ static std::atomic_int g_windowHeight(0);
 static std::atomic_int g_displayScaleMillis(1000);
 static std::atomic_bool g_quitRequested(false);
 static std::atomic_bool g_highPixelDensity(true);
+static bool g_hdrRequested = false;
+static std::atomic_bool g_hdrSurface(false);
+static std::atomic_int g_hdrHeadroomMillis(1000);
 static SDL_Window* g_window = nullptr;
 
 struct LibJGLIOSFramebufferConfig {
@@ -104,6 +109,30 @@ static bool graphics_initialized(void) {
 #endif
 }
 
+void libjglios_egl_configure_hdr(bool enabled) {
+    if (!graphics_initialized()) g_hdrRequested = enabled;
+}
+
+bool libjglios_egl_hdr_enabled(void) { return g_hdrSurface; }
+
+float libjglios_egl_hdr_headroom(void) { return g_hdrHeadroomMillis.load() / 1000.0f; }
+
+// Called from SDL's main-thread frame callback; JNI reads only the cached value.
+void libjglios_egl_update_hdr(void) {
+    float headroom = 1.0f;
+#if !LIBJGLIOS_IOS_LEGACY_GLES
+    if (@available(iOS 16.0, *)) {
+        if (g_hdrSurface && g_metalLayer) {
+            CAMetalLayer* layer = (__bridge CAMetalLayer*)g_metalLayer;
+            UIScreen* screen = [layer.delegate isKindOfClass:UIView.class]
+                ? ((UIView*)layer.delegate).window.screen : UIScreen.mainScreen;
+            headroom = static_cast<float>(screen.currentEDRHeadroom);
+        }
+    }
+#endif
+    g_hdrHeadroomMillis = static_cast<int>(std::isfinite(headroom) ? std::max(1.0f, headroom) * 1000 : 1000);
+}
+
 static void log_framebuffer_config(const char* prefix) {
     std::fprintf(stderr,
         "%s framebuffer request: rgba=%d/%d/%d/%d depth=%d stencil=%d samples=%d\n",
@@ -128,6 +157,11 @@ static int config_score(EGLConfig config, EGLint renderableType) {
     const EGLint surfaceType = config_attrib(config, EGL_SURFACE_TYPE);
     const EGLint supportedRenderableType = config_attrib(config, EGL_RENDERABLE_TYPE);
     if ((surfaceType & EGL_WINDOW_BIT) == 0 || (supportedRenderableType & renderableType) == 0) {
+        return std::numeric_limits<int>::min();
+    }
+    if (g_hdrSurface && (config_attrib(config, EGL_COLOR_COMPONENT_TYPE_EXT) != EGL_COLOR_COMPONENT_TYPE_FLOAT_EXT
+            || config_attrib(config, EGL_RED_SIZE) < 16 || config_attrib(config, EGL_GREEN_SIZE) < 16
+            || config_attrib(config, EGL_BLUE_SIZE) < 16)) {
         return std::numeric_limits<int>::min();
     }
 
@@ -242,12 +276,28 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
         return fail(-4, "eglInitialize failed");
     }
 
+    CAMetalLayer* layer = (__bridge CAMetalLayer*)g_metalLayer;
+    if (@available(iOS 16.0, *)) {
+        UIScreen* screen = [layer.delegate isKindOfClass:UIView.class]
+            ? ((UIView*)layer.delegate).window.screen : UIScreen.mainScreen;
+        const char* extensions = eglQueryString(g_display, EGL_EXTENSIONS);
+        std::string supported = std::string(" ") + (extensions ? extensions : "") + " ";
+        g_hdrSurface = g_hdrRequested && screen.potentialEDRHeadroom > 1.0
+            && supported.find(" EGL_EXT_gl_colorspace_scrgb_linear ") != std::string::npos
+            && supported.find(" EGL_EXT_pixel_format_float ") != std::string::npos;
+    }
+    // Retry the existing SDR configuration if any part of HDR negotiation fails.
+    for (int attempt = 0; attempt < 2; ++attempt) {
     log_framebuffer_config("ANGLE");
     if (choose_config(EGL_OPENGL_ES3_BIT)) {
         g_context = create_context(3);
     }
     if (g_context == EGL_NO_CONTEXT) {
         g_config = nullptr;
+        if (g_hdrSurface) {
+            g_hdrSurface = false;
+            continue;
+        }
         if (!choose_config(EGL_OPENGL_ES2_BIT)) {
             return fail(-5, "eglChooseConfig failed for GLES3 and GLES2");
         }
@@ -257,19 +307,57 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
         }
     }
 
+    const EGLint hdrAttributes[] = {EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_SCRGB_LINEAR_EXT, EGL_NONE};
     g_surface = eglCreateWindowSurface(
         g_display,
         g_config,
         reinterpret_cast<EGLNativeWindowType>(g_metalLayer),
-        nullptr
+        g_hdrSurface ? hdrAttributes : nullptr
     );
     if (g_surface == EGL_NO_SURFACE) {
+        if (g_hdrSurface) {
+            eglDestroyContext(g_display, g_context);
+            g_context = EGL_NO_CONTEXT;
+            g_hdrSurface = false;
+            continue;
+        }
         return fail(-7, "eglCreateWindowSurface failed");
     }
 
     if (!eglMakeCurrent(g_display, g_surface, g_surface, g_context)) {
+        if (g_hdrSurface) {
+            eglDestroySurface(g_display, g_surface);
+            eglDestroyContext(g_display, g_context);
+            g_surface = EGL_NO_SURFACE;
+            g_context = EGL_NO_CONTEXT;
+            g_hdrSurface = false;
+            continue;
+        }
         return fail(-8, "eglMakeCurrent failed");
     }
+    if (g_hdrSurface && layer.pixelFormat != MTLPixelFormatRGBA16Float) {
+        eglMakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        eglDestroySurface(g_display, g_surface);
+        eglDestroyContext(g_display, g_context);
+        g_surface = EGL_NO_SURFACE;
+        g_context = EGL_NO_CONTEXT;
+        g_hdrSurface = false;
+        continue;
+    }
+    break;
+    }
+    if (@available(iOS 16.0, *)) layer.wantsExtendedDynamicRangeContent = g_hdrSurface;
+    if (g_hdrRequested && !g_hdrSurface) {
+        // A rejected HDR attempt may already have tagged this same layer as extended linear.
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+        layer.colorspace = colorSpace;
+        CGColorSpaceRelease(colorSpace);
+    }
+    libjglios_egl_update_hdr();
+    std::fprintf(stderr, "LIBJGLIOS_HDR=%s headroom=%.3f\n", g_hdrSurface ? "EDR_RGBA16F" : "SDR",
+        libjglios_egl_hdr_headroom());
+    if (g_hdrRequested && !g_hdrSurface) std::fprintf(stderr,
+        "UseHDR requested but screen/OS/ANGLE cannot present EDR; using SDR.\n");
 
     std::fprintf(stderr, "LIBJGLIOS_GRAPHICS_BACKEND=ANGLE\n");
     std::fprintf(stderr, "GL_VENDOR=%s\n", reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
@@ -564,6 +652,8 @@ const char* libjglios_egl_last_error(void) {
 }
 
 void libjglios_egl_shutdown(void) {
+    g_hdrSurface = false;
+    g_hdrHeadroomMillis = 1000;
 #if LIBJGLIOS_IOS_LEGACY_GLES
     if (g_window != nullptr) {
         SDL_GL_MakeCurrent(g_window, nullptr);

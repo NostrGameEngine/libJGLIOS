@@ -112,6 +112,21 @@ Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_configureDefaultFramebuffer(
         samples);
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_configureHdr(JNIEnv*, jclass, jboolean enabled) {
+    libjglios_egl_configure_hdr(enabled == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_isHdrOutputEnabled(JNIEnv*, jclass) {
+    return libjglios_egl_hdr_enabled() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_hdrHeadroom(JNIEnv*, jclass) {
+    return libjglios_egl_hdr_headroom();
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_makeCurrent(JNIEnv*, jclass) {
     return libjglios_egl_make_current() ? JNI_TRUE : JNI_FALSE;

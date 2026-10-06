@@ -342,6 +342,7 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
 extern "C" SDL_AppResult SDL_AppIterate(void* appstate) {
     auto* state = static_cast<LibJGLIOSAppState*>(appstate);
     state->frame++;
+    libjglios_egl_update_hdr();
 
     int javaFrame = libjglios_app_frame(state->thread);
     if (javaFrame < 0) {

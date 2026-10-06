@@ -12,6 +12,14 @@ public final class LibJGLIOSEglBridge {
 
     public static native void configureWindow(boolean highPixelDensity);
 
+    /** Request EDR before initializing graphics; requires matching native core and HDR-capable ANGLE. */
+    public static native void configureHdr(boolean enabled);
+
+    public static native boolean isHdrOutputEnabled();
+
+    /** Current, not potential, headroom above diffuse white. May change with brightness/thermal limits. */
+    public static native float hdrHeadroom();
+
     public static native void configureDefaultFramebuffer(
             int redBits,
             int greenBits,
