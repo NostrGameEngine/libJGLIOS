@@ -1,0 +1,18 @@
+description = 'Standalone WKWebView bindings without SDL, GLES or ANGLE dependencies.'
+
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+    libJGLIOSStaticIosFramework(
+        frameworkName: 'libJGLIOSWebView',
+        taskName: 'buildLibJGLIOSWebViewXcframework',
+        sources: [file('src/main/native/webview.mm')],
+        metadata: [systemFrameworks: ['WebKit', 'UIKit', 'Foundation']]
+    )
+} else {
+    tasks.register('buildLibJGLIOSWebViewXcframework') {
+        doLast { throw new GradleException('Building WKWebView native binaries requires macOS and Xcode.') }
+    }
+}
+
+// Native sources are included so downstream iOS builds remain reproducible.
+sourceSets.main.resources.srcDir('src/main/native')
