@@ -72,6 +72,9 @@ static void* g_pendingMetalLayer = nullptr;
 static SDL_Window* g_pendingWindow = nullptr;
 
 static std::string g_lastError;
+static int g_requestedGlesMajor = 3;
+static int g_requestedGlesMinor = 0;
+static bool g_explicitGlesVersion = false;
 
 struct LibJGLIOSQueuedInputEvent {
     int intData[6] = {0, 0, 0, 0, 0, 0};
@@ -230,9 +233,10 @@ static bool choose_config(EGLint renderableType) {
     return true;
 }
 
-static EGLContext create_context(int clientVersion) {
+static EGLContext create_context(int majorVersion, int minorVersion = 0) {
     const EGLint contextAttribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, clientVersion,
+        EGL_CONTEXT_MAJOR_VERSION_KHR, majorVersion,
+        EGL_CONTEXT_MINOR_VERSION_KHR, minorVersion,
         EGL_NONE
     };
     return eglCreateContext(g_display, g_config, EGL_NO_CONTEXT, contextAttribs);
@@ -289,14 +293,17 @@ int libjglios_egl_init_with_metal_layer(void* metalLayer) {
     // Retry the existing SDR configuration if any part of HDR negotiation fails.
     for (int attempt = 0; attempt < 2; ++attempt) {
     log_framebuffer_config("ANGLE");
-    if (choose_config(EGL_OPENGL_ES3_BIT)) {
-        g_context = create_context(3);
+    if (choose_config(g_requestedGlesMajor >= 3 ? EGL_OPENGL_ES3_BIT : EGL_OPENGL_ES2_BIT)) {
+        g_context = create_context(g_requestedGlesMajor, g_requestedGlesMinor);
     }
     if (g_context == EGL_NO_CONTEXT) {
         g_config = nullptr;
         if (g_hdrSurface) {
             g_hdrSurface = false;
             continue;
+        }
+        if (g_explicitGlesVersion) {
+            return fail(-6, "Requested GLES context version is unavailable; no implicit downgrade");
         }
         if (!choose_config(EGL_OPENGL_ES2_BIT)) {
             return fail(-5, "eglChooseConfig failed for GLES3 and GLES2");
@@ -440,6 +447,25 @@ bool libjglios_egl_is_initialized(void) {
     return graphics_initialized();
 }
 
+int libjglios_egl_configure_context_version(int majorVersion, int minorVersion) {
+    if (!((majorVersion == 2 && minorVersion == 0) ||
+          (majorVersion == 3 && (minorVersion == 0 || minorVersion == 1)))) {
+        return fail(-11, "Supported context requests are GLES 2.0, 3.0 and 3.1");
+    }
+    if (graphics_initialized()) {
+        return fail(-11, "Configure the GLES version before graphics initialization");
+    }
+#if LIBJGLIOS_IOS_LEGACY_GLES
+    if (majorVersion == 3 && minorVersion == 1) {
+        return fail(-11, "GLES 3.1 requires the ANGLE backend");
+    }
+#endif
+    g_requestedGlesMajor = majorVersion;
+    g_requestedGlesMinor = minorVersion;
+    g_explicitGlesVersion = true;
+    return 0;
+}
+
 void libjglios_egl_configure_window(bool highPixelDensity) {
     if (g_window == nullptr) {
         g_highPixelDensity.store(highPixelDensity);
@@ -473,8 +499,8 @@ void libjglios_egl_configure_default_framebuffer(
 void libjglios_egl_prepare_window(void) {
 #if LIBJGLIOS_IOS_LEGACY_GLES
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, g_requestedGlesMajor);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, g_requestedGlesMinor);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, g_framebufferConfig.redBits);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, g_framebufferConfig.greenBits);

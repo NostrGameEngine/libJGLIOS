@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 #if LIBJGLIOS_IOS_LEGACY_GLES
 #include <dlfcn.h>
@@ -5223,12 +5224,13 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawArraysEX
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawArraysIndirectEXT(JNIEnv* env, jclass, jint mode, jlong indirect, jint drawcount, jint stride) {
-    using Fn = void (*)(jint, jlong, jint, jint);
+    using Fn = void (*)(GLenum, const void*, GLsizei, GLsizei);
     static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glMultiDrawArraysIndirectEXT"));
     if (!fn) {
         return;
     }
-    fn(mode, indirect, drawcount, stride);
+    fn(static_cast<GLenum>(mode), reinterpret_cast<const void*>(static_cast<intptr_t>(indirect)),
+       static_cast<GLsizei>(drawcount), static_cast<GLsizei>(stride));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawElementsBaseVertexEXT(JNIEnv* env, jclass, jint mode, jintArray count, jint type, jlong indices, jint drawcount, jintArray basevertex) {
@@ -5259,12 +5261,14 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawElements
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawElementsIndirectEXT(JNIEnv* env, jclass, jint mode, jint type, jlong indirect, jint drawcount, jint stride) {
-    using Fn = void (*)(jint, jint, jlong, jint, jint);
+    using Fn = void (*)(GLenum, GLenum, const void*, GLsizei, GLsizei);
     static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glMultiDrawElementsIndirectEXT"));
     if (!fn) {
         return;
     }
-    fn(mode, type, indirect, drawcount, stride);
+    fn(static_cast<GLenum>(mode), static_cast<GLenum>(type),
+       reinterpret_cast<const void*>(static_cast<intptr_t>(indirect)),
+       static_cast<GLsizei>(drawcount), static_cast<GLsizei>(stride));
 }
 
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMultiDrawMeshTasksIndirectCountNV(JNIEnv* env, jclass, jlong indirect, jlong drawcount, jint maxdrawcount, jint stride) {
@@ -8656,4 +8660,801 @@ JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenQueries__I_3I(
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenRenderbuffers__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray renderbuffers) { libjglios_gles_glGenRenderbuffers(env, clazz, n, renderbuffers); }
 JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenTextures__I_3I(JNIEnv* env, jclass clazz, jint n, jintArray textures) { libjglios_gles_glGenTextures(env, clazz, n, textures); }
 
+// BEGIN GLES 3.1 CORE
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDispatchCompute(JNIEnv* env, jclass, jint num_groups_x, jint num_groups_y, jint num_groups_z) {
+    using Fn = void (*)(GLuint, GLuint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glDispatchCompute"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glDispatchCompute is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(num_groups_x), static_cast<GLuint>(num_groups_y), static_cast<GLuint>(num_groups_z));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDispatchComputeIndirect(JNIEnv* env, jclass, jlong indirect) {
+    using Fn = void (*)(GLintptr);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glDispatchComputeIndirect"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glDispatchComputeIndirect is unavailable");
+        return;
+    }
+    fn(static_cast<GLintptr>(indirect));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDrawArraysIndirect(JNIEnv* env, jclass, jint mode, jlong indirect) {
+    using Fn = void (*)(GLenum, const void *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glDrawArraysIndirect"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glDrawArraysIndirect is unavailable");
+        return;
+    }
+    fn(static_cast<GLenum>(mode), reinterpret_cast<const void*>(static_cast<intptr_t>(indirect)));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDrawElementsIndirect(JNIEnv* env, jclass, jint mode, jint type, jlong indirect) {
+    using Fn = void (*)(GLenum, GLenum, const void *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glDrawElementsIndirect"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glDrawElementsIndirect is unavailable");
+        return;
+    }
+    fn(static_cast<GLenum>(mode), static_cast<GLenum>(type), reinterpret_cast<const void*>(static_cast<intptr_t>(indirect)));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glFramebufferParameteri(JNIEnv* env, jclass, jint target, jint pname, jint param) {
+    using Fn = void (*)(GLenum, GLenum, GLint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glFramebufferParameteri"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glFramebufferParameteri is unavailable");
+        return;
+    }
+    fn(static_cast<GLenum>(target), static_cast<GLenum>(pname), static_cast<GLint>(param));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetFramebufferParameteriv(JNIEnv* env, jclass, jint target, jint pname, jobject params, jlong paramsByteOffset) {
+    using Fn = void (*)(GLenum, GLenum, GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetFramebufferParameteriv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetFramebufferParameteriv is unavailable");
+        return;
+    }
+    auto paramsValue = reinterpret_cast<GLint *>(directBufferAddress(env, params, paramsByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLenum>(target), static_cast<GLenum>(pname), paramsValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramInterfaceiv(JNIEnv* env, jclass, jint program, jint programInterface, jint pname, jobject params, jlong paramsByteOffset) {
+    using Fn = void (*)(GLuint, GLenum, GLenum, GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetProgramInterfaceiv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetProgramInterfaceiv is unavailable");
+        return;
+    }
+    auto paramsValue = reinterpret_cast<GLint *>(directBufferAddress(env, params, paramsByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLenum>(programInterface), static_cast<GLenum>(pname), paramsValue);
+}
+
+JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramResourceIndex(JNIEnv* env, jclass, jint program, jint programInterface, jstring name) {
+    using Fn = GLuint (*)(GLuint, GLenum, const GLchar *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetProgramResourceIndex"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetProgramResourceIndex is unavailable");
+        return 0;
+    }
+    const char* nameValue = name ? env->GetStringUTFChars(name, nullptr) : nullptr;
+    if (!nameValue) {
+        if (!env->ExceptionCheck()) throwJavaException(env, "java/lang/IllegalArgumentException", "Null resource name");
+        return 0;
+    }
+    auto result = fn(static_cast<GLuint>(program), static_cast<GLenum>(programInterface), nameValue);
+    env->ReleaseStringUTFChars(name, nameValue);
+    return static_cast<jint>(result);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramResourceName(JNIEnv* env, jclass, jint program, jint programInterface, jint index, jint bufSize, jobject length, jlong lengthByteOffset, jobject name, jlong nameByteOffset) {
+    using Fn = void (*)(GLuint, GLenum, GLuint, GLsizei, GLsizei *, GLchar *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetProgramResourceName"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetProgramResourceName is unavailable");
+        return;
+    }
+    auto lengthValue = reinterpret_cast<GLsizei *>(directBufferAddress(env, length, lengthByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    auto nameValue = reinterpret_cast<GLchar *>(directBufferAddress(env, name, nameByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLenum>(programInterface), static_cast<GLuint>(index), static_cast<GLsizei>(bufSize), lengthValue, nameValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramResourceiv(JNIEnv* env, jclass, jint program, jint programInterface, jint index, jint propCount, jobject props, jlong propsByteOffset, jint count, jobject length, jlong lengthByteOffset, jobject params, jlong paramsByteOffset) {
+    using Fn = void (*)(GLuint, GLenum, GLuint, GLsizei, const GLenum *, GLsizei, GLsizei *, GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetProgramResourceiv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetProgramResourceiv is unavailable");
+        return;
+    }
+    auto propsValue = reinterpret_cast<const GLenum *>(directBufferAddress(env, props, propsByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    auto lengthValue = reinterpret_cast<GLsizei *>(directBufferAddress(env, length, lengthByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    auto paramsValue = reinterpret_cast<GLint *>(directBufferAddress(env, params, paramsByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLenum>(programInterface), static_cast<GLuint>(index), static_cast<GLsizei>(propCount), propsValue, static_cast<GLsizei>(count), lengthValue, paramsValue);
+}
+
+JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramResourceLocation(JNIEnv* env, jclass, jint program, jint programInterface, jstring name) {
+    using Fn = GLint (*)(GLuint, GLenum, const GLchar *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetProgramResourceLocation"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetProgramResourceLocation is unavailable");
+        return 0;
+    }
+    const char* nameValue = name ? env->GetStringUTFChars(name, nullptr) : nullptr;
+    if (!nameValue) {
+        if (!env->ExceptionCheck()) throwJavaException(env, "java/lang/IllegalArgumentException", "Null resource name");
+        return 0;
+    }
+    auto result = fn(static_cast<GLuint>(program), static_cast<GLenum>(programInterface), nameValue);
+    env->ReleaseStringUTFChars(name, nameValue);
+    return static_cast<jint>(result);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glUseProgramStages(JNIEnv* env, jclass, jint pipeline, jint stages, jint program) {
+    using Fn = void (*)(GLuint, GLbitfield, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glUseProgramStages"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glUseProgramStages is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(pipeline), static_cast<GLbitfield>(stages), static_cast<GLuint>(program));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glActiveShaderProgram(JNIEnv* env, jclass, jint pipeline, jint program) {
+    using Fn = void (*)(GLuint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glActiveShaderProgram"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glActiveShaderProgram is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(pipeline), static_cast<GLuint>(program));
+}
+
+JNIEXPORT jint JNICALL Java_org_ngengine_libjglios_gles_GLES_glCreateShaderProgramv(JNIEnv* env, jclass, jint type, jint count, jobjectArray strings) {
+    using Fn = GLuint (*)(GLenum, GLsizei, const GLchar *const*);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glCreateShaderProgramv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glCreateShaderProgramv is unavailable");
+        return 0;
+    }
+    if (!strings || count < 0 || count > env->GetArrayLength(strings)) {
+        throwJavaException(env, "java/lang/IllegalArgumentException", "Invalid shader strings/count");
+        return 0;
+    }
+    std::vector<jstring> stringRefs;
+    std::vector<const GLchar*> stringValues;
+    for (jint i = 0; i < count; ++i) {
+        jstring string = static_cast<jstring>(env->GetObjectArrayElement(strings, i));
+        const char* value = string ? env->GetStringUTFChars(string, nullptr) : nullptr;
+        if (!value) {
+            for (size_t j = 0; j < stringRefs.size(); ++j) {
+                env->ReleaseStringUTFChars(stringRefs[j], stringValues[j]);
+                env->DeleteLocalRef(stringRefs[j]);
+            }
+            if (string) env->DeleteLocalRef(string);
+            if (!env->ExceptionCheck()) throwJavaException(env, "java/lang/IllegalArgumentException", "Null shader string");
+            return 0;
+        }
+        stringRefs.push_back(string);
+        stringValues.push_back(value);
+    }
+    auto result = fn(static_cast<GLenum>(type), static_cast<GLsizei>(count), stringValues.data());
+    for (size_t i = 0; i < stringRefs.size(); ++i) {
+        env->ReleaseStringUTFChars(stringRefs[i], stringValues[i]);
+        env->DeleteLocalRef(stringRefs[i]);
+    }
+    return static_cast<jint>(result);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBindProgramPipeline(JNIEnv* env, jclass, jint pipeline) {
+    using Fn = void (*)(GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glBindProgramPipeline"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glBindProgramPipeline is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(pipeline));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glDeleteProgramPipelines(JNIEnv* env, jclass, jint n, jobject pipelines, jlong pipelinesByteOffset) {
+    using Fn = void (*)(GLsizei, const GLuint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glDeleteProgramPipelines"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glDeleteProgramPipelines is unavailable");
+        return;
+    }
+    auto pipelinesValue = reinterpret_cast<const GLuint *>(directBufferAddress(env, pipelines, pipelinesByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLsizei>(n), pipelinesValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGenProgramPipelines(JNIEnv* env, jclass, jint n, jobject pipelines, jlong pipelinesByteOffset) {
+    using Fn = void (*)(GLsizei, GLuint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGenProgramPipelines"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGenProgramPipelines is unavailable");
+        return;
+    }
+    auto pipelinesValue = reinterpret_cast<GLuint *>(directBufferAddress(env, pipelines, pipelinesByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLsizei>(n), pipelinesValue);
+}
+
+JNIEXPORT jbyte JNICALL Java_org_ngengine_libjglios_gles_GLES_glIsProgramPipeline(JNIEnv* env, jclass, jint pipeline) {
+    using Fn = GLboolean (*)(GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glIsProgramPipeline"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glIsProgramPipeline is unavailable");
+        return 0;
+    }
+    auto result = fn(static_cast<GLuint>(pipeline));
+    return static_cast<jbyte>(result);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramPipelineiv(JNIEnv* env, jclass, jint pipeline, jint pname, jobject params, jlong paramsByteOffset) {
+    using Fn = void (*)(GLuint, GLenum, GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetProgramPipelineiv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetProgramPipelineiv is unavailable");
+        return;
+    }
+    auto paramsValue = reinterpret_cast<GLint *>(directBufferAddress(env, params, paramsByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(pipeline), static_cast<GLenum>(pname), paramsValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1i(JNIEnv* env, jclass, jint program, jint location, jint v0) {
+    using Fn = void (*)(GLuint, GLint, GLint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform1i"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform1i is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLint>(v0));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2i(JNIEnv* env, jclass, jint program, jint location, jint v0, jint v1) {
+    using Fn = void (*)(GLuint, GLint, GLint, GLint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform2i"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform2i is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLint>(v0), static_cast<GLint>(v1));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3i(JNIEnv* env, jclass, jint program, jint location, jint v0, jint v1, jint v2) {
+    using Fn = void (*)(GLuint, GLint, GLint, GLint, GLint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform3i"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform3i is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLint>(v0), static_cast<GLint>(v1), static_cast<GLint>(v2));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4i(JNIEnv* env, jclass, jint program, jint location, jint v0, jint v1, jint v2, jint v3) {
+    using Fn = void (*)(GLuint, GLint, GLint, GLint, GLint, GLint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform4i"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform4i is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLint>(v0), static_cast<GLint>(v1), static_cast<GLint>(v2), static_cast<GLint>(v3));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1ui(JNIEnv* env, jclass, jint program, jint location, jint v0) {
+    using Fn = void (*)(GLuint, GLint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform1ui"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform1ui is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLuint>(v0));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2ui(JNIEnv* env, jclass, jint program, jint location, jint v0, jint v1) {
+    using Fn = void (*)(GLuint, GLint, GLuint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform2ui"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform2ui is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLuint>(v0), static_cast<GLuint>(v1));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3ui(JNIEnv* env, jclass, jint program, jint location, jint v0, jint v1, jint v2) {
+    using Fn = void (*)(GLuint, GLint, GLuint, GLuint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform3ui"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform3ui is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLuint>(v0), static_cast<GLuint>(v1), static_cast<GLuint>(v2));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4ui(JNIEnv* env, jclass, jint program, jint location, jint v0, jint v1, jint v2, jint v3) {
+    using Fn = void (*)(GLuint, GLint, GLuint, GLuint, GLuint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform4ui"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform4ui is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLuint>(v0), static_cast<GLuint>(v1), static_cast<GLuint>(v2), static_cast<GLuint>(v3));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1f(JNIEnv* env, jclass, jint program, jint location, jfloat v0) {
+    using Fn = void (*)(GLuint, GLint, GLfloat);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform1f"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform1f is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLfloat>(v0));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2f(JNIEnv* env, jclass, jint program, jint location, jfloat v0, jfloat v1) {
+    using Fn = void (*)(GLuint, GLint, GLfloat, GLfloat);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform2f"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform2f is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLfloat>(v0), static_cast<GLfloat>(v1));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3f(JNIEnv* env, jclass, jint program, jint location, jfloat v0, jfloat v1, jfloat v2) {
+    using Fn = void (*)(GLuint, GLint, GLfloat, GLfloat, GLfloat);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform3f"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform3f is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLfloat>(v0), static_cast<GLfloat>(v1), static_cast<GLfloat>(v2));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4f(JNIEnv* env, jclass, jint program, jint location, jfloat v0, jfloat v1, jfloat v2, jfloat v3) {
+    using Fn = void (*)(GLuint, GLint, GLfloat, GLfloat, GLfloat, GLfloat);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform4f"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform4f is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLfloat>(v0), static_cast<GLfloat>(v1), static_cast<GLfloat>(v2), static_cast<GLfloat>(v3));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1iv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform1iv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform1iv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2iv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform2iv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform2iv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3iv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform3iv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform3iv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4iv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform4iv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform4iv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1uiv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLuint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform1uiv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform1uiv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLuint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2uiv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLuint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform2uiv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform2uiv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLuint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3uiv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLuint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform3uiv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform3uiv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLuint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4uiv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLuint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform4uiv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform4uiv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLuint *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform1fv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform1fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform1fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform2fv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform2fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform2fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform3fv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform3fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform3fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniform4fv(JNIEnv* env, jclass, jint program, jint location, jint count, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniform4fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniform4fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix2fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix2fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix2fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix3fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix3fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix3fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix4fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix4fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix4fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix2x3fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix2x3fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix2x3fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix3x2fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix3x2fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix3x2fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix2x4fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix2x4fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix2x4fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix4x2fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix4x2fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix4x2fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix3x4fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix3x4fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix3x4fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glProgramUniformMatrix4x3fv(JNIEnv* env, jclass, jint program, jint location, jint count, jbyte transpose, jobject value, jlong valueByteOffset) {
+    using Fn = void (*)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glProgramUniformMatrix4x3fv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glProgramUniformMatrix4x3fv is unavailable");
+        return;
+    }
+    auto valueValue = reinterpret_cast<const GLfloat *>(directBufferAddress(env, value, valueByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(program), static_cast<GLint>(location), static_cast<GLsizei>(count), static_cast<GLboolean>(transpose), valueValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glValidateProgramPipeline(JNIEnv* env, jclass, jint pipeline) {
+    using Fn = void (*)(GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glValidateProgramPipeline"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glValidateProgramPipeline is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(pipeline));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetProgramPipelineInfoLog(JNIEnv* env, jclass, jint pipeline, jint bufSize, jobject length, jlong lengthByteOffset, jobject infoLog, jlong infoLogByteOffset) {
+    using Fn = void (*)(GLuint, GLsizei, GLsizei *, GLchar *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetProgramPipelineInfoLog"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetProgramPipelineInfoLog is unavailable");
+        return;
+    }
+    auto lengthValue = reinterpret_cast<GLsizei *>(directBufferAddress(env, length, lengthByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    auto infoLogValue = reinterpret_cast<GLchar *>(directBufferAddress(env, infoLog, infoLogByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLuint>(pipeline), static_cast<GLsizei>(bufSize), lengthValue, infoLogValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBindImageTexture(JNIEnv* env, jclass, jint unit, jint texture, jint level, jbyte layered, jint layer, jint access, jint format) {
+    using Fn = void (*)(GLuint, GLuint, GLint, GLboolean, GLint, GLenum, GLenum);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glBindImageTexture"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glBindImageTexture is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(unit), static_cast<GLuint>(texture), static_cast<GLint>(level), static_cast<GLboolean>(layered), static_cast<GLint>(layer), static_cast<GLenum>(access), static_cast<GLenum>(format));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetBooleani_1v(JNIEnv* env, jclass, jint target, jint index, jobject data, jlong dataByteOffset) {
+    using Fn = void (*)(GLenum, GLuint, GLboolean *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetBooleani_v"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetBooleani_v is unavailable");
+        return;
+    }
+    auto dataValue = reinterpret_cast<GLboolean *>(directBufferAddress(env, data, dataByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLenum>(target), static_cast<GLuint>(index), dataValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMemoryBarrier(JNIEnv* env, jclass, jint barriers) {
+    using Fn = void (*)(GLbitfield);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glMemoryBarrier"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glMemoryBarrier is unavailable");
+        return;
+    }
+    fn(static_cast<GLbitfield>(barriers));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glMemoryBarrierByRegion(JNIEnv* env, jclass, jint barriers) {
+    using Fn = void (*)(GLbitfield);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glMemoryBarrierByRegion"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glMemoryBarrierByRegion is unavailable");
+        return;
+    }
+    fn(static_cast<GLbitfield>(barriers));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glTexStorage2DMultisample(JNIEnv* env, jclass, jint target, jint samples, jint internalformat, jint width, jint height, jbyte fixedsamplelocations) {
+    using Fn = void (*)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLboolean);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glTexStorage2DMultisample"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glTexStorage2DMultisample is unavailable");
+        return;
+    }
+    fn(static_cast<GLenum>(target), static_cast<GLsizei>(samples), static_cast<GLenum>(internalformat), static_cast<GLsizei>(width), static_cast<GLsizei>(height), static_cast<GLboolean>(fixedsamplelocations));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetMultisamplefv(JNIEnv* env, jclass, jint pname, jint index, jobject val, jlong valByteOffset) {
+    using Fn = void (*)(GLenum, GLuint, GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetMultisamplefv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetMultisamplefv is unavailable");
+        return;
+    }
+    auto valValue = reinterpret_cast<GLfloat *>(directBufferAddress(env, val, valByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLenum>(pname), static_cast<GLuint>(index), valValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glSampleMaski(JNIEnv* env, jclass, jint maskNumber, jint mask) {
+    using Fn = void (*)(GLuint, GLbitfield);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glSampleMaski"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glSampleMaski is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(maskNumber), static_cast<GLbitfield>(mask));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexLevelParameteriv(JNIEnv* env, jclass, jint target, jint level, jint pname, jobject params, jlong paramsByteOffset) {
+    using Fn = void (*)(GLenum, GLint, GLenum, GLint *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetTexLevelParameteriv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetTexLevelParameteriv is unavailable");
+        return;
+    }
+    auto paramsValue = reinterpret_cast<GLint *>(directBufferAddress(env, params, paramsByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLenum>(target), static_cast<GLint>(level), static_cast<GLenum>(pname), paramsValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glGetTexLevelParameterfv(JNIEnv* env, jclass, jint target, jint level, jint pname, jobject params, jlong paramsByteOffset) {
+    using Fn = void (*)(GLenum, GLint, GLenum, GLfloat *);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glGetTexLevelParameterfv"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glGetTexLevelParameterfv is unavailable");
+        return;
+    }
+    auto paramsValue = reinterpret_cast<GLfloat *>(directBufferAddress(env, params, paramsByteOffset));
+    if (env->ExceptionCheck()) { return; }
+    fn(static_cast<GLenum>(target), static_cast<GLint>(level), static_cast<GLenum>(pname), paramsValue);
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glBindVertexBuffer(JNIEnv* env, jclass, jint bindingindex, jint buffer, jlong offset, jint stride) {
+    using Fn = void (*)(GLuint, GLuint, GLintptr, GLsizei);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glBindVertexBuffer"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glBindVertexBuffer is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(bindingindex), static_cast<GLuint>(buffer), static_cast<GLintptr>(offset), static_cast<GLsizei>(stride));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribFormat(JNIEnv* env, jclass, jint attribindex, jint size, jint type, jbyte normalized, jint relativeoffset) {
+    using Fn = void (*)(GLuint, GLint, GLenum, GLboolean, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glVertexAttribFormat"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glVertexAttribFormat is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(attribindex), static_cast<GLint>(size), static_cast<GLenum>(type), static_cast<GLboolean>(normalized), static_cast<GLuint>(relativeoffset));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribIFormat(JNIEnv* env, jclass, jint attribindex, jint size, jint type, jint relativeoffset) {
+    using Fn = void (*)(GLuint, GLint, GLenum, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glVertexAttribIFormat"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glVertexAttribIFormat is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(attribindex), static_cast<GLint>(size), static_cast<GLenum>(type), static_cast<GLuint>(relativeoffset));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexAttribBinding(JNIEnv* env, jclass, jint attribindex, jint bindingindex) {
+    using Fn = void (*)(GLuint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glVertexAttribBinding"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glVertexAttribBinding is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(attribindex), static_cast<GLuint>(bindingindex));
+}
+
+JNIEXPORT void JNICALL Java_org_ngengine_libjglios_gles_GLES_glVertexBindingDivisor(JNIEnv* env, jclass, jint bindingindex, jint divisor) {
+    using Fn = void (*)(GLuint, GLuint);
+    static Fn fn = reinterpret_cast<Fn>(libjglios_gl_get_proc_address("glVertexBindingDivisor"));
+    if (!fn) {
+        throwJavaException(env, "java/lang/UnsupportedOperationException", "glVertexBindingDivisor is unavailable");
+        return;
+    }
+    fn(static_cast<GLuint>(bindingindex), static_cast<GLuint>(divisor));
+}
+
+// END GLES 3.1 CORE
 }

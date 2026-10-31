@@ -10,6 +10,13 @@ public final class LibJGLIOSEglBridge {
 
     public static native boolean isInitialized();
 
+    /**
+     * Selects an exact GLES context version before graphics initialization.
+     * GLES 3.1 requires the matching ANGLE profile and a supported Metal device.
+     * An explicit request fails when unavailable instead of downgrading silently.
+     */
+    public static native void configureGlesVersion(int majorVersion, int minorVersion);
+
     public static native void configureWindow(boolean highPixelDensity);
 
     /** Request EDR before initializing graphics; requires matching native core and HDR-capable ANGLE. */

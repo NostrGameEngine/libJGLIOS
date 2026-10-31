@@ -86,6 +86,17 @@ Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_isInitialized(JNIEnv*, jclas
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_configureGlesVersion(
+        JNIEnv* env, jclass, jint majorVersion, jint minorVersion) {
+    if (libjglios_egl_configure_context_version(majorVersion, minorVersion) != 0) {
+        jclass exception = env->FindClass("java/lang/IllegalStateException");
+        if (exception) {
+            env->ThrowNew(exception, libjglios_egl_last_error());
+        }
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_ngengine_libjglios_core_LibJGLIOSEglBridge_configureWindow(
         JNIEnv*, jclass, jboolean highPixelDensity) {
     libjglios_egl_configure_window(highPixelDensity == JNI_TRUE);

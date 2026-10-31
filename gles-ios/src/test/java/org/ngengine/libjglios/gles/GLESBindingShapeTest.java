@@ -12,6 +12,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GLESBindingShapeTest {
     @Test
+    void exposesComputeAndIndirectCoreApis() throws Exception {
+        assertEquals(0x91B9, GLES.GL_COMPUTE_SHADER);
+        assertEquals(0x90D2, GLES.GL_SHADER_STORAGE_BUFFER);
+        assertEquals(0x00000040, GLES.GL_COMMAND_BARRIER_BIT);
+        assertNative("glDispatchCompute", int.class, int.class, int.class);
+        assertNative("glDispatchComputeIndirect", long.class);
+        assertNative("glMemoryBarrier", int.class);
+        assertNative("glMemoryBarrierByRegion", int.class);
+        assertNative("glBindImageTexture", int.class, int.class, int.class, byte.class,
+                int.class, int.class, int.class);
+        assertNative("glDrawArraysIndirect", int.class, long.class);
+        assertNative("glDrawElementsIndirect", int.class, int.class, long.class);
+        assertNative("glMultiDrawArraysIndirectEXT", int.class, long.class, int.class, int.class);
+        assertNative("glMultiDrawElementsIndirectEXT", int.class, int.class, long.class, int.class, int.class);
+        assertNative("glGetProgramResourceIndex", int.class, int.class, String.class);
+        assertNative("glCreateShaderProgramv", int.class, int.class, String[].class);
+    }
+
+    @Test
     void exposesCoreEglAndGlesApis() throws Exception {
         assertEquals(0x00004000, GLES.GL_COLOR_BUFFER_BIT);
         assertEquals(0x0004, GLES.GL_TRIANGLES);

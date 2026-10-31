@@ -10,6 +10,7 @@ void libjglios_egl_set_pending_metal_layer(void* metalLayer);
 void libjglios_egl_set_pending_sdl_window(void* window);
 int libjglios_egl_init_pending(void);
 bool libjglios_egl_is_initialized(void);
+int libjglios_egl_configure_context_version(int majorVersion, int minorVersion);
 void libjglios_egl_configure_window(bool highPixelDensity);
 bool libjglios_egl_high_pixel_density_enabled(void);
 void libjglios_egl_configure_hdr(bool enabled);
