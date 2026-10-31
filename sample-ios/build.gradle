@@ -4,6 +4,11 @@ plugins {
 
 description = 'iOS-only Graal sample for libJGLIOS. The simulator app is built through the libJGLIOS plugin task script.'
 
+tasks.withType(JavaCompile).configureEach {
+    // The pinned Native Image runtime uses Java 21, even when Gradle runs on a newer JDK.
+    options.release = 21
+}
+
 def libJGLIOSSampleBackend = (findProperty('libJGLIOSSampleBackend') ?: 'angle').toString().trim().toLowerCase(Locale.ROOT)
 
 dependencies {
@@ -22,7 +27,32 @@ dependencies {
 }
 
 ext.set('iOS.mainClass', 'org.ngengine.libjglios.sample.IosGraalEntrypoints')
-ext.set('iOS.bundleId', libJGLIOSSampleBackend == 'legacy' ? 'org.ngengine.libjglios.sample.legacy' : 'org.ngengine.libjglios.sample')
-ext.set('iOS.appName', libJGLIOSSampleBackend == 'legacy' ? 'IOSLegacyGlesGears' : 'IOSGlesGears')
+ext.set('iOS.bundleId', findProperty('iOS.bundleId') ?: findProperty('ios.bundleId') ?: (libJGLIOSSampleBackend == 'legacy' ? 'org.ngengine.libjglios.sample.legacy' : 'org.ngengine.libjglios.sample'))
+ext.set('iOS.appName', findProperty('iOS.appName') ?: findProperty('ios.appName') ?: (libJGLIOSSampleBackend == 'legacy' ? 'IOSLegacyGlesGears' : 'IOSGlesGears'))
 
 apply from: rootProject.file('libjglios-gradle-plugin/src/main/resources/org/ngengine/libjglios/gradle/ios-tasks.gradle')
+
+// The verification code is carried only by this unpublished sample.
+apply from: rootProject.file('gradle/libjglios/ios-framework.gradle')
+if (libJGLIOSSampleBackend == 'angle') {
+    def angleProject = project(':angle-ios')
+    libJGLIOSStaticIosFramework(
+        frameworkName: 'libJGLIOSSampleVerification',
+        taskName: 'buildSampleVerificationXcframework',
+        dependsOn: [':angle-ios:prepareANGLEIosFrameworks'],
+        sources: [
+            file('src/main/native/angle-profile-verification.mm'),
+            file('src/main/native/angle-culling-verification.mm'),
+            file('src/main/native/gles31-verification-jni.mm')
+        ],
+        includes: [
+            { new File(angleProject.angleBuilderDir.asFile, 'tests') },
+            { new File(angleProject.angleIosVendorDir.asFile, 'include') }
+        ],
+        metadata: [systemFrameworks: ['Foundation', 'Metal']]
+    )
+    tasks.named('buildSampleVerificationXcframework') {
+        inputs.property('angleBuilderRevision', angleProject.angleBuilderRevision)
+        inputs.property('angleIosMetalProfile', angleProject.angleIosMetalProfile)
+    }
+}

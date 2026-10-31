@@ -16,6 +16,21 @@ public final class IosGraalEntrypoints {
         // Intentionally empty; runtime entry is via @CEntryPoint exports.
     }
 
+    @CEntryPoint(name = "libjglios_app_configure")
+    public static int configure(IsolateThread thread) {
+        if (GLES31Verification.enabled()) {
+            GLES31Verification.verifyInvalidContextRequest();
+            org.ngengine.libjglios.core.LibJGLIOSEglBridge.configureGlesVersion(3, 1);
+            if ("1".equals(System.getenv("LIBJGLIOS_SAMPLE_BACKEND_PROBES"))) {
+                int result = GLES31Verification.verifyBackend();
+                if (result != 0) {
+                    return result;
+                }
+            }
+        }
+        return 0;
+    }
+
     @CEntryPoint(name = "libjglios_app_start")
     public static int start(IsolateThread thread) {
         if (started) {
@@ -35,6 +50,9 @@ public final class IosGraalEntrypoints {
 
         renderer = new IOSGlesGearsRenderer();
         try {
+            if (GLES31Verification.enabled()) {
+                GLES31Verification.run();
+            }
             renderer.initialize();
         } catch (RuntimeException ex) {
             IosSdlRuntime.shutdown();

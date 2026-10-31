@@ -132,6 +132,59 @@ owning that discovery logic.
 ./gradlew clean build
 ./gradlew publishToMavenLocal
 ```
+
+### ANGLE GLES 3.1 profile
+
+The default ANGLE profile is GLES 3.0. To build the experimental GLES 3.1 profile:
+
+```bash
+./gradlew :angle-ios:prepareANGLE \
+  -PangleIosMetalProfile=gles31 \
+  -PlibJGLIOSBuildForIosVersion=18.0 \
+  -PangleIosBuildJobs=2
+```
+
+The build obtains the shared patches from the exact `angleBuilderRevision` commit
+of [ANGLE Builder](https://github.com/NostrGameEngine/angle-builder), then applies
+the iOS compatibility patches listed in `angle-ios/patch-series.json`. The ANGLE
+revision must match the revision pinned by that ANGLE Builder commit. The build
+verifies the combined source and records the selected profile, patches, binary
+hashes and device/simulator platforms in `lib/ios/ANGLE_IOS_BUILD_MANIFEST.json`.
+HDR and internal shader-platform patches are shared with ANGLE Builder.
+
+The GLES 3.1 profile requires iOS 18 or newer and a supported Metal device. Use
+`minIosVersion = '18.0'` in the consuming application's `iOS` configuration. When
+using the libJGLIOS launcher, call the following from your
+`libjglios_app_configure` entry point, before graphics initialization:
+
+```java
+LibJGLIOSEglBridge.configureGlesVersion(3, 1);
+```
+
+An explicit context request fails when unavailable instead of silently selecting
+GLES 3.0 or GLES 2.0. Applications creating EGL contexts directly should specify
+both `EGL_CONTEXT_MAJOR_VERSION_KHR = 3` and `EGL_CONTEXT_MINOR_VERSION_KHR = 1`.
+Check the actual GL version and `GL_EXT_multi_draw_indirect` before using them.
+The profile is experimental; ANGLE's maximum conformant version remains GLES 3.0.
+The Java `GLES` bindings include GLES 3.1 compute, image, program-interface,
+pipeline and indirect-draw entry points. New pointer-based APIs take direct NIO
+buffers and explicit byte offsets; shader/resource strings use `String` values.
+
+By default, xcframeworks include arm64 devices and arm64/x86_64 simulators.
+`-PangleIosSimulatorArchitectures=arm64` omits the Intel simulator slice for an
+Apple Silicon-only local build. Simulator GPU capabilities are checked separately;
+selecting the GLES 3.1 build does not add unsupported Metal features.
+
+For a Java/JNI compute-to-MDI verification in the sample app, build the device
+sample with the GLES 3.1 profile and launch it with
+`LIBJGLIOS_SAMPLE_GLES31=1`. This requests the context before the launcher creates
+it, checks GPU-generated commands and pixels, and prints `LIBJGLIOS_GLES31_PASS`
+on success. The default sample continues to use its existing graphics setup.
+Set `LIBJGLIOS_SAMPLE_BACKEND_PROBES=1` as well to run ANGLE Builder's shared
+offscreen compute, synchronization and culling probes before launcher graphics
+initialization. These native helpers belong only to the unpublished sample.
+When publishing an experimental profile, use a distinct version such as
+`-PlibJGLIOSVersion=0.0-GLES31-SNAPSHOT` so consumers can select it explicitly.
  
 
 ## Custom Native Frameworks
