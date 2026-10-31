@@ -158,6 +158,8 @@ ext.libJGLIOSStaticIosFramework = { Map config ->
         dependsOn(config.dependsOn ?: [])
         inputs.files(config.sources ?: [])
         inputs.files(config.headers ?: [])
+        inputs.files(provider { project.ext.libJGLIOSEvaluateFiles(config.includes ?: []) })
+        inputs.property('libJGLIOSBuildForIosVersion', provider { project.ext.libJGLIOSBuildForIosVersion() })
         outputs.dir(xcframeworkDir)
         outputs.file(metadataFile)
 

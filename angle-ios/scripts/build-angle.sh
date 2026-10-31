@@ -1,86 +1,54 @@
-#!/bin/bash
-
-set -e
-
-copy_frameworks() {
-    local framework=$1
-    SDKS="device simulator"
-    for SDK in $SDKS; do 
-        mkdir $TEMP_DIR/$SDK/$framework.framework/Headers/
-        if [ "$framework" == "libEGL" ]; then
-            TO_COPY="EGL"
-        elif [ "$framework" == "libGLESv2" ]; then
-            TO_COPY="GLES GLES2 GLES3 KHR"
-        elif [ "$framework" == "libfeature_support" ]; then
-            cp angle/src/feature_support_util/feature_support_util.h $TEMP_DIR/$SDK/$framework.framework/Headers/
-            return
-        else
-            echo "Error: Unknown framework $framework."
-            exit 1
-        fi
-
-        for COPY in $TO_COPY; do
-            cp -R angle/include/$COPY $TEMP_DIR/$SDK/$framework.framework/Headers/$COPY
-        done
-    done
-}
-
-if [ "$#" -ne 1 ]; then
-    echo "Error: You must provide exactly one argument."
-    echo "Usage: $0 <Release/Debug>"
-    exit 1
-fi
-
-BUILD_TYPE="$1"
-
-if [ "$BUILD_TYPE" == "Release" ] || [ "$BUILD_TYPE" == "Debug" ]; then
-    echo "Using build type: $BUILD_TYPE"
-else
-    echo "Error: Invalid build type. Only 'Release' or 'Debug' are allowed."
-    exit 1
-fi
-
+#!/usr/bin/env bash
+set -euo pipefail
 cd "$(dirname "$0")"
-
+configuration="${1:?Pass Debug or Release}"
+profile="${2:?Pass gles30 or gles31}"
+jobs="${3:-2}"
+simulator_architectures="${4:-arm64,x86_64}"
+[[ "$configuration" == Debug || "$configuration" == Release ]] || { echo "Invalid build type" >&2; exit 1; }
+[[ "$profile" == gles30 || "$profile" == gles31 ]] || { echo "Invalid profile" >&2; exit 1; }
+[[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo "Build jobs must be positive" >&2; exit 1; }
+[[ "$simulator_architectures" == arm64 || "$simulator_architectures" == arm64,x86_64 ]] || { echo "Simulator architectures must be arm64 or arm64,x86_64" >&2; exit 1; }
 export PATH="$(pwd)/depot_tools:$PATH"
-
-rm -rf Frameworks/
-mkdir Frameworks/
-
-autoninja -C angle/out/$BUILD_TYPE-iphoneos
-autoninja -C angle/out/$BUILD_TYPE-iphonesimulator_x86_64
-autoninja -C angle/out/$BUILD_TYPE-iphonesimulator_arm64
-
-TEMP_DIR=$(mktemp -d)
-
-mkdir $TEMP_DIR/simulator_x86_64
-mkdir $TEMP_DIR/simulator_arm64
-mkdir $TEMP_DIR/simulator
-mkdir $TEMP_DIR/device
-
-FRAMEWORKS="libEGL libGLESv2 libfeature_support"
-
-for FRAMEWORK in $FRAMEWORKS; do
-    cp -R angle/out/$BUILD_TYPE-iphonesimulator_arm64/$FRAMEWORK.framework $TEMP_DIR/simulator/
-    cp -R angle/out/$BUILD_TYPE-iphoneos/$FRAMEWORK.framework $TEMP_DIR/device
-
-    lipo -create angle/out/$BUILD_TYPE-iphonesimulator_arm64/$FRAMEWORK.framework/$FRAMEWORK angle/out/$BUILD_TYPE-iphonesimulator_x86_64/$FRAMEWORK.framework/$FRAMEWORK \
-        -output $TEMP_DIR/simulator/$FRAMEWORK.framework/$FRAMEWORK
-
-    cp -R angle/out/$BUILD_TYPE-iphonesimulator_arm64/$FRAMEWORK.dSYM $TEMP_DIR/simulator/
-    cp -R angle/out/$BUILD_TYPE-iphoneos/$FRAMEWORK.dSYM $TEMP_DIR/device
-
-    lipo -create angle/out/$BUILD_TYPE-iphonesimulator_arm64/$FRAMEWORK.dSYM/Contents/Resources/DWARF/$FRAMEWORK \
-        angle/out/$BUILD_TYPE-iphonesimulator_x86_64/$FRAMEWORK.dSYM/Contents/Resources/DWARF/$FRAMEWORK \
-        -output $TEMP_DIR/simulator/$FRAMEWORK.dSYM/Contents/Resources/DWARF/$FRAMEWORK
-    
-    copy_frameworks $FRAMEWORK
-
-    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 1.0" "$TEMP_DIR/device/$FRAMEWORK.framework/Info.plist"
-    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 1.0" "$TEMP_DIR/simulator/$FRAMEWORK.framework/Info.plist"
-
-    xcodebuild -create-xcframework -framework $TEMP_DIR/device/$FRAMEWORK.framework -debug-symbols $TEMP_DIR/device/$FRAMEWORK.dSYM \
-        -framework $TEMP_DIR/simulator/$FRAMEWORK.framework -debug-symbols $TEMP_DIR/simulator/$FRAMEWORK.dSYM \
-        -output Frameworks/$FRAMEWORK.xcframework
+frameworks=(libEGL libGLESv2 libfeature_support)
+targets=(iphoneos iphonesimulator_arm64)
+[[ "$simulator_architectures" != arm64,x86_64 ]] || targets+=(iphonesimulator_x86_64)
+for target in "${targets[@]}"; do
+  autoninja -C "angle/out/$configuration-$target-$profile" -j "$jobs" "${frameworks[@]}"
 done
-
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+mkdir -p "$work/device" "$work/simulator" Frameworks
+for framework in "${frameworks[@]}"; do
+  for environment in device simulator; do
+    target=iphoneos
+    [[ "$environment" == device ]] || target=iphonesimulator_arm64
+    out="angle/out/$configuration-$target-$profile"
+    cp -R "$out/$framework.framework" "$work/$environment/"
+    cp -R "$out/$framework.dSYM" "$work/$environment/"
+    headers="$work/$environment/$framework.framework/Headers"
+    mkdir -p "$headers"
+    if [[ "$framework" == libEGL ]]; then
+      cp -R angle/include/EGL angle/include/KHR "$headers/"
+    elif [[ "$framework" == libGLESv2 ]]; then
+      cp -R angle/include/GLES angle/include/GLES2 angle/include/GLES3 angle/include/KHR "$headers/"
+    else
+      cp angle/src/feature_support_util/feature_support_util.h angle/include/export.h "$headers/"
+    fi
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 1.0' "$work/$environment/$framework.framework/Info.plist" 2>/dev/null || \
+      /usr/libexec/PlistBuddy -c 'Add :CFBundleShortVersionString string 1.0' "$work/$environment/$framework.framework/Info.plist"
+  done
+  if [[ "$simulator_architectures" == arm64,x86_64 ]]; then
+    intel="angle/out/$configuration-iphonesimulator_x86_64-$profile"
+    lipo -create "$work/simulator/$framework.framework/$framework" "$intel/$framework.framework/$framework" \
+      -output "$work/simulator/$framework.framework/$framework"
+    lipo -create "$work/simulator/$framework.dSYM/Contents/Resources/DWARF/$framework" \
+      "$intel/$framework.dSYM/Contents/Resources/DWARF/$framework" \
+      -output "$work/simulator/$framework.dSYM/Contents/Resources/DWARF/$framework"
+  fi
+  rm -rf "Frameworks/$framework.xcframework"
+  xcodebuild -create-xcframework -framework "$work/device/$framework.framework" \
+    -debug-symbols "$work/device/$framework.dSYM" -framework "$work/simulator/$framework.framework" \
+    -debug-symbols "$work/simulator/$framework.dSYM" -output "Frameworks/$framework.xcframework"
+done
+python3 write-ios-build-manifest.py "$profile" "$configuration" "$simulator_architectures"

@@ -1,60 +1,40 @@
-#!/bin/bash
-
-set -e
-
-apply_git_patch() {
-    local patch_file=$1
-
-    if git apply --check --reverse < "$patch_file" > /dev/null 2>&1; then
-        echo "Already applied $patch_file"
-    else
-        if git apply < "$patch_file" > /dev/null 2>&1; then
-            echo "Applied $patch_file"
-        else
-            echo "Failed to apply $patch_file" >&2
-            exit 1
-        fi
-    fi
-}
-
+#!/usr/bin/env bash
+set -euo pipefail
 cd "$(dirname "$0")"
-
-ANGLE_IOS_DEPLOYMENT_TARGET="${1:-12.0}"
-if [[ ! "$ANGLE_IOS_DEPLOYMENT_TARGET" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
-    echo "Invalid iOS deployment target: $ANGLE_IOS_DEPLOYMENT_TARGET" >&2
-    exit 1
+deployment="${1:-12.0}"
+profile="${2:-gles30}"
+builder="${3:?Pass the pinned ANGLE Builder checkout}"
+builder_revision="${4:?Pass the pinned ANGLE Builder commit}"
+revision="${5:?Pass the pinned upstream ANGLE commit}"
+configuration="${6:-All}"
+[[ "$configuration" == All || "$configuration" == Debug || "$configuration" == Release ]] || { echo "Invalid configuration: $configuration" >&2; exit 1; }
+[[ "$deployment" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || { echo "Invalid iOS deployment target: $deployment" >&2; exit 1; }
+[[ "$profile" == gles30 || "$profile" == gles31 ]] || { echo "Invalid Metal profile: $profile" >&2; exit 1; }
+if [[ "$profile" == gles31 && "${deployment%%.*}" -lt 18 ]]; then
+  echo "The GLES 3.1 profile requires an iOS 18 minimum deployment target" >&2
+  exit 1
 fi
-ANGLE_METAL_TOOLCHAIN_DIR="$(dirname "$(xcrun --find metal)")"
-if [[ ! -x "$ANGLE_METAL_TOOLCHAIN_DIR/metallib" ]]; then
-    echo "Metal toolchain is missing metallib: $ANGLE_METAL_TOOLCHAIN_DIR" >&2
-    exit 1
-fi
-
+metal_dir="$(dirname "$(xcrun --find metal)")"
+[[ -x "$metal_dir/metallib" ]] || { echo "Missing metallib in $metal_dir" >&2; exit 1; }
 export PATH="$(pwd)/depot_tools:$PATH"
-
+if [[ "${ANGLE_SKIP_SYNC:-0}" != 1 ]]; then
+  (cd angle && python3 scripts/bootstrap.py && gclient sync)
+fi
+python3 prepare-angle-patches.py --angle angle --builder "$builder" \
+  --builder-revision "$builder_revision" --revision "$revision"
 cd angle
-
-python3 scripts/bootstrap.py
-gclient sync
-
-apply_git_patch ../angle_include_fix.patch
-apply_git_patch ../angle_feature_util_fix.patch
-apply_git_patch ../angle_feature_util_metal_check.patch
-apply_git_patch ../angle_disable_posix_handler.patch
-apply_git_patch ../angle_metal_shader_prebuild.patch
-apply_git_patch ../angle_metal_blit_flush_hack.patch
-apply_git_patch ../angle_supports_apple_gpu_family_ios_lower13.patch
-apply_git_patch ../angle_force_gles3_in_older_ios.patch
-apply_git_patch ../angle_metal_guard_preserve_invariance.patch
-apply_git_patch ../angle_metal_depth24_ios_fallback.patch
-apply_git_patch ../angle_metal_depth16_ios12_fallback.patch
-apply_git_patch ../angle_metal_shader_warnings_not_errors.patch
-apply_git_patch ../angle_metal_hdr_output.patch
-
-gn gen out/Debug-iphonesimulator_arm64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Debug-iphonesimulator_x86_64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"x64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Debug-iphoneos --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"device\""
-
-gn gen out/Release-iphonesimulator_arm64 --args="is_official_build=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Release-iphonesimulator_x86_64 --args="is_official_build=true target_os=\"ios\" target_cpu=\"x64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Release-iphoneos --args="is_official_build=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"device\""
+configurations=(Debug Release)
+[[ "$configuration" == All ]] || configurations=("$configuration")
+for configuration in "${configurations[@]}"; do
+  debug=false
+  [[ "$configuration" != Debug ]] || debug=true
+  for target in iphoneos iphonesimulator_arm64 iphonesimulator_x86_64; do
+    environment=simulator
+    cpu=arm64
+    [[ "$target" != iphoneos ]] || environment=device
+    [[ "$target" != iphonesimulator_x86_64 ]] || cpu=x64
+    extra=""
+    [[ "$profile" != gles31 ]] || extra="angle_metal_enable_gles31=true"
+    gn gen "out/$configuration-$target-$profile" --args="is_debug=$debug enable_dsyms=true is_component_build=false clang_use_chrome_plugins=false target_os=\"ios\" target_cpu=\"$cpu\" ios_enable_code_signing=false use_system_xcode=true angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_vulkan=false angle_enable_wgpu=false ios_deployment_target=\"$deployment\" angle_metal_toolchain_dir=\"$metal_dir\" angle_build_all=false target_environment=\"$environment\" $extra"
+  done
+done

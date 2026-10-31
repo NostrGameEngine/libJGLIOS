@@ -35,7 +35,7 @@ tasks.named('processResources') {
 libJGLIOSStaticIosFramework(
     frameworkName: 'libJGLIOSSdl3',
     taskName: 'buildLibJGLIOSSdl3Xcframework',
-    dependsOn: ['prepareSDL3'],
+    dependsOn: ['prepareSDL3IosFrameworks'],
     sources: [file('src/main/native/jni_sdl3.mm')],
     includes: [{ new File(sdl3VendorDir.asFile, 'include') }]
 )

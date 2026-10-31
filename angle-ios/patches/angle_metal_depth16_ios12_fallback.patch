@@ -2,8 +2,9 @@ diff --git a/src/libANGLE/renderer/metal/DisplayMtl.h b/src/libANGLE/renderer/me
 index 6901918..e074ff9 100644
 --- a/src/libANGLE/renderer/metal/DisplayMtl.h
 +++ b/src/libANGLE/renderer/metal/DisplayMtl.h
-@@ -137,6 +137,7 @@ class DisplayMtl : public DisplayImpl
+@@ -137,7 +137,8 @@ class DisplayMtl : public DisplayImpl
      bool supportsEitherGPUFamily(uint8_t iOSFamily, uint8_t macFamily) const;
+     bool supportsMetalGLES31() const;
      bool supportsAppleGPUFamily(uint8_t iOSFamily) const;
      bool supportsMacGPUFamily(uint8_t macFamily) const;
 +    bool supportsDepth16PixelFormat() const;

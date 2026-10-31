@@ -1,11 +1,10 @@
 diff --git a/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm b/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm
-index 8d3d53a..3dc89be 100644
 --- a/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm
 +++ b/src/libANGLE/renderer/metal/ProgramExecutableMtl.mm
-@@ -367,7 +367,7 @@ angle::Result CreateMslShaderLib(mtl::Context *context,
+@@ -385,7 +385,7 @@
          translatedMslInfo->metalLibrary = libraryCache.getOrCompileShaderLibrary(
-             context->getDisplay(), translatedMslInfo->metalShaderSource, substitutionMacros,
-             disableFastMath, usesInvariance, &err);
+             context->getDisplay(), translatedMslInfo->metalShaderSource, macros, disableFastMath,
+             usesInvariance, &err);
 -        if (err || !translatedMslInfo->metalLibrary)
 +        if (!translatedMslInfo->metalLibrary)
          {

@@ -33,3 +33,9 @@ tasks.named('processResources') {
         into 'lib/ios'
     }
 }
+
+tasks.named('processResources') {
+    from({ new File(angleIosVendorDir.asFile, 'ANGLE_IOS_BUILD_MANIFEST.json') }) {
+        into 'lib/ios'
+    }
+}

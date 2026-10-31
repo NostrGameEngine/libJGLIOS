@@ -1,0 +1,13 @@
+[
+  "angle_include_fix.patch",
+  "angle_feature_util_fix.patch",
+  "angle_feature_util_metal_check.patch",
+  "angle_disable_posix_handler.patch",
+  "angle_metal_blit_flush_hack.patch",
+  "angle_supports_apple_gpu_family_ios_lower13.patch",
+  "angle_force_gles3_in_older_ios.patch",
+  "angle_metal_guard_preserve_invariance.patch",
+  "angle_metal_depth24_ios_fallback.patch",
+  "angle_metal_depth16_ios12_fallback.patch",
+  "angle_metal_shader_warnings_not_errors.patch"
+]

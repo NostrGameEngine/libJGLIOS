@@ -30,19 +30,16 @@ class SetupTest(unittest.TestCase):
         self.source = self.work / "angle"
         self.source.mkdir()
         shutil.copyfile(MODULE / "scripts/setup-angle.sh", self.work / "setup-angle.sh")
-        for patch in (MODULE / "patches").glob("*.patch"):
+        for script in (MODULE / 'scripts').glob('*.py'):
+            shutil.copyfile(script, self.work / script.name)
+        shutil.copyfile(MODULE / 'patch-series.json', self.work / 'patch-series.json')
+        for patch in (MODULE / 'patches').glob('*.patch'):
             shutil.copyfile(patch, self.work / patch.name)
-            for line in patch.read_text().splitlines():
-                if line.startswith("--- a/"):
-                    name = line[6:].split("\t", 1)[0]
-                    target = self.source / name
-                    if not target.exists():
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        target.write_bytes(subprocess.check_output(
-                            ["git", "show", REVISION + ":" + name], cwd=ANGLE))
-        bootstrap = self.source / "scripts/bootstrap.py"
-        bootstrap.parent.mkdir(parents=True, exist_ok=True)
-        bootstrap.write_text("# Dependency bootstrap is mocked in this logic test.\n")
+        self.source.rmdir()
+        subprocess.run(['git', 'clone', '--shared', '--no-checkout', str(ANGLE), str(self.source)],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['git', 'checkout', '--detach', REVISION], cwd=self.source,
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         tools = self.work / "depot_tools"
         tools.mkdir()
@@ -59,18 +56,22 @@ class SetupTest(unittest.TestCase):
                         "    log.write(json.dumps(sys.argv[1:]) + '\\n')\n")
         self.env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ["PATH"],
                         SETUP_GN_LOG=str(self.log),
-                        SETUP_METAL_EXECUTABLE=str(self.metal_dir / "metal"))
+                        SETUP_METAL_EXECUTABLE=str(self.metal_dir / "metal"), ANGLE_SKIP_SYNC="1")
 
     @staticmethod
     def executable(path, content):
         path.write_text(content)
         path.chmod(0o755)
 
-    def run_setup(self, *args):
-        return subprocess.run(["bash", str(self.work / "setup-angle.sh"), *args],
+    def run_setup(self, deployment='12.0', profile='gles30', builder_revision=None):
+        builder = Path(os.environ.get('ANGLE_BUILDER_DIR', str(ROOT.parent / 'angle-builder')))
+        builder_pin = re.search(r'^angleBuilderRevision=([0-9a-f]{40})$',
+                                (ROOT / 'gradle.properties').read_text(), re.MULTILINE).group(1)
+        return subprocess.run(['bash', str(self.work / 'setup-angle.sh'), deployment, profile,
+                               str(builder), builder_revision or builder_pin, REVISION],
                               cwd=self.work, env=self.env, text=True, capture_output=True)
 
-    def check_invocations(self, expected_target):
+    def check_invocations(self, expected_target, profile="gles30"):
         commands = [json.loads(line) for line in self.log.read_text().splitlines()]
         self.assertEqual(len(commands), 6)
         for command in commands:
@@ -78,8 +79,9 @@ class SetupTest(unittest.TestCase):
             self.assertEqual(len(command), 3, "GN args must remain one argument even with spaces")
             self.assertIn(f'ios_deployment_target="{expected_target}"', command[2])
             self.assertIn(f'angle_metal_toolchain_dir="{self.metal_dir}"', command[2])
-            expected_environment = "device" if command[1].endswith("iphoneos") else "simulator"
+            expected_environment = "device" if "iphoneos-" in command[1] else "simulator"
             self.assertIn(f'target_environment="{expected_environment}"', command[2])
+            self.assertEqual('angle_metal_enable_gles31=true' in command[2], profile == 'gles31')
 
     def test_default_target_and_idempotent_patch_application(self):
         for attempt in range(2):
@@ -98,6 +100,37 @@ class SetupTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Invalid iOS deployment target", result.stderr)
         self.assertFalse(self.log.exists())
+
+    def test_gles31_profile_and_shared_patch_provenance(self):
+        result = self.run_setup('18.0', 'gles31')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.check_invocations('18.0', 'gles31')
+        record = json.loads((self.work / 'ANGLE_PATCH_MANIFEST.json').read_text())
+        self.assertEqual(len(record['shared_patches']), 52)
+        self.assertEqual(len(record['ios_patches']), 11)
+        self.assertIn('supportsMetalGLES31', (self.source / 'src/libANGLE/renderer/metal/DisplayMtl.mm').read_text())
+        self.assertIn('METALANGLEKIT_INCLUDE', (self.source / 'include/GLES3/gl31.h').read_text())
+
+    def test_gles31_rejects_old_deployment_target(self):
+        result = self.run_setup('12.0', 'gles31')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('requires an iOS 18', result.stderr)
+        self.assertFalse(self.log.exists())
+
+    def test_wrong_shared_revision_is_rejected(self):
+        result = self.run_setup(builder_revision='0' * 40)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('differs from the pinned revision', result.stderr)
+        self.assertFalse(self.log.exists())
+
+    def test_unrelated_source_edits_are_rejected_and_preserved(self):
+        result = self.run_setup()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        path = self.source / 'README.md'
+        path.write_text('local user edit\n')
+        result = self.run_setup()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(path.read_text(), 'local user edit\n')
 
 
 if __name__ == "__main__":

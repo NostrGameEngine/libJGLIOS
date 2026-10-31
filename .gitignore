@@ -13,3 +13,4 @@ usercode.h
 usercode_dynamic.h
 
 reports
+__pycache__/
