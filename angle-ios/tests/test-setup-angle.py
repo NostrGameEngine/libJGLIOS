@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply the pinned compatibility patches and inspect setup's GN invocations.
 
-ANGLE_DIR selects an upstream source checkout containing angleIosRevision.
+ANGLE_DIR selects an upstream checkout containing the revision pinned by ANGLE Builder.
 GN and gclient are mocked; this does not constitute an iOS native build.
 """
 
@@ -18,8 +18,11 @@ import unittest
 MODULE = Path(__file__).resolve().parents[1]
 ROOT = MODULE.parent
 ANGLE = Path(os.environ.get("ANGLE_DIR", str(ROOT.parent / "angle")))
-REVISION = re.search(r"^angleIosRevision=([0-9a-f]{40})$",
-                     (ROOT / "gradle.properties").read_text(), re.MULTILINE).group(1)
+BUILDER = Path(os.environ.get('ANGLE_BUILDER_DIR', str(ROOT.parent / 'angle-builder')))
+BUILDER_PIN = re.search(r'^angleBuilderRevision=([0-9a-f]{40})$',
+                        (ROOT / 'gradle.properties').read_text(), re.MULTILINE).group(1)
+REVISION = subprocess.check_output(['git', 'show', BUILDER_PIN + ':ANGLE_COMMIT'],
+                                   cwd=BUILDER, text=True).strip()
 
 
 class SetupTest(unittest.TestCase):
@@ -64,11 +67,8 @@ class SetupTest(unittest.TestCase):
         path.chmod(0o755)
 
     def run_setup(self, deployment='12.0', profile='gles30', builder_revision=None):
-        builder = Path(os.environ.get('ANGLE_BUILDER_DIR', str(ROOT.parent / 'angle-builder')))
-        builder_pin = re.search(r'^angleBuilderRevision=([0-9a-f]{40})$',
-                                (ROOT / 'gradle.properties').read_text(), re.MULTILINE).group(1)
         return subprocess.run(['bash', str(self.work / 'setup-angle.sh'), deployment, profile,
-                               str(builder), builder_revision or builder_pin, REVISION],
+                               str(BUILDER), builder_revision or BUILDER_PIN, REVISION],
                               cwd=self.work, env=self.env, text=True, capture_output=True)
 
     def check_invocations(self, expected_target, profile="gles30"):

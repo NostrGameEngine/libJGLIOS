@@ -6,12 +6,13 @@ ext {
     angleIosScriptDir = layout.projectDirectory.dir('scripts')
     angleIosPatchDir = layout.projectDirectory.dir('patches')
     angleIosUrl = rootProject.findProperty('angleIosUrl') ?: 'https://chromium.googlesource.com/angle/angle'
-    angleIosRevision = rootProject.findProperty('angleIosRevision') ?: 'HEAD'
     angleIosBuildType = rootProject.findProperty('angleIosBuildType') ?: 'Release'
     angleIosMetalProfile = (rootProject.findProperty('angleIosMetalProfile') ?: 'gles30').toString()
     angleBuilderUrl = rootProject.findProperty('angleBuilderUrl') ?: 'https://github.com/NostrGameEngine/angle-builder.git'
     angleBuilderRevision = rootProject.findProperty('angleBuilderRevision').toString()
     angleBuilderDir = layout.buildDirectory.dir('angle/builder').get()
+    angleUpstreamRevisionFile = layout.buildDirectory.file('angle/upstream-commit.txt')
+    angleUpstreamRevision = providers.fileContents(angleUpstreamRevisionFile).asText.map { it.trim() }
     angleIosBuildJobs = (rootProject.findProperty('angleIosBuildJobs') ?: '2').toString()
     angleIosSimulatorArchitectures = (rootProject.findProperty('angleIosSimulatorArchitectures') ?: 'arm64,x86_64').toString()
     angleIosDeploymentTarget = (rootProject.findProperty('libJGLIOSBuildForIosVersion') ?: '12.0').toString()
@@ -24,6 +25,9 @@ if (!(angleIosMetalProfile in ['gles30', 'gles31'])) {
 }
 if (!(angleBuilderRevision ==~ /[0-9a-f]{40}/)) {
     throw new GradleException('angleBuilderRevision must pin a full commit SHA')
+}
+if (rootProject.hasProperty('angleIosRevision')) {
+    throw new GradleException('angleIosRevision is derived from ANGLE Builder; remove it and configure only angleBuilderRevision')
 }
 if (angleIosMetalProfile == 'gles31' && angleIosDeploymentTarget.tokenize('.')[0].toInteger() < 18) {
     angleIosDeploymentTarget = '18.0'
@@ -107,6 +111,7 @@ tasks.register('checkoutANGLEBuilder') {
     inputs.property('angleBuilderRevision', angleBuilderRevision)
     inputs.property('angleBuilderUrl', angleBuilderUrl)
     outputs.file { new File(angleBuilderDir.asFile.parentFile, 'builder-checkout.txt') }
+    outputs.file(angleUpstreamRevisionFile)
     doLast {
         def builder = angleBuilderDir.asFile
         if (!new File(builder, '.git').exists()) {
@@ -120,6 +125,11 @@ tasks.register('checkoutANGLEBuilder') {
             libJGLIOSRun(['git', 'fetch', '--depth', '1', angleBuilderUrl, angleBuilderRevision], builder)
         }
         libJGLIOSRun(['git', 'checkout', '--detach', angleBuilderRevision], builder)
+        def upstreamRevision = new File(builder, 'ANGLE_COMMIT').text.trim()
+        if (!(upstreamRevision ==~ /[0-9a-f]{40}/)) {
+            throw new GradleException('The pinned ANGLE Builder ANGLE_COMMIT must contain a full commit SHA')
+        }
+        angleUpstreamRevisionFile.get().asFile.text = upstreamRevision + System.lineSeparator()
         new File(builder.parentFile, 'builder-checkout.txt').text = angleBuilderRevision + System.lineSeparator()
     }
 }
@@ -127,13 +137,14 @@ tasks.register('checkoutANGLEBuilder') {
 tasks.register('checkoutANGLESource') {
     group = 'libJGLIOS setup'
     dependsOn 'checkoutANGLEBuilder'
-    description = 'Copies the ANGLE build scripts and checks out the configured upstream ANGLE revision.'
+    description = 'Copies the ANGLE build scripts and checks out the upstream revision pinned by ANGLE Builder.'
     inputs.files(fileTree(angleIosScriptDir) { include '*.sh', '*.py' })
     inputs.file(layout.projectDirectory.file('patch-series.json'))
     inputs.dir(angleIosPatchDir)
-    inputs.property('angleIosRevision', angleIosRevision)
+    inputs.property('angleUpstreamRevision', angleUpstreamRevision)
     outputs.file(angleIosCheckoutMarker)
     doLast {
+        def upstreamRevision = angleUpstreamRevision.get()
         def source = angleIosSourceDir.asFile
         def scriptDir = angleIosScriptDir.asFile
         def patchDir = angleIosPatchDir.asFile
@@ -174,15 +185,10 @@ tasks.register('checkoutANGLESource') {
         if (!new File(angle, '.git').exists()) {
             libJGLIOSRun(['git', 'clone', '--depth', '1', angleIosUrl, angle.absolutePath])
         }
-        if (angleIosRevision in ['HEAD', 'main', 'origin/main']) {
-            libJGLIOSRun(['git', '-C', angle.absolutePath, 'fetch', '--depth', '1', 'origin', 'main'])
-            libJGLIOSRun(['git', '-C', angle.absolutePath, 'checkout', 'FETCH_HEAD'])
-        } else {
-            if (libJGLIOSExecCapture(['git', 'cat-file', '-e', angleIosRevision + '^{commit}'], angle).exitValue != 0) {
-                libJGLIOSRun(['git', '-C', angle.absolutePath, 'fetch', '--depth', '1', 'origin', angleIosRevision])
-            }
-            libJGLIOSRun(['git', '-C', angle.absolutePath, 'checkout', '--detach', angleIosRevision])
+        if (libJGLIOSExecCapture(['git', 'cat-file', '-e', upstreamRevision + '^{commit}'], angle).exitValue != 0) {
+            libJGLIOSRun(['git', '-C', angle.absolutePath, 'fetch', '--depth', '1', 'origin', upstreamRevision])
         }
+        libJGLIOSRun(['git', '-C', angle.absolutePath, 'checkout', '--detach', upstreamRevision])
 
 
         def resolvedAngle = libJGLIOSExecCapture(['git', '-C', angle.absolutePath, 'rev-parse', 'HEAD'])
@@ -208,11 +214,11 @@ tasks.register('buildANGLE') {
     inputs.property('angleIosBuildJobs', angleIosBuildJobs)
     inputs.property('angleIosSimulatorArchitectures', angleIosSimulatorArchitectures)
     inputs.property('angleIosDeploymentTarget', angleIosDeploymentTarget)
-    inputs.property('angleIosRevision', angleIosRevision)
+    inputs.property('angleUpstreamRevision', angleUpstreamRevision)
     outputs.dir { new File(angleIosSourceDir.asFile, 'Frameworks') }
     doLast {
         def source = angleIosSourceDir.asFile
-        libJGLIOSRun(['./setup-angle.sh', angleIosDeploymentTarget, angleIosMetalProfile, angleBuilderDir.asFile.absolutePath, angleBuilderRevision, angleIosRevision, angleIosBuildType], source)
+        libJGLIOSRun(['./setup-angle.sh', angleIosDeploymentTarget, angleIosMetalProfile, angleBuilderDir.asFile.absolutePath, angleBuilderRevision, angleUpstreamRevision.get(), angleIosBuildType], source)
         libJGLIOSRun(['./build-angle.sh', angleIosBuildType, angleIosMetalProfile, angleIosBuildJobs, angleIosSimulatorArchitectures], source)
         println "Built source ANGLE artifacts under ${new File(source, 'Frameworks')}"
     }

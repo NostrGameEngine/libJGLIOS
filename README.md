@@ -147,10 +147,19 @@ The default ANGLE profile is GLES 3.0. To build the experimental GLES 3.1 profil
 The build obtains the shared patches from the exact `angleBuilderRevision` commit
 of [ANGLE Builder](https://github.com/NostrGameEngine/angle-builder), then applies
 the iOS compatibility patches listed in `angle-ios/patch-series.json`. The ANGLE
-revision must match the revision pinned by that ANGLE Builder commit. The build
+revision is read automatically from `ANGLE_COMMIT` at that pinned Builder commit;
+there is no separate `angleIosRevision` setting. The build
 verifies the combined source and records the selected profile, patches, binary
 hashes and device/simulator platforms in `lib/ios/ANGLE_IOS_BUILD_MANIFEST.json`.
 HDR and internal shader-platform patches are shared with ANGLE Builder.
+
+To adopt new shared patches, commit and push them in ANGLE Builder, then update
+only `angleBuilderRevision` in `gradle.properties` to that full commit SHA and
+rebuild libJGLIOS. This works for a commit from `GLES31`, `master` or another
+branch. After merging, select the desired `master` commit through the same property.
+The build checks out the matching upstream ANGLE revision automatically and
+reapplies the iOS overlays; conflicting overlays must be adapted before the
+build can continue.
 
 The GLES 3.1 profile requires iOS 18 or newer and a supported Metal device. Use
 `minIosVersion = '18.0'` in the consuming application's `iOS` configuration. When
