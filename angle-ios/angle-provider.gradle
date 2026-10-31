@@ -8,6 +8,7 @@ ext {
     angleIosUrl = rootProject.findProperty('angleIosUrl') ?: 'https://chromium.googlesource.com/angle/angle'
     angleIosRevision = rootProject.findProperty('angleIosRevision') ?: 'HEAD'
     angleIosBuildType = rootProject.findProperty('angleIosBuildType') ?: 'Release'
+    angleIosDeploymentTarget = (rootProject.findProperty('libJGLIOSBuildForIosVersion') ?: '12.0').toString()
     angleIosSourceDir = layout.buildDirectory.dir('angle/source').get()
     angleIosCheckoutMarker = layout.buildDirectory.file('angle/source/.libjglios-checkout').get()
 }
@@ -154,11 +155,12 @@ tasks.register('buildANGLE') {
     inputs.dir(angleIosScriptDir)
     inputs.dir(angleIosPatchDir)
     inputs.property('angleIosBuildType', angleIosBuildType)
+    inputs.property('angleIosDeploymentTarget', angleIosDeploymentTarget)
     inputs.property('angleIosRevision', angleIosRevision)
     outputs.dir { new File(angleIosSourceDir.asFile, 'Frameworks') }
     doLast {
         def source = angleIosSourceDir.asFile
-        libJGLIOSRun(['./setup-angle.sh'], source)
+        libJGLIOSRun(['./setup-angle.sh', angleIosDeploymentTarget], source)
         libJGLIOSRun(['./build-angle.sh', angleIosBuildType], source)
         println "Built source ANGLE artifacts under ${new File(source, 'Frameworks')}"
     }

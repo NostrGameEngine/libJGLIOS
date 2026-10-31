@@ -19,6 +19,17 @@ apply_git_patch() {
 
 cd "$(dirname "$0")"
 
+ANGLE_IOS_DEPLOYMENT_TARGET="${1:-12.0}"
+if [[ ! "$ANGLE_IOS_DEPLOYMENT_TARGET" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+    echo "Invalid iOS deployment target: $ANGLE_IOS_DEPLOYMENT_TARGET" >&2
+    exit 1
+fi
+ANGLE_METAL_TOOLCHAIN_DIR="$(dirname "$(xcrun --find metal)")"
+if [[ ! -x "$ANGLE_METAL_TOOLCHAIN_DIR/metallib" ]]; then
+    echo "Metal toolchain is missing metallib: $ANGLE_METAL_TOOLCHAIN_DIR" >&2
+    exit 1
+fi
+
 export PATH="$(pwd)/depot_tools:$PATH"
 
 cd angle
@@ -40,10 +51,10 @@ apply_git_patch ../angle_metal_depth16_ios12_fallback.patch
 apply_git_patch ../angle_metal_shader_warnings_not_errors.patch
 apply_git_patch ../angle_metal_hdr_output.patch
 
-gn gen out/Debug-iphonesimulator_arm64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Debug-iphonesimulator_x86_64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"x64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Debug-iphoneos --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"device\""
+gn gen out/Debug-iphonesimulator_arm64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
+gn gen out/Debug-iphonesimulator_x86_64 --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"x64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
+gn gen out/Debug-iphoneos --args="is_debug=true enable_dsyms=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"device\""
 
-gn gen out/Release-iphonesimulator_arm64 --args="is_official_build=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Release-iphonesimulator_x86_64 --args="is_official_build=true target_os=\"ios\" target_cpu=\"x64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"simulator\""
-gn gen out/Release-iphoneos --args="is_official_build=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"11.0\" angle_build_all=false target_environment=\"device\""
+gn gen out/Release-iphonesimulator_arm64 --args="is_official_build=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
+gn gen out/Release-iphonesimulator_x86_64 --args="is_official_build=true target_os=\"ios\" target_cpu=\"x64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"simulator\""
+gn gen out/Release-iphoneos --args="is_official_build=true target_os=\"ios\" target_cpu=\"arm64\" ios_enable_code_signing=false angle_enable_metal=true angle_enable_gl=false angle_enable_null=false angle_enable_wgpu=false ios_deployment_target=\"$ANGLE_IOS_DEPLOYMENT_TARGET\" angle_metal_toolchain_dir=\"$ANGLE_METAL_TOOLCHAIN_DIR\" angle_build_all=false target_environment=\"device\""
