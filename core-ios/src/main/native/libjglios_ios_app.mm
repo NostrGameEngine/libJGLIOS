@@ -203,6 +203,18 @@ static void destroy_isolate(LibJGLIOSAppState* state) {
     }
 }
 
+static void expose_sandbox_directory(const char* variable, NSSearchPathDirectory directory) {
+    if (std::getenv(variable) != nullptr) {
+        return;
+    }
+    NSURL* url = [[[NSFileManager defaultManager] URLsForDirectory:directory
+                                                       inDomains:NSUserDomainMask] firstObject];
+    const char* path = [url fileSystemRepresentation];
+    if (path != nullptr) {
+        setenv(variable, path, 0);
+    }
+}
+
 extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
     libjglios_app_reset_quit_request();
     auto* state = new LibJGLIOSAppState();
@@ -219,6 +231,9 @@ extern "C" SDL_AppResult SDL_AppInit(void** appstate, int, char**) {
         return fail_app_init("SDL_InitSubSystem");
     }
 
+    // A POSIX account home is not necessarily the app's writable data container.
+    expose_sandbox_directory("APP_DATA_DIR", NSApplicationSupportDirectory);
+    expose_sandbox_directory("APP_CACHE_DIR", NSCachesDirectory);
     int isolateResult = graal_create_isolate(nullptr, &state->isolate, &state->thread);
     if (isolateResult != 0 || state->thread == nullptr) {
         fprintf(stderr, "libJGLIOS_GRAAL_CREATE_ISOLATE_FAILED=%d\n", isolateResult);
