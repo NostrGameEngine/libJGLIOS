@@ -15,6 +15,7 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.bundleId = project.objects.property(String)
         extension.appName = project.objects.property(String)
         extension.minIosVersion = project.objects.property(String)
+        extension.supportsGameMode = project.objects.property(Boolean)
         extension.simulatorDevice = project.objects.property(String)
         extension.buildType = project.objects.property(String)
         extension.orientation = project.objects.property(String)
@@ -24,6 +25,7 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.assets = project.objects.fileCollection()
 
         extension.minIosVersion.convention(settingProvider(project, 'minIosVersion', '15.0'))
+        extension.supportsGameMode.convention(settingProvider(project, 'supportsGameMode', 'true').map { it.toBoolean() })
         extension.simulatorDevice.convention(settingProvider(project, 'simulatorDevice', 'iPhone 16'))
         extension.buildType.convention(settingProvider(project, 'buildType', 'release'))
         extension.orientation.convention(settingProvider(project, 'orientation', 'landscape'))

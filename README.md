@@ -51,6 +51,7 @@ iOS {
     // includeResourceExtensions 'foo', '.bar'
     // runtimeInitialize 'com.example.RuntimeState'
     // minIosVersion = '15.0'
+    // supportsGameMode = false
     // simulatorDevice = 'iPhone 16'
     // buildType = 'release'
     // orientation = 'landscape'
@@ -58,6 +59,8 @@ iOS {
 ```
 
 `mainClass`, `bundleId`, and `appName` are required.
+`supportsGameMode` is optional and defaults to `true`. Set it to `false` to
+opt out of iOS Game Mode. The plugin writes the app's `Info.plist` automatically.
 `appIcon` is optional. It accepts either a single PNG file, which the plugin
 converts into an iOS `AppIcon.appiconset`, or an existing `Assets.xcassets`
 directory containing an `AppIcon` asset catalog.
