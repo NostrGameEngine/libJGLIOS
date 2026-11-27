@@ -51,6 +51,7 @@ iOS {
     // includeResourceExtensions 'foo', '.bar'
     // runtimeInitialize 'com.example.RuntimeState'
     // minIosVersion = '15.0'
+    // supportsGameMode = true
     // simulatorDevice = 'iPhone 16'
     // buildType = 'release'
     // orientation = 'landscape'
@@ -58,6 +59,11 @@ iOS {
 ```
 
 `mainClass`, `bundleId`, and `appName` are required.
+`supportsGameMode` is optional. Set it to `true` to opt in to iOS Game Mode
+or `false` to opt out. If unset, the plugin omits the Game Mode keys. The same
+setting is available as `-Pios.supportsGameMode=true`. The plugin writes both
+the current and iOS 18 compatibility keys without changing `minIosVersion`;
+iOS determines availability and activation on the device.
 `appIcon` is optional. It accepts either a single PNG file, which the plugin
 converts into an iOS `AppIcon.appiconset`, or an existing `Assets.xcassets`
 directory containing an `AppIcon` asset catalog.

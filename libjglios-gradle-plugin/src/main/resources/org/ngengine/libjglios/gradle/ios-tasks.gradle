@@ -618,6 +618,10 @@ def libJGLIOSMainClass = {
 def libJGLIOSBundleId = { libJGLIOSRequiredSetting('bundleId') }
 def libJGLIOSAppName = { libJGLIOSRequiredSetting('appName') }
 def libJGLIOSMinIosVersion = { libJGLIOSSetting('minIosVersion', '15.0') }
+def libJGLIOSSupportsGameMode = providers.provider {
+    def value = libJGLIOSOptionalSetting('supportsGameMode')
+    value == null ? null : libJGLIOSBool(value, false)
+}
 def libJGLIOSSimulatorDevice = { libJGLIOSSetting('simulatorDevice', 'iPhone 16') }
 def libJGLIOSOrientation = {
     def orientation = libJGLIOSSetting('orientation', 'landscape')
@@ -1927,13 +1931,24 @@ def libJGLIOSPlistStringArray = { List<String> values ->
     }.join(System.lineSeparator())
 }
 
-def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String bundleId, String appName, String minIosVersion ->
+def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String bundleId, String appName,
+                              String minIosVersion, Boolean supportsGameMode ->
     outputFile.parentFile.mkdirs()
     def escapedExecutableName = libJGLIOSXmlEscape(executableName)
     def escapedBundleId = libJGLIOSXmlEscape(bundleId)
     def escapedAppName = libJGLIOSXmlEscape(appName)
     def escapedMinIosVersion = libJGLIOSXmlEscape(minIosVersion)
     def supportedOrientations = libJGLIOSPlistStringArray(libJGLIOSInterfaceOrientations())
+    def gameModeEntries = ''
+    if (supportsGameMode != null) {
+        def value = supportsGameMode ? '<true/>' : '<false/>'
+        // Current iOS uses LSSupportsGameMode; iOS 18 uses GCSupportsGameMode.
+        gameModeEntries = """    <key>LSSupportsGameMode</key>
+    ${value}
+    <key>GCSupportsGameMode</key>
+    ${value}
+"""
+    }
     outputFile.text = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -1960,7 +1975,7 @@ def libJGLIOSWriteInfoPlist = { File outputFile, String executableName, String b
     <string>${escapedMinIosVersion}</string>
     <key>GCSupportsControllerUserInteraction</key>
     <true/>
-    <key>UIApplicationSceneManifest</key>
+${gameModeEntries}    <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
         <false/>
@@ -1990,6 +2005,7 @@ tasks.register('generateLibJGLIOSSimulatorInfoPlist') {
     inputs.property('bundleId', providers.provider { libJGLIOSBundleId() })
     inputs.property('appName', providers.provider { libJGLIOSAppName() })
     inputs.property('minIosVersion', providers.provider { libJGLIOSMinIosVersion() })
+    inputs.property('supportsGameMode', libJGLIOSSupportsGameMode).optional(true)
     inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
         libJGLIOSWriteInfoPlist(
@@ -1997,7 +2013,8 @@ tasks.register('generateLibJGLIOSSimulatorInfoPlist') {
             libJGLIOSSimulatorExecutableName(),
             libJGLIOSBundleId(),
             libJGLIOSAppName(),
-            libJGLIOSMinIosVersion()
+            libJGLIOSMinIosVersion(),
+            libJGLIOSSupportsGameMode.orNull
         )
     }
 }
@@ -2010,6 +2027,7 @@ tasks.register('generateLibJGLIOSInfoPlist') {
     inputs.property('bundleId', providers.provider { libJGLIOSBundleId() })
     inputs.property('appName', providers.provider { libJGLIOSAppName() })
     inputs.property('minIosVersion', providers.provider { libJGLIOSMinIosVersion() })
+    inputs.property('supportsGameMode', libJGLIOSSupportsGameMode).optional(true)
     inputs.property('orientation', providers.provider { libJGLIOSOrientation() })
     doLast {
         libJGLIOSWriteInfoPlist(
@@ -2017,7 +2035,8 @@ tasks.register('generateLibJGLIOSInfoPlist') {
             libJGLIOSDeviceExecutableName(),
             libJGLIOSBundleId(),
             libJGLIOSAppName(),
-            libJGLIOSMinIosVersion()
+            libJGLIOSMinIosVersion(),
+            libJGLIOSSupportsGameMode.orNull
         )
     }
 }

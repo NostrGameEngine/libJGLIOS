@@ -10,6 +10,7 @@ class LibJGLIOSExtension {
     Property<String> bundleId
     Property<String> appName
     Property<String> minIosVersion
+    Property<Boolean> supportsGameMode
     Property<String> simulatorDevice
     Property<String> buildType
     Property<String> orientation

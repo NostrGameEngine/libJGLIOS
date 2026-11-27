@@ -15,6 +15,7 @@ class LibJGLIOSGradlePlugin implements Plugin<Project> {
         extension.bundleId = project.objects.property(String)
         extension.appName = project.objects.property(String)
         extension.minIosVersion = project.objects.property(String)
+        extension.supportsGameMode = project.objects.property(Boolean)
         extension.simulatorDevice = project.objects.property(String)
         extension.buildType = project.objects.property(String)
         extension.orientation = project.objects.property(String)
